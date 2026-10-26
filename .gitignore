@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.idea/
+
+# Tooling caches and build metadata
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Local knowledge-graph output from the graphify skill
+graphify-out/
+
+# Local Claude Code state
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
