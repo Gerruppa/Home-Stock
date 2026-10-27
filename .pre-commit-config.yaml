@@ -14,3 +14,10 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      # With no CI, the full suite runs here; a hung test fails with its stack trace.
+      - id: pytest
+        name: pytest
+        entry: .venv\\Scripts\\python.exe -m pytest -n auto -q --timeout=300
+        language: system
+        types: [python]
+        pass_filenames: false
