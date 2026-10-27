@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "home-stock",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["main.py", "--browser", "--port", "8765"],
+      "env": { "HOME_STOCK_DATA_DIR": ".preview-data" },
+      "port": 8765
+    }
+  ]
+}
