@@ -15,13 +15,16 @@ Work is tracked in GitHub Issues on Gerruppa/Home-Stock (label `ready-for-agent`
 Rules no config enforces:
 - `domain/` never imports NiceGUI, SQLAlchemy, Alembic or pywebview (`tests/test_architecture.py` checks).
 - The schema changes only through a new migration in `persistence/migrations/versions/`; `tests/test_database.py` fails when models and migrations drift. The database lives in the user's app-data folder (`HOME_STOCK_DATA_DIR` overrides it), never in the repo.
-- UI text is Polish; code, DB names and docs English. Errors for the user carry a Polish message (`StockError` in persistence, `ValueError` from domain drafts and parsers).
+- UI text is Polish; code, DB names and docs English. Errors for the user carry a Polish message; which layer raises which is in `CODING_STANDARDS.md`.
 - A change made through the UI calls `ctx.changed()` (redraws every tab, withdraws the undo bar) and then, if it can be undone, `ctx.undo(message, action)`.
 - Open a `ui.dialog` inside `ctx.overlay`, which outlives every tab's redraw.
 
 ## Testing the UI
 
+The test seams are fixed, no need to agree them per ticket: `persistence/` functions (`tests/test_<module>.py`) and each tab through `user_simulation` (`tests/test_<tab>_ui.py`).
+
 UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` markers; `tests/conftest.py` makes `should_see`/`should_not_see` wait up to 5 s. Gotchas:
+- All four tabs sit on the page at once: scope a text check with a marker or `user.scope(...)`, since another tab may show the same text (Ustawienia shows every Category name). Markers share one namespace across tabs, so give a tab's markers its own shape (Produkty's `category-<id>`, Ustawienia's `category-row-<id>`).
 - `user.find(...).elements` comes back in no page order: compare positions through `element.parent_slot.children`.
 - `should_see` reads text, labels and values, not props: show a form error as a `ui.label`, not as the `error-message` prop.
 - `user.find(...)` raises when nothing matches: check that an element is absent with `should_not_see(marker=...)`.
