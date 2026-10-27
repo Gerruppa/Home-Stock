@@ -72,13 +72,6 @@ async def test_invalid_input_shows_a_polish_error_and_saves_nothing(user: User, 
     assert list_products(engine) == []
 
 
-async def test_shell_opens_on_produkty(engine: Engine) -> None:
-    async with user_simulation(lambda: build_shell(engine)) as user:
-        await user.open("/")
-        [panels] = user.find(kind=ui.tab_panels).elements
-        assert panels.value == "products"
-
-
 async def test_duplicate_name_shows_a_polish_error(user: User, engine: Engine) -> None:
     add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE))
     user.find(marker="add-product").click()

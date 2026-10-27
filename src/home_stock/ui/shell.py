@@ -9,6 +9,7 @@ from sqlalchemy import Engine
 from home_stock.ui.context import Context
 from home_stock.ui.products import ProductsTab
 from home_stock.ui.shopping import ShoppingTab
+from home_stock.ui.start import StartTab
 
 APP_TITLE = "Home Stock"
 # How long the undo bar offers Cofnij
@@ -63,9 +64,9 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
         ui.tab("products", "Produkty").mark("tab-products")
         ui.tab("shopping", "Lista zakupów").mark("tab-shopping")
         ui.tab("settings", "Ustawienia").mark("tab-settings")
-    # Opens on Produkty while Start has no content yet (#7)
-    with ui.tab_panels(tabs, value="products").classes("w-full"):
-        ui.tab_panel("start")
+    with ui.tab_panels(tabs, value="start").classes("w-full"):
+        with ui.tab_panel("start"):
+            refreshers.append(StartTab(ctx).refresh)
         with ui.tab_panel("products"):
             refreshers.append(ProductsTab(ctx).refresh)
         with ui.tab_panel("shopping"):
