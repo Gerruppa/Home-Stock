@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -170,7 +169,6 @@ async def test_the_bar_disappears_on_its_own(engine: Engine, monkeypatch: pytest
         await _open_products(user)
         user.find(marker=f"use-{cukier}").click()
         await user.should_see("Zużyto 1 × Cukier")
-        await asyncio.sleep(0.3)
         await user.should_not_see("Zużyto 1 × Cukier")
 
 

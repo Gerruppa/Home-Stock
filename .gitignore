@@ -14,6 +14,9 @@ dist/
 # Local knowledge-graph output from the graphify skill
 graphify-out/
 
+# Scratch database of the preview (.claude/launch.json), never the user's real one
+.preview-data/
+
 # Local Claude Code state
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
