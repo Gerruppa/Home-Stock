@@ -16,3 +16,5 @@ class Context:
     overlay: ui.element
     # Redraws every tab after a change
     changed: Callable[[], None]
+    # Shows what was just done with "Cofnij" for a while; Cofnij runs the action given, then redraws every tab
+    undo: Callable[[str, Callable[[], None]], None]
