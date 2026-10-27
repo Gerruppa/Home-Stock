@@ -31,7 +31,7 @@ UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` marke
 - Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`.
 - Windows host. Use the venv interpreter directly, without relying on activation:
   - Run the app: `.venv/Scripts/python.exe main.py` (`--browser` serves on http://127.0.0.1:8080). To look at a change, start the preview `home-stock` from `.claude/launch.json` (port 8765, scratch database in `.preview-data/`).
-  - Tests: `.venv/Scripts/python.exe -m pytest -n auto`. CI (`.github/workflows/ci.yml`) runs them, mypy and ruff on every PR; pre-commit runs only ruff and mypy.
+  - Tests: `.venv/Scripts/python.exe -m pytest -n auto`. No CI: run them before every PR, as pre-commit runs only ruff and mypy.
   - Type check: `.venv/Scripts/python.exe -m mypy` (strict)
   - Lint and format: `.venv/Scripts/python.exe -m ruff check .` and `.venv/Scripts/python.exe -m ruff format .`
 - Write multi-line text (issue bodies, long files) with the Write tool; Bash heredocs break on some quotes.
