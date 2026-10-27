@@ -8,6 +8,7 @@ from sqlalchemy import Engine
 
 from home_stock.ui.context import Context
 from home_stock.ui.products import ProductsTab
+from home_stock.ui.settings import SettingsTab
 from home_stock.ui.shopping import ShoppingTab
 from home_stock.ui.start import StartTab
 
@@ -71,4 +72,5 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
             refreshers.append(ProductsTab(ctx).refresh)
         with ui.tab_panel("shopping"):
             refreshers.append(ShoppingTab(ctx).refresh)
-        ui.tab_panel("settings")
+        with ui.tab_panel("settings"):
+            refreshers.append(SettingsTab(ctx).refresh)

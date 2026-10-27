@@ -9,7 +9,7 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, list_products
+from home_stock.persistence.products import add_product, archive_product, list_products
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, CHEMIA = 1, 3
@@ -271,3 +271,20 @@ async def test_accepting_the_offer_without_a_first_quantity_adds_nothing(user: U
     assert form.value is False
     [product] = list_products(engine)
     assert (product.id, product.quantity) == (mleko, 3)
+
+
+async def test_adding_an_archived_name_offers_restoring_it(user: User, engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(3))
+    archive_product(engine, mleko)
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("mleko")
+    user.find(marker="save").click()
+
+    await user.should_see("Produkt o tej nazwie już istnieje.")
+    await user.should_not_see(marker="duplicate-add-batch")
+    user.find(marker="duplicate-restore").click()
+
+    with user.scope(marker=f"product-{mleko}"):
+        await user.should_see("3 szt.")
+    [product] = list_products(engine)
+    assert (product.id, product.name, product.quantity) == (mleko, "Mleko", 3)

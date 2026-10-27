@@ -10,12 +10,14 @@ from home_stock.persistence.db import init_db
 from home_stock.persistence.products import (
     DuplicateProductError,
     add_product,
+    archive_product,
     discard_batch,
     edit_batch,
     get_product,
     list_products,
     purchase,
     restore_batch,
+    restore_product,
     update_product,
     use_one,
 )
@@ -208,3 +210,30 @@ def test_a_batch_already_gone_cannot_be_edited_or_discarded(engine: Engine) -> N
         discard_batch(engine, batch.id)
     with pytest.raises(StockError, match="Tej partii już nie ma."):
         edit_batch(engine, batch.id, 3, None)
+
+
+def test_archiving_hides_a_product_and_restoring_brings_it_back_with_its_settings(engine: Engine) -> None:
+    mleko = add_product(
+        engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, minimum_stock=2), BatchDraft(3, date(2026, 11, 12))
+    )
+    original = get_product(engine, mleko)
+
+    archive_product(engine, mleko)
+
+    assert list_products(engine) == []
+    [archived] = list_products(engine, archived=True)
+    assert (archived.id, archived.archived) == (mleko, True)
+
+    restore_product(engine, mleko)
+
+    assert list_products(engine) == [original]
+    assert list_products(engine, archived=True) == []
+
+
+def test_an_archived_name_is_still_taken(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    archive_product(engine, mleko)
+
+    with pytest.raises(DuplicateProductError) as raised:
+        add_product(engine, ProductDraft("mleko", SPOZYWCZE, SZTUKA))
+    assert (raised.value.product_id, raised.value.archived) == (mleko, True)

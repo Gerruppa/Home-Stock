@@ -9,7 +9,14 @@ from nicegui import ui
 from home_stock.domain.formatting import format_date, format_pack_size, format_quantity, parse_count, parse_date
 from home_stock.domain.stock import Batch, Product
 from home_stock.persistence.catalog import StockError, list_categories, list_units
-from home_stock.persistence.products import discard_batch, edit_batch, get_product, restore_batch
+from home_stock.persistence.products import (
+    archive_product,
+    discard_batch,
+    edit_batch,
+    get_product,
+    restore_batch,
+    restore_product,
+)
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
 from home_stock.ui.product_form import open_product_form
@@ -55,6 +62,17 @@ def open_product_card(ctx: Context, product_id: int) -> None:
                 ui.button("Edytuj", icon="edit", on_click=lambda: open_product_form(card_ctx, product)).props(
                     "outline"
                 ).mark("card-edit")
+                ui.button("Archiwizuj", icon="inventory_2", on_click=lambda: archive()).props(
+                    "flat color=negative"
+                ).mark("card-archive")
+
+    def archive() -> None:
+        engine = ctx.engine
+        product = get_product(engine, product_id)
+        archive_product(engine, product_id)
+        dialog.close()
+        ctx.changed()
+        ctx.undo(f"Zarchiwizowano: {product.name}", lambda: restore_product(engine, product_id))
 
     draw()
     dialog.open()

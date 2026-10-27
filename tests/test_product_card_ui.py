@@ -225,3 +225,32 @@ async def test_renaming_to_a_name_that_exists_is_refused(engine: Engine, mleko: 
         await user.should_see("Produkt o tej nazwie już istnieje.")
         await user.should_not_see(marker="duplicate-add-batch")
     assert get_product(engine, kefir).name == "Kefir"
+
+
+async def test_archive_hides_the_product_from_every_tab_and_undo_brings_it_back(engine: Engine) -> None:
+    # Running Low and Expiring Soon, so it shows on Produkty, Start and Lista zakupów alike
+    mleko = add_product(
+        engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, minimum_stock=5), BatchDraft(2, date(2026, 10, 28))
+    )
+    async with user_simulation(lambda: build_shell(engine, today=lambda: date(2026, 10, 27))) as user:
+        await user.open("/")
+        with user.scope(marker="expiring"):
+            await user.should_see("Mleko")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{mleko}").click()
+        user.find(marker="card-archive").click()
+
+        await user.should_see("Zarchiwizowano: Mleko")
+        await user.should_not_see(marker=f"product-{mleko}")
+        await user.should_not_see(marker=f"shopping-{mleko}")
+        # With Mleko gone Start has nothing left to show
+        await user.should_see("Wszystko w porządku.")
+
+        user.find(marker="undo").click()
+
+        await user.should_see(marker=f"product-{mleko}")
+        await user.should_see(marker=f"shopping-{mleko}")
+        for section in ("expiring", "running-low"):
+            with user.scope(marker=section):
+                await user.should_see("Mleko")
+    assert get_product(engine, mleko).quantity == 2

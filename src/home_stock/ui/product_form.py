@@ -1,11 +1,19 @@
 """The dialog that adds a Product, optionally with its first Batch, or edits one."""
 
+from collections.abc import Callable
+
 from nicegui import ui
 
 from home_stock.domain.formatting import format_pack_size, parse_count, parse_pack_size
 from home_stock.domain.stock import BatchDraft, Product, ProductDraft
 from home_stock.persistence.catalog import StockError, list_categories, list_units
-from home_stock.persistence.products import DuplicateProductError, add_product, purchase, update_product
+from home_stock.persistence.products import (
+    DuplicateProductError,
+    add_product,
+    purchase,
+    restore_product,
+    update_product,
+)
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
 
@@ -18,7 +26,8 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
         ui.label("Nowy produkt" if product is None else "Edytuj produkt").classes("text-h6")
         name = ui.input("Nazwa", value="" if product is None else product.name).classes("w-full").mark("name")
         name_error = error_label()
-        # Shown when a new Product's name exists: offers the first Batch to the existing Product instead
+        # Shown when a new Product's name exists: offers the first Batch to the existing Product instead, or, when it
+        # is Archived, restoring it
         duplicate_offer = ui.row().classes("w-full")
         duplicate_offer.set_visibility(False)
         name.on_value_change(lambda: duplicate_offer.set_visibility(False))
@@ -87,8 +96,8 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
                     update_product(ctx.engine, product.id, draft)
             except DuplicateProductError as error:
                 show_error(name_error, str(error))
-                if product is None and not error.archived:
-                    offer_existing(error.product_id, first_batch)
+                if product is None:
+                    offer_existing(error, first_batch)
                 return
             except StockError as error:
                 show_error(name_error, str(error))
@@ -96,18 +105,29 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
             dialog.close()
             ctx.changed()
 
-        def offer_existing(product_id: int, first_batch: BatchDraft | None) -> None:
-            def add_to_existing() -> None:
-                if first_batch is not None:
-                    purchase(ctx.engine, product_id, first_batch)
+        def offer_existing(duplicate: DuplicateProductError, first_batch: BatchDraft | None) -> None:
+            def accept(action: Callable[[], None]) -> None:
+                action()
                 dialog.close()
                 ctx.changed()
 
+            def add_to_existing() -> None:
+                if first_batch is not None:
+                    purchase(ctx.engine, duplicate.product_id, first_batch)
+
+            def restore_existing() -> None:
+                restore_product(ctx.engine, duplicate.product_id)
+
             duplicate_offer.clear()
             with duplicate_offer:
-                ui.button("Dodaj partię do istniejącego", on_click=add_to_existing).props("outline").mark(
-                    "duplicate-add-batch"
-                )
+                if duplicate.archived:
+                    ui.button("Przywróć z archiwum", on_click=lambda: accept(restore_existing)).props("outline").mark(
+                        "duplicate-restore"
+                    )
+                else:
+                    ui.button("Dodaj partię do istniejącego", on_click=lambda: accept(add_to_existing)).props(
+                        "outline"
+                    ).mark("duplicate-add-batch")
             duplicate_offer.set_visibility(True)
 
         with ui.row().classes("w-full justify-end"):
