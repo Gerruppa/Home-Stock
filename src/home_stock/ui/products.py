@@ -8,6 +8,7 @@ from home_stock.domain.stock import Product, name_key
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.products import list_products, restore_batch, use_one
 from home_stock.ui.context import Context
+from home_stock.ui.product_card import open_product_card
 from home_stock.ui.product_form import open_product_form
 
 
@@ -43,7 +44,10 @@ class ProductsTab:
                     ui.label(category.name).classes("text-subtitle1 text-weight-medium")
                     for product in shown:
                         with ui.row().classes("w-full items-center").mark(f"product-{product.id}"):
-                            ui.label(product.name).classes("grow")
+                            name = ui.label(product.name).classes("grow cursor-pointer")
+                            name.on("click", lambda p=product: open_product_card(self.ctx, p.id)).mark(
+                                f"open-{product.id}"
+                            )
                             ui.label(format_quantity(product.quantity, units[product.unit_id], product.pack_size))
                             use = ui.button("−1", on_click=lambda p=product: self._use(p)).props("dense outline")
                             use.mark(f"use-{product.id}").set_enabled(product.quantity > 0)

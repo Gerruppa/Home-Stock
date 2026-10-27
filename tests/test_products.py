@@ -1,15 +1,20 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
 from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, ProductDraft
+from home_stock.persistence.catalog import StockError
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import (
     DuplicateProductError,
     add_product,
+    discard_batch,
+    edit_batch,
     get_product,
     list_products,
+    purchase,
     restore_batch,
     use_one,
 )
@@ -102,3 +107,77 @@ def test_restoring_never_overwrites_a_batch_that_reused_the_id(engine: Engine) -
 
     assert get_product(engine, maka).quantity == 5
     assert get_product(engine, cukier).quantity == 1
+
+
+def test_uses_take_the_nearest_expiry_first(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(3, date(2026, 11, 12)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+
+    use_one(engine, mleko)
+    second = use_one(engine, mleko)
+
+    assert second is not None and (second.quantity, second.expiry) == (1, date(2026, 10, 30))
+    [batch] = get_product(engine, mleko).batches
+    assert (batch.quantity, batch.expiry) == (3, date(2026, 11, 12))
+
+
+def test_purchase_adds_a_batch(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
+
+    purchase(engine, cukier, BatchDraft(2, date(2027, 3, 1)))
+
+    product = get_product(engine, cukier)
+    assert product.quantity == 3
+    assert date(2027, 3, 1) in [batch.expiry for batch in product.batches]
+
+
+def test_editing_a_batch_changes_its_quantity_and_expiry(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
+    [batch] = get_product(engine, mleko).batches
+
+    edit_batch(engine, batch.id, 4, None)
+
+    [edited] = get_product(engine, mleko).batches
+    assert (edited.id, edited.quantity, edited.expiry) == (batch.id, 4, None)
+
+
+def test_editing_a_batch_to_zero_removes_it_and_keeps_the_product(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
+    [batch] = get_product(engine, mleko).batches
+
+    edit_batch(engine, batch.id, 0, batch.expiry)
+
+    [product] = list_products(engine)
+    assert (product.name, product.quantity, product.batches) == ("Mleko", 0, ())
+
+
+def test_editing_a_batch_to_a_negative_quantity_is_refused(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
+    [batch] = get_product(engine, mleko).batches
+
+    with pytest.raises(StockError, match="Ilość nie może być ujemna."):
+        edit_batch(engine, batch.id, -1, None)
+    assert get_product(engine, mleko).quantity == 2
+
+
+def test_restoring_undoes_a_discard_exactly(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
+    purchase(engine, mleko, BatchDraft(3, date(2026, 11, 12)))
+    original = get_product(engine, mleko)
+
+    discarded = discard_batch(engine, original.batches[0].id)
+    assert get_product(engine, mleko).quantity == 3
+    restore_batch(engine, discarded)
+
+    assert get_product(engine, mleko) == original
+
+
+def test_a_batch_already_gone_cannot_be_edited_or_discarded(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
+    [batch] = get_product(engine, mleko).batches
+    discard_batch(engine, batch.id)
+
+    with pytest.raises(StockError, match="Tej partii już nie ma."):
+        discard_batch(engine, batch.id)
+    with pytest.raises(StockError, match="Tej partii już nie ma."):
+        edit_batch(engine, batch.id, 3, None)
