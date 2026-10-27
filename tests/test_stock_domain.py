@@ -1,0 +1,73 @@
+from datetime import date
+
+import pytest
+
+from home_stock.domain.stock import (
+    Batch,
+    BatchDraft,
+    ExpiryStatus,
+    Product,
+    ProductDraft,
+    batch_to_use,
+    expiry_status,
+    is_running_low,
+    name_key,
+    suggested_purchase,
+)
+
+
+def batch(batch_id: int, quantity: int, expiry: date | None = None) -> Batch:
+    return Batch(batch_id, 1, quantity, expiry)
+
+
+def product(batches: tuple[Batch, ...] = (), minimum_stock: int | None = None) -> Product:
+    return Product(1, "Mleko", 1, 1, None, minimum_stock, False, batches)
+
+
+def test_quantity_is_the_sum_of_batches() -> None:
+    assert product(batches=(batch(1, 2), batch(2, 3))).quantity == 5
+
+
+def test_running_low_at_or_below_minimum() -> None:
+    assert is_running_low(product(batches=(batch(1, 1),), minimum_stock=1))
+    assert not is_running_low(product(batches=(batch(1, 2),), minimum_stock=1))
+
+
+def test_no_minimum_stock_is_never_running_low() -> None:
+    assert not is_running_low(product(batches=(), minimum_stock=None))
+
+
+def test_expiry_status_boundaries() -> None:
+    today = date(2026, 10, 27)
+    assert expiry_status(batch(1, 1, date(2026, 10, 26)), today, 3) is ExpiryStatus.EXPIRED
+    assert expiry_status(batch(1, 1, date(2026, 10, 27)), today, 3) is ExpiryStatus.EXPIRING_SOON
+    assert expiry_status(batch(1, 1, date(2026, 10, 30)), today, 3) is ExpiryStatus.EXPIRING_SOON
+    assert expiry_status(batch(1, 1, date(2026, 10, 31)), today, 3) is ExpiryStatus.FRESH
+    assert expiry_status(batch(1, 1, None), today, 3) is None
+
+
+def test_batch_to_use_takes_nearest_expiry_then_undated() -> None:
+    undated, late, soon = batch(1, 1, None), batch(2, 1, date(2026, 11, 12)), batch(3, 1, date(2026, 10, 30))
+    assert batch_to_use([undated, late, soon]) == soon
+    assert batch_to_use([undated, batch(4, 1, None)]) == undated
+    assert batch_to_use([]) is None
+
+
+def test_suggested_purchase() -> None:
+    assert suggested_purchase(product(batches=(batch(1, 1),), minimum_stock=2)) == 2
+    assert suggested_purchase(product(batches=(batch(1, 5),), minimum_stock=2)) == 1
+    assert suggested_purchase(product(batches=(), minimum_stock=None)) == 1
+
+
+def test_name_key_ignores_case_and_spaces() -> None:
+    assert name_key("  Mleko   2% ") == name_key("mleko 2%") == "mleko 2%"
+
+
+def test_drafts_validate() -> None:
+    with pytest.raises(ValueError, match="Podaj nazwę produktu."):
+        ProductDraft("  ", 1, 1)
+    with pytest.raises(ValueError, match="ujemny"):
+        ProductDraft("Cukier", 1, 1, minimum_stock=-1)
+    with pytest.raises(ValueError, match="większą od zera"):
+        BatchDraft(0)
+    assert ProductDraft(" Cukier ", 1, 1).name == "Cukier"

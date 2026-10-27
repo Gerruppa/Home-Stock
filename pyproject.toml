@@ -43,6 +43,7 @@ version = { attr = "home_stock.__version__" }
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+markers = ["ui: drives the UI through NiceGUI's user_simulation"]
 
 [tool.mypy]
 files = ["src", "tests"]
