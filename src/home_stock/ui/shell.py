@@ -27,7 +27,8 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
         ui.tab("products", "Produkty").mark("tab-products")
         ui.tab("shopping", "Lista zakupów").mark("tab-shopping")
         ui.tab("settings", "Ustawienia").mark("tab-settings")
-    with ui.tab_panels(tabs, value="start").classes("w-full"):
+    # Opens on Produkty while Start has no content yet (#7)
+    with ui.tab_panels(tabs, value="products").classes("w-full"):
         ui.tab_panel("start")
         with ui.tab_panel("products"):
             refreshers.append(ProductsTab(ctx).refresh)

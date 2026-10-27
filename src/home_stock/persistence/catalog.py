@@ -6,6 +6,10 @@ from home_stock.domain.stock import Category, Unit
 from home_stock.persistence.models import CategoryRow, UnitRow
 
 
+class StockError(Exception):
+    """A change the user asked for that cannot be saved; the message is the Polish text to show them."""
+
+
 def list_categories(engine: Engine) -> list[Category]:
     """In the order they were created, so the seeded ones keep the spec's order."""
     with engine.connect() as connection:

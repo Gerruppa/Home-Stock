@@ -71,6 +71,37 @@ async def test_invalid_input_shows_a_polish_error_and_saves_nothing(user: User, 
     assert list_products(engine) == []
 
 
+async def test_shell_opens_on_produkty(engine: Engine) -> None:
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await user.open("/")
+        [panels] = user.find(kind=ui.tab_panels).elements
+        assert panels.value == "products"
+
+
+async def test_duplicate_name_shows_a_polish_error(user: User, engine: Engine) -> None:
+    add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE))
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("cukier")
+    user.find(marker="save").click()
+
+    await user.should_see("Produkt o tej nazwie już istnieje.")
+    assert len(list_products(engine)) == 1
+
+
+async def test_categories_keep_the_spec_order(engine: Engine) -> None:
+    add_product(engine, ProductDraft("Płyn do naczyń", CHEMIA, SZTUKA))
+    add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await user.open("/")
+        # The order on the page is the order in the element tree; ElementFilter makes no promise about its own
+        [spozywcze] = user.find(marker=f"category-{SPOZYWCZE}").elements
+        [chemia] = user.find(marker=f"category-{CHEMIA}").elements
+        assert spozywcze.parent_slot is chemia.parent_slot
+        siblings = spozywcze.parent_slot.children  # type: ignore[union-attr]
+        assert siblings.index(spozywcze) < siblings.index(chemia)
+
+
 async def test_search_filters_ignoring_case_and_hides_empty_categories(engine: Engine) -> None:
     add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
     add_product(engine, ProductDraft("Płyn do naczyń", CHEMIA, SZTUKA))

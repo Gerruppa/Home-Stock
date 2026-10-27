@@ -4,7 +4,7 @@ from nicegui import ui
 
 from home_stock.domain.formatting import parse_count
 from home_stock.domain.stock import BatchDraft, ProductDraft
-from home_stock.persistence.catalog import list_categories, list_units
+from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.products import add_product
 from home_stock.ui.context import Context
 
@@ -34,7 +34,7 @@ def open_product_form(ctx: Context) -> None:
             label.set_visibility(message is not None)
 
         def save() -> None:
-            draft = quantity = None
+            draft = first_batch = None
             try:
                 draft = ProductDraft(name.value, category.value, unit.value)
                 show(name_error, None)
@@ -42,14 +42,19 @@ def open_product_form(ctx: Context) -> None:
                 show(name_error, str(error))
             try:
                 count = parse_count(first_quantity.value, allow_blank=True)
-                quantity = None if not count else BatchDraft(count)
+                # A first Quantity of 0 means no first Batch, as Batches are never empty
+                first_batch = None if not count else BatchDraft(count)
                 show(quantity_error, None)
             except ValueError as error:
                 show(quantity_error, str(error))
                 return
             if draft is None:
                 return
-            add_product(ctx.engine, draft, quantity)
+            try:
+                add_product(ctx.engine, draft, first_batch)
+            except StockError as error:
+                show(name_error, str(error))
+                return
             dialog.close()
             ctx.changed()
 

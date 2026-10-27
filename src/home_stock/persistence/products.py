@@ -3,13 +3,28 @@
 from sqlalchemy import Engine, insert, select
 
 from home_stock.domain.stock import Batch, BatchDraft, PackSize, Product, ProductDraft, name_key, use_order
+from home_stock.persistence.catalog import StockError
 from home_stock.persistence.models import BatchRow, ProductRow
+
+
+class DuplicateProductError(StockError):
+    """A Product (active or Archived) already has the name, compared by name_key."""
+
+    def __init__(self, product_id: int, archived: bool) -> None:
+        super().__init__("Produkt o tej nazwie już istnieje.")
+        self.product_id = product_id
+        self.archived = archived
 
 
 def add_product(engine: Engine, draft: ProductDraft, first_batch: BatchDraft | None = None) -> int:
     """Save a new Product, with its first Batch if given; returns its id."""
     pack = draft.pack_size
     with engine.begin() as connection:
+        existing = connection.execute(
+            select(ProductRow.id, ProductRow.archived).where(ProductRow.name_key == name_key(draft.name))
+        ).first()
+        if existing is not None:
+            raise DuplicateProductError(existing.id, existing.archived)
         product_id: int = connection.execute(
             insert(ProductRow)
             .values(

@@ -35,7 +35,7 @@ class ProductsTab:
                 ui.label("Nie masz jeszcze produktów.")
                 return
             wanted = name_key(self.search)
-            for category in sorted(list_categories(engine), key=lambda c: name_key(c.name)):
+            for category in list_categories(engine):
                 shown = [p for p in products if p.category_id == category.id and wanted in name_key(p.name)]
                 if not shown:
                     continue
