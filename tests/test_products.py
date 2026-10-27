@@ -16,6 +16,7 @@ from home_stock.persistence.products import (
     list_products,
     purchase,
     restore_batch,
+    update_product,
     use_one,
 )
 
@@ -50,6 +51,32 @@ def test_a_name_that_exists_ignoring_case_and_spaces_is_refused(engine: Engine) 
         add_product(engine, ProductDraft("  CUKIER ", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
     [cukier] = list_products(engine)
     assert cukier.quantity == 0
+
+
+def test_duplicate_reports_the_existing_product(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+
+    with pytest.raises(DuplicateProductError) as raised:
+        add_product(engine, ProductDraft(" mleko ", SPOZYWCZE, SZTUKA))
+    assert (raised.value.product_id, raised.value.archived) == (mleko, False)
+
+
+def test_editing_a_product_saves_its_fields_and_its_own_name_is_no_duplicate(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
+
+    update_product(engine, mleko, ProductDraft("mleko", SPOZYWCZE, OPAKOWANIE, minimum_stock=5))
+
+    [product] = list_products(engine)
+    assert (product.name, product.unit_id, product.minimum_stock, product.quantity) == ("mleko", OPAKOWANIE, 5, 2)
+
+
+def test_renaming_to_a_name_that_exists_is_refused(engine: Engine) -> None:
+    add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    kefir = add_product(engine, ProductDraft("Kefir", SPOZYWCZE, SZTUKA))
+
+    with pytest.raises(DuplicateProductError, match="Produkt o tej nazwie już istnieje."):
+        update_product(engine, kefir, ProductDraft("MLEKO", SPOZYWCZE, SZTUKA))
+    assert get_product(engine, kefir).name == "Kefir"
 
 
 def test_products_are_listed_by_name(engine: Engine) -> None:

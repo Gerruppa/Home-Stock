@@ -227,3 +227,47 @@ async def test_bad_pack_size_or_minimum_stock_shows_polish_errors_and_saves_noth
 
     await user.should_see("Podaj rozmiar opakowania")
     assert list_products(engine) == []
+
+
+async def test_adding_an_existing_name_offers_its_first_batch_to_the_existing_product(
+    user: User, engine: Engine
+) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(3))
+    user.find(marker="add-product").click()
+    user.find(marker="name").type(" mleko ")
+    user.find(marker="first-quantity").type("2")
+    user.find(marker="save").click()
+
+    await user.should_see("Produkt o tej nazwie już istnieje.")
+    user.find(marker="duplicate-add-batch").click()
+
+    with user.scope(marker=f"product-{mleko}"):
+        await user.should_see("5 szt.")
+    [product] = list_products(engine)
+    assert (product.id, product.quantity) == (mleko, 5)
+
+
+async def test_changing_the_name_withdraws_the_offer(user: User, engine: Engine) -> None:
+    add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("Mleko")
+    user.find(marker="save").click()
+    await user.should_see(marker="duplicate-add-batch")
+
+    user.find(marker="name").type(" 2%")
+
+    await user.should_not_see(marker="duplicate-add-batch")
+
+
+async def test_accepting_the_offer_without_a_first_quantity_adds_nothing(user: User, engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(3))
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("MLEKO")
+    user.find(marker="save").click()
+    user.find(marker="duplicate-add-batch").click()
+
+    # A closed dialog stays in the element tree, so look at whether it is open rather than at its button
+    [form] = user.find(kind=ui.dialog).elements
+    assert form.value is False
+    [product] = list_products(engine)
+    assert (product.id, product.quantity) == (mleko, 3)
