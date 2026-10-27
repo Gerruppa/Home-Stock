@@ -56,3 +56,12 @@ def test_format_quantity() -> None:
     assert format_quantity(2, opak, PackSize(Decimal("1"), "kg")) == "2 opak. (2 kg)"
     assert format_quantity(3, but, PackSize(Decimal("0.5"), "l")) == "3 but. (1,5 l)"
     assert format_quantity(4, opak, None) == "4 opak."
+
+
+def test_a_cleared_field_reads_as_blank() -> None:
+    # NiceGUI gives a cleared input the value None
+    assert parse_date(None) is None
+    assert parse_count(None, allow_blank=True) is None
+    assert parse_pack_size(None) is None
+    with pytest.raises(ValueError, match="liczbę całkowitą"):
+        parse_count(None)

@@ -34,14 +34,13 @@ def open_product_form(ctx: Context) -> None:
             draft = first_batch = size = minimum = None
             valid = True
             try:
-                # A cleared field holds None
-                size = parse_pack_size(pack_size.value or "")
+                size = parse_pack_size(pack_size.value)
                 show_error(pack_size_error, None)
             except ValueError as error:
                 show_error(pack_size_error, str(error))
                 valid = False
             try:
-                minimum = parse_count(minimum_stock.value or "", allow_blank=True)
+                minimum = parse_count(minimum_stock.value, allow_blank=True)
                 show_error(minimum_stock_error, None)
             except ValueError as error:
                 show_error(minimum_stock_error, str(error))
@@ -52,7 +51,7 @@ def open_product_form(ctx: Context) -> None:
             except ValueError as error:
                 show_error(name_error, str(error))
             try:
-                count = parse_count(first_quantity.value or "", allow_blank=True)
+                count = parse_count(first_quantity.value, allow_blank=True)
                 # A first Quantity of 0 means no first Batch, as Batches are never empty
                 first_batch = None if not count else BatchDraft(count)
                 show_error(quantity_error, None)

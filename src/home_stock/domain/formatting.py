@@ -14,13 +14,18 @@ _DATE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
 _PACK_SIZE = re.compile(r"(\d+(?:[.,]\d+)?)\s*([a-z]+)")
 
 
+def _field_text(text: str | None) -> str:
+    """A field's text, stripped; a cleared field holds None, which reads as blank."""
+    return (text or "").strip()
+
+
 def format_date(value: date) -> str:
     return value.strftime("%d.%m.%Y")
 
 
-def parse_date(text: str) -> date | None:
+def parse_date(text: str | None) -> date | None:
     """A date typed as D.M.RRRR (leading zeros optional); None for a blank field."""
-    text = text.strip()
+    text = _field_text(text)
     if not text:
         return None
     match = _DATE.fullmatch(text)
@@ -33,9 +38,9 @@ def parse_date(text: str) -> date | None:
         raise ValueError(DATE_ERROR) from None
 
 
-def parse_count(text: str, *, allow_blank: bool = False) -> int | None:
+def parse_count(text: str | None, *, allow_blank: bool = False) -> int | None:
     """A whole number of Units, zero allowed; None for a blank field when ``allow_blank``."""
-    text = text.strip()
+    text = _field_text(text)
     if not text and allow_blank:
         return None
     if not text.isdigit():
@@ -43,9 +48,9 @@ def parse_count(text: str, *, allow_blank: bool = False) -> int | None:
     return int(text)
 
 
-def parse_pack_size(text: str) -> PackSize | None:
+def parse_pack_size(text: str | None) -> PackSize | None:
     """ "1 kg", "0,5 l", "500g": an amount above zero and one of MEASURES; None for a blank field."""
-    text = text.strip().lower()
+    text = _field_text(text).lower()
     if not text:
         return None
     match = _PACK_SIZE.fullmatch(text)
