@@ -1,19 +1,36 @@
-"""App entry point: `--browser` serves on http://127.0.0.1:8080, otherwise a native window opens."""
+"""App entry point: the database in the user's app-data folder, migrated, and the shell on it in a native window
+(``--browser`` serves it on http://127.0.0.1:8080 instead)."""
 
 import argparse
+import sys
+from collections.abc import Sequence
+from typing import Any
 
 from nicegui import ui
 
-from home_stock import __version__
+from home_stock.persistence.db import init_db
+from home_stock.persistence.paths import database_path
+from home_stock.ui.shell import APP_TITLE, build_shell
 
 
-@ui.page("/")
-def index() -> None:
-    ui.label(f"Home Stock {__version__}")
+def parse_args(argv: Sequence[str]) -> argparse.Namespace:
+    # No abbreviations: under the tests sys.argv holds pytest's own options
+    parser = argparse.ArgumentParser(prog="home-stock", allow_abbrev=False)
+    parser.add_argument("--browser", action="store_true", help="UI w przeglądarce (localhost) zamiast okna")
+    parser.add_argument("--port", type=int, default=8080)
+    # parse_known_args: a frozen exe may get arguments of its own (multiprocessing)
+    return parser.parse_known_args(argv)[0]
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="home-stock")
-    parser.add_argument("--browser", action="store_true", help="serve in the browser instead of a native window")
-    args = parser.parse_args()
-    ui.run(title="Home Stock", native=not args.browser, reload=False, host="127.0.0.1", port=8080)
+def run_options(args: argparse.Namespace) -> dict[str, Any]:
+    """window_size alone switches NiceGUI to native mode, so the browser mode leaves it out; the native window finds a
+    free port itself, the browser mode opens no tab (the URL is in the console) and listens on this computer only."""
+    if args.browser:
+        return {"host": "127.0.0.1", "port": args.port, "show": False}
+    return {"native": True, "window_size": (1200, 800)}
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    engine = init_db(database_path())
+    ui.run(lambda: build_shell(engine), title=APP_TITLE, reload=False, language="pl", **run_options(args))
