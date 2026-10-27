@@ -1,0 +1,40 @@
+"""Lista zakupów: every Product Running Low under its Category, each bought through the Purchase dialog."""
+
+from nicegui import ui
+
+from home_stock.domain.formatting import format_quantity
+from home_stock.domain.stock import is_running_low
+from home_stock.persistence.catalog import list_categories, list_units
+from home_stock.persistence.products import list_products
+from home_stock.ui.context import Context
+from home_stock.ui.purchase_dialog import open_purchase_dialog
+
+
+class ShoppingTab:
+    def __init__(self, ctx: Context) -> None:
+        self.ctx = ctx
+        self.content = ui.column().classes("w-full")
+        self.refresh()
+
+    def refresh(self) -> None:
+        engine = self.ctx.engine
+        products = [p for p in list_products(engine) if is_running_low(p)]
+        units = {unit.id: unit for unit in list_units(engine)}
+        self.content.clear()
+        with self.content:
+            if not products:
+                ui.label("Nic nie trzeba kupować.")
+                return
+            for category in list_categories(engine):
+                shown = [p for p in products if p.category_id == category.id]
+                if not shown:
+                    continue
+                with ui.column().classes("w-full gap-1").mark(f"shopping-category-{category.id}"):
+                    ui.label(category.name).classes("text-subtitle1 text-weight-medium")
+                    for product in shown:
+                        with ui.row().classes("w-full items-center").mark(f"shopping-{product.id}"):
+                            ui.label(product.name).classes("grow")
+                            ui.label(format_quantity(product.quantity, units[product.unit_id], product.pack_size))
+                            ui.button(
+                                "Kupione", icon="check", on_click=lambda p=product: open_purchase_dialog(self.ctx, p)
+                            ).props("dense outline").mark(f"bought-{product.id}")

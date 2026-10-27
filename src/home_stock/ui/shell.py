@@ -8,6 +8,7 @@ from sqlalchemy import Engine
 
 from home_stock.ui.context import Context
 from home_stock.ui.products import ProductsTab
+from home_stock.ui.shopping import ShoppingTab
 
 APP_TITLE = "Home Stock"
 # How long the undo bar offers Cofnij
@@ -67,5 +68,6 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
         ui.tab_panel("start")
         with ui.tab_panel("products"):
             refreshers.append(ProductsTab(ctx).refresh)
-        ui.tab_panel("shopping")
+        with ui.tab_panel("shopping"):
+            refreshers.append(ShoppingTab(ctx).refresh)
         ui.tab_panel("settings")
