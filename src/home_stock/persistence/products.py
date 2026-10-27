@@ -55,6 +55,23 @@ def update_product(engine: Engine, product_id: int, draft: ProductDraft) -> None
         connection.execute(update(ProductRow).where(ProductRow.id == product_id).values(**_product_values(draft)))
 
 
+def archive_product(engine: Engine, product_id: int) -> None:
+    """Hide the Product with its Batches from every list; its name stays taken (docs/spec.md)."""
+    _set_archived(engine, product_id, True)
+
+
+def restore_product(engine: Engine, product_id: int) -> None:
+    """Bring an Archived Product back with its Batches and settings: Przywróć, and the undo of an Archive.
+
+    No name check: an Archived Product keeps its name, so no active Product can have taken it meanwhile."""
+    _set_archived(engine, product_id, False)
+
+
+def _set_archived(engine: Engine, product_id: int, archived: bool) -> None:
+    with engine.begin() as connection:
+        connection.execute(update(ProductRow).where(ProductRow.id == product_id).values(archived=archived))
+
+
 def _refuse_duplicate(connection: Connection, name: str, *, other_than: int | None = None) -> None:
     query = select(ProductRow.id, ProductRow.archived).where(ProductRow.name_key == name_key(name))
     if other_than is not None:
