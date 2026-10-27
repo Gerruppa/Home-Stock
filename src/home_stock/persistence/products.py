@@ -36,32 +36,45 @@ class MissingBatchError(StockError):
 
 def add_product(engine: Engine, draft: ProductDraft, first_batch: BatchDraft | None = None) -> int:
     """Save a new Product, with its first Batch if given; returns its id."""
-    pack = draft.pack_size
     with engine.begin() as connection:
-        existing = connection.execute(
-            select(ProductRow.id, ProductRow.archived).where(ProductRow.name_key == name_key(draft.name))
-        ).first()
-        if existing is not None:
-            raise DuplicateProductError(existing.id, existing.archived)
+        _refuse_duplicate(connection, draft.name)
         product_id: int = connection.execute(
-            insert(ProductRow)
-            .values(
-                name=draft.name,
-                name_key=name_key(draft.name),
-                category_id=draft.category_id,
-                unit_id=draft.unit_id,
-                pack_amount=None if pack is None else pack.amount,
-                pack_measure=None if pack is None else pack.measure,
-                minimum_stock=draft.minimum_stock,
-                archived=False,
-            )
-            .returning(ProductRow.id)
+            insert(ProductRow).values(**_product_values(draft), archived=False).returning(ProductRow.id)
         ).scalar_one()
         if first_batch is not None:
             connection.execute(
                 insert(BatchRow).values(product_id=product_id, quantity=first_batch.quantity, expiry=first_batch.expiry)
             )
     return product_id
+
+
+def update_product(engine: Engine, product_id: int, draft: ProductDraft) -> None:
+    """Save the Product's fields from ``draft``; its Batches stay. Keeping its own name is no duplicate."""
+    with engine.begin() as connection:
+        _refuse_duplicate(connection, draft.name, other_than=product_id)
+        connection.execute(update(ProductRow).where(ProductRow.id == product_id).values(**_product_values(draft)))
+
+
+def _refuse_duplicate(connection: Connection, name: str, *, other_than: int | None = None) -> None:
+    query = select(ProductRow.id, ProductRow.archived).where(ProductRow.name_key == name_key(name))
+    if other_than is not None:
+        query = query.where(ProductRow.id != other_than)
+    existing = connection.execute(query).first()
+    if existing is not None:
+        raise DuplicateProductError(existing.id, existing.archived)
+
+
+def _product_values(draft: ProductDraft) -> dict[str, object]:
+    pack = draft.pack_size
+    return {
+        "name": draft.name,
+        "name_key": name_key(draft.name),
+        "category_id": draft.category_id,
+        "unit_id": draft.unit_id,
+        "pack_amount": None if pack is None else pack.amount,
+        "pack_measure": None if pack is None else pack.measure,
+        "minimum_stock": draft.minimum_stock,
+    }
 
 
 def list_products(engine: Engine, *, archived: bool = False) -> list[Product]:

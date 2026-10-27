@@ -1,16 +1,18 @@
-"""The Product card: its Category, Unit and Batches, each Batch editable or Discarded, and Purchases."""
+"""The Product card: its fields, editable through the Product form, its Batches, each editable or Discarded, and
+Purchases."""
 
 from collections.abc import Callable
 from dataclasses import replace
 
 from nicegui import ui
 
-from home_stock.domain.formatting import format_date, format_quantity, parse_count, parse_date
+from home_stock.domain.formatting import format_date, format_pack_size, format_quantity, parse_count, parse_date
 from home_stock.domain.stock import Batch, Product
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.products import discard_batch, edit_batch, get_product, restore_batch
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
+from home_stock.ui.product_form import open_product_form
 from home_stock.ui.purchase_dialog import open_purchase_dialog
 
 
@@ -36,15 +38,23 @@ def open_product_card(ctx: Context, product_id: int) -> None:
             ui.label(product.name).classes("text-h6")
             ui.label(f"Kategoria: {category.name}")
             ui.label(f"Jednostka: {unit.name}")
+            if product.pack_size is not None:
+                ui.label(f"Rozmiar opakowania: {format_pack_size(product.pack_size)}")
+            minimum = "brak" if product.minimum_stock is None else str(product.minimum_stock)
+            ui.label(f"Stan minimalny: {minimum}")
             ui.label(f"Razem: {format_quantity(product.quantity, unit, product.pack_size)}")
             ui.label("Partie").classes("text-subtitle1 text-weight-medium")
             if not product.batches:
                 ui.label("Brak partii.")
             for batch in product.batches:
                 _batch_row(card_ctx, product, batch, draw)
-            ui.button("Dodaj partię", icon="add", on_click=lambda: open_purchase_dialog(card_ctx, product)).mark(
-                "card-purchase"
-            )
+            with ui.row():
+                ui.button("Dodaj partię", icon="add", on_click=lambda: open_purchase_dialog(card_ctx, product)).mark(
+                    "card-purchase"
+                )
+                ui.button("Edytuj", icon="edit", on_click=lambda: open_product_form(card_ctx, product)).props(
+                    "outline"
+                ).mark("card-edit")
 
     draw()
     dialog.open()

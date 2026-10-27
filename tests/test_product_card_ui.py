@@ -1,18 +1,21 @@
 from collections.abc import AsyncIterator
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from nicegui import ui
 from nicegui.testing import User, user_simulation
 from sqlalchemy import Engine
 
-from home_stock.domain.stock import BatchDraft, ProductDraft
+from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import add_product, get_product, list_products, purchase
 from home_stock.ui.shell import build_shell
 
-SPOZYWCZE = 1
+SPOZYWCZE, CHEMIA = 1, 3
 SZTUKA, OPAKOWANIE = 1, 2
+FORM_FIELDS = ("name", "category", "unit", "pack-size", "minimum-stock")
 
 
 @pytest.fixture
@@ -168,3 +171,57 @@ async def test_two_uses_leave_the_later_batch(user: User, engine: Engine, mleko:
     with user.scope(marker="product-card"):
         await user.should_see("12.11.2026")
         await user.should_not_see("30.10.2026")
+
+
+async def test_edit_from_the_card_saves_minimum_stock_under_the_same_name(
+    user: User, engine: Engine, mleko: int
+) -> None:
+    user.find(marker=f"open-{mleko}").click()
+    user.find(marker="card-edit").click()
+
+    [name] = user.find(marker="name", kind=ui.input).elements
+    assert name.value == "Mleko"
+    _fill(user, "minimum-stock", "5")
+    user.find(marker="save").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_see("Stan minimalny: 5")
+    [product] = list_products(engine)
+    assert (product.id, product.name, product.minimum_stock, product.quantity) == (mleko, "Mleko", 5, 5)
+
+
+async def test_the_edit_form_is_filled_in_with_the_product(engine: Engine) -> None:
+    cukier = add_product(
+        engine, ProductDraft("Cukier", CHEMIA, OPAKOWANIE, PackSize(Decimal("0.5"), "kg"), None), BatchDraft(1)
+    )
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{cukier}").click()
+        user.find(marker="card-edit").click()
+
+        fields = {marker: user.find(marker=marker).elements.pop() for marker in FORM_FIELDS}
+        assert {marker: field.value for marker, field in fields.items()} == {  # type: ignore[attr-defined]
+            "name": "Cukier",
+            "category": CHEMIA,
+            "unit": OPAKOWANIE,
+            "pack-size": "0,5 kg",
+            "minimum-stock": "",
+        }
+        await user.should_not_see(marker="first-quantity")
+
+
+async def test_renaming_to_a_name_that_exists_is_refused(engine: Engine, mleko: int) -> None:
+    kefir = add_product(engine, ProductDraft("Kefir", SPOZYWCZE, SZTUKA))
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{kefir}").click()
+        user.find(marker="card-edit").click()
+
+        _fill(user, "name", "MLEKO")
+        user.find(marker="save").click()
+
+        await user.should_see("Produkt o tej nazwie już istnieje.")
+        await user.should_not_see(marker="duplicate-add-batch")
+    assert get_product(engine, kefir).name == "Kefir"
