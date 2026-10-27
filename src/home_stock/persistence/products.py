@@ -1,5 +1,7 @@
 """Products and their Batches."""
 
+from datetime import date
+
 from sqlalchemy import ColumnElement, Connection, Engine, delete, insert, select, update
 
 from home_stock.domain.stock import (
@@ -23,6 +25,13 @@ class DuplicateProductError(StockError):
         super().__init__("Produkt o tej nazwie już istnieje.")
         self.product_id = product_id
         self.archived = archived
+
+
+class MissingBatchError(StockError):
+    """The Batch was removed meanwhile, e.g. by a Use or a second click on Wyrzuć."""
+
+    def __init__(self) -> None:
+        super().__init__("Tej partii już nie ma.")
 
 
 def add_product(engine: Engine, draft: ProductDraft, first_batch: BatchDraft | None = None) -> int:
@@ -68,6 +77,41 @@ def get_product(engine: Engine, product_id: int) -> Product:
         return product
 
 
+def purchase(engine: Engine, product_id: int, draft: BatchDraft) -> int:
+    """Add a new Batch to the Product; returns its id."""
+    with engine.begin() as connection:
+        batch_id: int = connection.execute(
+            insert(BatchRow)
+            .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
+            .returning(BatchRow.id)
+        ).scalar_one()
+    return batch_id
+
+
+def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None) -> None:
+    """Set a Batch's Quantity and Expiry Date by hand; a Quantity of 0 removes the Batch, the Product stays."""
+    if quantity < 0:
+        raise StockError("Ilość nie może być ujemna.")
+    if quantity == 0:
+        discard_batch(engine, batch_id)
+        return
+    with engine.begin() as connection:
+        result = connection.execute(
+            update(BatchRow).where(BatchRow.id == batch_id).values(quantity=quantity, expiry=expiry)
+        )
+        if result.rowcount == 0:
+            raise MissingBatchError()
+
+
+def discard_batch(engine: Engine, batch_id: int) -> Batch:
+    """Remove a whole Batch; returns it as it was, for restore_batch to undo the Discard."""
+    with engine.begin() as connection:
+        row = connection.execute(delete(BatchRow).where(BatchRow.id == batch_id).returning(BatchRow)).first()
+        if row is None:
+            raise MissingBatchError()
+        return Batch(row.id, row.product_id, row.quantity, row.expiry)
+
+
 def use_one(engine: Engine, product_id: int) -> Batch | None:
     """Take one Unit off the Batch a Use takes; a Batch that reaches 0 goes. Returns that Batch as it was before,
     for restore_batch to undo the Use, or None when the Product has no Units."""
@@ -84,7 +128,7 @@ def use_one(engine: Engine, product_id: int) -> Batch | None:
 
 
 def restore_batch(engine: Engine, batch: Batch) -> None:
-    """Put ``batch`` back as given, whether it still exists or was removed: the undo of a Use.
+    """Put ``batch`` back as given, whether it still exists or was removed: the undo of a Use or a Discard.
 
     SQLite gives a new Batch the id of one just removed, so a row that now holds the id for another Product is left
     alone and the Batch comes back under a new id."""
