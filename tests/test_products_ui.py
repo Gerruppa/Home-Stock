@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -6,7 +7,7 @@ from nicegui import ui
 from nicegui.testing import User, user_simulation
 from sqlalchemy import Engine
 
-from home_stock.domain.stock import BatchDraft, ProductDraft
+from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import add_product, list_products
 from home_stock.ui.shell import build_shell
@@ -185,3 +186,51 @@ async def test_another_change_hides_the_bar(engine: Engine) -> None:
         user.find(marker="save").click()
 
         await user.should_not_see("Zużyto 1 × Cukier")
+
+
+async def test_user_adds_a_product_with_a_pack_size_and_minimum_stock(user: User, engine: Engine) -> None:
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("Cukier")
+    _choose(user, "unit", "opakowanie")
+    user.find(marker="pack-size").type("1 kg")
+    user.find(marker="minimum-stock").clear().type("2")
+    user.find(marker="first-quantity").type("2")
+    user.find(marker="save").click()
+
+    [cukier] = list_products(engine)
+    assert cukier.pack_size == PackSize(Decimal("1"), "kg")
+    assert cukier.minimum_stock == 2
+    with user.scope(marker=f"product-{cukier.id}"):
+        await user.should_see("2 opak. (2 kg)")
+
+
+async def test_minimum_stock_is_prefilled_with_one_and_clearing_it_saves_none(user: User, engine: Engine) -> None:
+    user.find(marker="add-product").click()
+    [minimum] = user.find(marker="minimum-stock", kind=ui.input).elements
+    assert minimum.value == "1"
+    user.find(marker="name").type("Pieprz")
+    user.find(marker="minimum-stock").clear()
+    user.find(marker="save").click()
+
+    await user.should_see("Pieprz")
+    [pieprz] = list_products(engine)
+    assert pieprz.minimum_stock is None
+
+
+async def test_bad_pack_size_or_minimum_stock_shows_polish_errors_and_saves_nothing(user: User, engine: Engine) -> None:
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("Cukier")
+    user.find(marker="pack-size").type("1 szklanka")
+    user.find(marker="minimum-stock").clear().type("1,5")
+    user.find(marker="save").click()
+
+    await user.should_see("Podaj rozmiar opakowania")
+    await user.should_see("Podaj liczbę całkowitą")
+    assert list_products(engine) == []
+
+    user.find(marker="pack-size").clear().type("0 kg")
+    user.find(marker="minimum-stock").clear().type("1")
+    user.find(marker="save").click()
+
+    await user.should_see("Podaj rozmiar opakowania")
+    assert list_products(engine) == []
