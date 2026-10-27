@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Home Stock is a new app (version `0.1.0`, `home_stock.__version__`), modelled on the sibling app KAPITA (`D:\PythonProject\FinancialApp`). So far there is only the skeleton; its purpose and spec are still to be written in `docs/spec.md`. The default branch is `main`; work goes on a feature branch and a PR.
+Home Stock is a new app (version `0.1.0`, `home_stock.__version__`), modelled on the sibling app KAPITA (`D:\PythonProject\FinancialApp`). It tracks household stock by hand and reminds the user what is running low or about to expire. So far there is only the skeleton; the agreed spec is `docs/spec.md`, the glossary `GLOSSARY.md` and key decisions are in `docs/adr/`. The default branch is `main`; work goes on a feature branch and a PR.
 
 ## Layout
 
