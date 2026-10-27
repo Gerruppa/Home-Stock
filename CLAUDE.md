@@ -24,6 +24,7 @@ Rules no config enforces:
 UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` markers; `tests/conftest.py` makes `should_see`/`should_not_see` wait up to 5 s. Gotchas:
 - `user.find(...).elements` comes back in no page order: compare positions through `element.parent_slot.children`.
 - `should_see` reads text, labels and values, not props: show a form error as a `ui.label`, not as the `error-message` prop.
+- `user.find(...)` raises when nothing matches: check that an element is absent with `should_not_see(marker=...)`.
 
 ## Environment
 
