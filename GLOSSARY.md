@@ -16,6 +16,10 @@ _Avoid_: Lot, entry, purchase, stock item
 The countable piece a Product is counted in, such as sztuka, rolka or opakowanie; never a weight or volume.
 _Avoid_: Measure, UOM
 
+**Pack Size**:
+An optional note of what one Unit of a Product holds, such as 1 kg or 500 ml; informative only, never what is counted.
+_Avoid_: Weight, volume, capacity
+
 **Quantity**:
 A whole number of Units; a Product's Quantity is the sum of its Batches' Quantities.
 _Avoid_: Amount, stock level, count

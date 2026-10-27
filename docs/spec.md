@@ -4,7 +4,8 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Model
 
-- A **Product** has a unique name (case-insensitive, Archived Products included), one **Category**, one **Unit** and an optional **Minimum Stock**.
+- A **Product** has a unique name (case-insensitive, Archived Products included), one **Category**, one **Unit**, an optional **Pack Size** and an optional **Minimum Stock**.
+- **Pack Size** (e.g. 1 kg of sugar per opakowanie) is shown next to the Quantity ("2 opak. (2 kg)") but never counted: Quantity and Minimum Stock stay in Units (ADR-0001).
 - A Product holds **Batches**: a whole-number Quantity and an optional Expiry Date each (ADR-0001). The Product's Quantity is their sum.
 - **Running Low**: Quantity at or below Minimum Stock. No Minimum Stock means never Running Low (Expiry reminders still apply).
 - **Expiring Soon**: a Batch's Expiry Date is within its Category's Warning Window; **Expired**: the date has passed.
@@ -20,7 +21,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Adding a Product
 
-A form with name, Category, Unit, optional Minimum Stock and, optionally, a first Batch. A name that already exists offers to add a Batch to that Product instead; if it is archived, to restore it.
+A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled with 1; clearing it leaves the Product without one) and, optionally, a first Batch. A name that already exists offers to add a Batch to that Product instead; if it is archived, to restore it.
 
 ## Tabs
 

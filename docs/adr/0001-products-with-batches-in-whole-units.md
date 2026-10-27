@@ -6,3 +6,4 @@ A Product is a kind of thing; each Purchase adds a Batch with its own whole-numb
 
 - Use takes from the Batch with the nearest Expiry Date (Batches without one last), so the user never picks a Batch by hand.
 - A Batch whose Quantity reaches 0 disappears; the Product stays, at 0.
+- Things thought of by weight or volume (2 kg of sugar) are counted in packs; an optional Pack Size shows the weight or volume without being counted.
