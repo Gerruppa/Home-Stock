@@ -1,5 +1,7 @@
 # Home Stock v1 Implementation Plan
 
+> **Superseded by GitHub Issues.** Task 1 is done; the rest of the work is tracked as tickets on Gerruppa/Home-Stock (label `ready-for-agent`). Keep this plan as a reference for names, signatures and test cases; the tickets decide scope and order.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the whole of `docs/spec.md`: Products with Batches, Use / Purchase / Discard / Archive with undo, the Shopping List, Expiry reminders and the four tabs, on a migrated SQLite database, with `--demo`.
