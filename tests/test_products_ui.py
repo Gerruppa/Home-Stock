@@ -172,3 +172,18 @@ async def test_the_bar_disappears_on_its_own(engine: Engine, monkeypatch: pytest
         await user.should_see("Zużyto 1 × Cukier")
         await asyncio.sleep(0.3)
         await user.should_not_see("Zużyto 1 × Cukier")
+
+
+async def test_another_change_hides_the_bar(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_products(user)
+        user.find(marker=f"use-{cukier}").click()
+        await user.should_see("Zużyto 1 × Cukier")
+
+        user.find(marker="add-product").click()
+        user.find(marker="name").type("Mąka")
+        user.find(marker="save").click()
+
+        await user.should_not_see("Zużyto 1 × Cukier")

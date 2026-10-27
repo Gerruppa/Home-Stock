@@ -15,7 +15,8 @@ UNDO_SECONDS = 8.0
 
 
 class UndoBar:
-    """One bar at the bottom of the window; each new action replaces what it offers to undo."""
+    """One bar at the bottom of the window. Any change hides it (Context.changed), so Cofnij only ever takes back the
+    latest action, never one that later changes have built on."""
 
     def __init__(self, changed: Callable[[], None]) -> None:
         self.changed = changed
@@ -26,13 +27,10 @@ class UndoBar:
 
     def show(self, message: str, action: Callable[[], None]) -> None:
         def undo() -> None:
-            self.hide()
             action()
             self.changed()
 
-        if self.timer is not None:
-            self.timer.cancel()
-        self.bar.clear()
+        self.hide()
         with self.bar:
             ui.label(message)
             ui.button("Cofnij", on_click=undo).props("flat color=amber").mark("undo")
@@ -51,10 +49,12 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
     refreshers: list[Callable[[], None]] = []
 
     def changed() -> None:
+        undo_bar.hide()
         for refresh in refreshers:
             refresh()
 
-    ctx = Context(engine, today, ui.element(), changed, UndoBar(changed).show)
+    undo_bar = UndoBar(changed)
+    ctx = Context(engine, today, ui.element(), changed, undo_bar.show)
     with ui.header().classes("items-center"):
         ui.label(APP_TITLE).classes("text-h6")
     with ui.tabs() as tabs:

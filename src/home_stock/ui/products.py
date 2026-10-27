@@ -50,8 +50,8 @@ class ProductsTab:
 
     def _use(self, product: Product) -> None:
         engine = self.ctx.engine
-        before = use_one(engine, product.id)
-        if before is None:
+        batch_before = use_one(engine, product.id)
+        if batch_before is None:
             return
         self.ctx.changed()
-        self.ctx.undo(f"Zużyto 1 × {product.name}", lambda: restore_batch(engine, before))
+        self.ctx.undo(f"Zużyto 1 × {product.name}", lambda: restore_batch(engine, batch_before))

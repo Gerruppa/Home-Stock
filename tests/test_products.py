@@ -89,3 +89,16 @@ def test_restoring_undoes_a_use_exactly(engine: Engine) -> None:
     restore_batch(engine, before)
 
     assert get_product(engine, cukier) == original
+
+
+def test_restoring_never_overwrites_a_batch_that_reused_the_id(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
+    before = use_one(engine, cukier)
+    assert before is not None
+    # SQLite gives the next Batch the id of the one the Use removed
+    maka = add_product(engine, ProductDraft("Mąka", SPOZYWCZE, OPAKOWANIE), BatchDraft(5))
+
+    restore_batch(engine, before)
+
+    assert get_product(engine, maka).quantity == 5
+    assert get_product(engine, cukier).quantity == 1
