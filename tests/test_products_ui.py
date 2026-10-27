@@ -108,7 +108,7 @@ async def test_search_filters_ignoring_case_and_hides_empty_categories(engine: E
 
         await user.should_see("Cukier")
         await user.should_not_see("Płyn do naczyń")
-        await user.should_not_see("Chemia i środki czystości")
+        await user.should_not_see(marker=f"category-{CHEMIA}")
 
 
 async def _open_products(user: User) -> None:
