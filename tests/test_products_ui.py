@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -115,3 +116,74 @@ async def test_search_filters_ignoring_case_and_hides_empty_categories(engine: E
         await user.should_see("Cukier")
         await user.should_not_see("Płyn do naczyń")
         await user.should_not_see("Chemia i środki czystości")
+
+
+async def _open_products(user: User) -> None:
+    await user.open("/")
+    user.find(marker="tab-products").click()
+
+
+async def test_use_one_and_undo(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_products(user)
+        user.find(marker=f"use-{cukier}").click()
+        with user.scope(marker=f"product-{cukier}"):
+            await user.should_see("1 opak.")
+        await user.should_see("Zużyto 1 × Cukier")
+
+        user.find(marker="undo").click()
+        with user.scope(marker=f"product-{cukier}"):
+            await user.should_see("2 opak.")
+        await user.should_not_see("Zużyto 1 × Cukier")
+
+
+async def test_use_is_disabled_at_zero(engine: Engine) -> None:
+    pieprz = add_product(engine, ProductDraft("Pieprz", SPOZYWCZE, SZTUKA))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_products(user)
+        [button] = user.find(marker=f"use-{pieprz}", kind=ui.button).elements
+        assert button.enabled is False
+
+
+async def test_a_new_action_replaces_the_bar_and_undo_takes_back_only_the_last(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(3))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_products(user)
+        user.find(marker=f"use-{cukier}").click()
+        user.find(marker=f"use-{cukier}").click()
+        assert len(user.find(marker="undo").elements) == 1
+
+        user.find(marker="undo").click()
+        with user.scope(marker=f"product-{cukier}"):
+            await user.should_see("2 opak.")
+
+
+async def test_the_bar_disappears_on_its_own(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("home_stock.ui.shell.UNDO_SECONDS", 0.1)
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_products(user)
+        user.find(marker=f"use-{cukier}").click()
+        await user.should_see("Zużyto 1 × Cukier")
+        await asyncio.sleep(0.3)
+        await user.should_not_see("Zużyto 1 × Cukier")
+
+
+async def test_another_change_hides_the_bar(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_products(user)
+        user.find(marker=f"use-{cukier}").click()
+        await user.should_see("Zużyto 1 × Cukier")
+
+        user.find(marker="add-product").click()
+        user.find(marker="name").type("Mąka")
+        user.find(marker="save").click()
+
+        await user.should_not_see("Zużyto 1 × Cukier")

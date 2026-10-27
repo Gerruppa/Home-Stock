@@ -14,5 +14,8 @@ class Context:
     today: Callable[[], date]
     # Dialogs are opened inside it: an element that outlives every tab's redraw, so a redraw never deletes one
     overlay: ui.element
-    # Redraws every tab after a change
+    # Redraws every tab after a change, and withdraws the Cofnij offered for an earlier one
     changed: Callable[[], None]
+    # Shows what was just done with "Cofnij" for a while; Cofnij runs the action given, then redraws every tab.
+    # Call it after changed(), which hides the bar
+    undo: Callable[[str, Callable[[], None]], None]
