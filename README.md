@@ -17,7 +17,12 @@ py -3.14 -m venv .venv
 ```
 .venv\Scripts\python.exe main.py            # native window
 .venv\Scripts\python.exe main.py --browser  # http://127.0.0.1:8080
+.venv\Scripts\python.exe main.py --demo     # made-up data, http://127.0.0.1:8080
 ```
+
+Your data lives in the app-data folder (`%LOCALAPPDATA%\Home Stock`; set `HOME_STOCK_DATA_DIR` to use another).
+`--demo` never touches it: it serves a database of made-up Products from `%TEMP%\Home-Stock-demo`, created afresh on
+every start, with something in every section of Start and on the Shopping List.
 
 ## Checks
 

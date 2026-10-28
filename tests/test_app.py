@@ -1,4 +1,12 @@
-from home_stock.app import parse_args, run_options
+import os
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from home_stock.app import parse_args, run_options, start_demo_database
+from home_stock.persistence.paths import DATA_DIR_ENV, demo_database_path
+from home_stock.persistence.products import list_products
 
 
 def test_defaults_open_the_native_window() -> None:
@@ -14,3 +22,29 @@ def test_browser_serves_on_localhost_without_opening_a_tab() -> None:
 
 def test_unknown_arguments_are_ignored() -> None:
     assert parse_args(["--browser", "-x", "extra"]).browser is True
+    assert parse_args(["--demo", "-x"]).demo is True
+
+
+def test_demo_serves_in_the_browser() -> None:
+    assert parse_args([]).demo is False
+    assert run_options(parse_args(["--demo"])) == {"host": "127.0.0.1", "port": 8080, "show": False}
+
+
+def test_demo_database_lives_in_temp_and_is_fresh_on_every_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = tmp_path / "real"
+    monkeypatch.setenv(DATA_DIR_ENV, str(real))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path / "temp"))
+
+    counts = []
+    for _ in range(2):
+        engine = start_demo_database()
+        counts.append(len(list_products(engine)))
+        engine.dispose()  # Windows will not delete an open file
+
+    assert demo_database_path().is_relative_to(tmp_path / "temp")
+    assert demo_database_path().exists()
+    assert counts[0] > 0 and counts[0] == counts[1]
+    assert not real.exists()
+    assert os.environ[DATA_DIR_ENV] == str(real)
