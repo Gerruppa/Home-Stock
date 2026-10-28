@@ -7,6 +7,12 @@
       "runtimeArgs": ["main.py", "--browser", "--port", "8765"],
       "env": { "HOME_STOCK_DATA_DIR": ".preview-data" },
       "port": 8765
+    },
+    {
+      "name": "home-stock-demo",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["main.py", "--demo", "--port", "8766"],
+      "port": 8766
     }
   ]
 }

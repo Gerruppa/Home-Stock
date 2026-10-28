@@ -10,7 +10,7 @@ Work is tracked in GitHub Issues on Gerruppa/Home-Stock (label `ready-for-agent`
 
 ## Layout
 
-`src/home_stock/` in four layers, as in KAPITA: `domain/` (pure-Python rules: Product, Batch, Running Low, Expiry Status, Polish formatting), `persistence/` (SQLite through SQLAlchemy, Alembic migrations), `sources/` (importers and demo data; add when needed) and `ui/` (NiceGUI: `shell.py` builds the tabs and the undo bar, each tab gets a `Context` from `ui/context.py`).
+`src/home_stock/` in four layers, as in KAPITA: `domain/` (pure-Python rules: Product, Batch, Running Low, Expiry Status, Polish formatting), `persistence/` (SQLite through SQLAlchemy, Alembic migrations), `sources/` (`demo_data.py`, the made-up stock for `--demo`; importers go here too) and `ui/` (NiceGUI: `shell.py` builds the tabs and the undo bar, each tab gets a `Context` from `ui/context.py`).
 
 Rules no config enforces:
 - `domain/` never imports NiceGUI, SQLAlchemy, Alembic or pywebview (`tests/test_architecture.py` checks).
@@ -33,7 +33,7 @@ UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` marke
 
 - Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`.
 - Windows host. Use the venv interpreter directly, without relying on activation:
-  - Run the app: `.venv/Scripts/python.exe main.py` (`--browser` serves on http://127.0.0.1:8080). To look at a change, start the preview `home-stock` from `.claude/launch.json` (port 8765, scratch database in `.preview-data/`).
+  - Run the app: `.venv/Scripts/python.exe main.py` (`--browser` serves on http://127.0.0.1:8080; `--demo` serves there too, on a fresh database of made-up Products in `%TEMP%/Home-Stock-demo`, recreated on every start). To look at a change, start the preview `home-stock` from `.claude/launch.json` (port 8765, scratch database in `.preview-data/`), or `home-stock-demo` (port 8766) for a page already full of data.
   - Tests: `.venv/Scripts/python.exe -m pytest -n auto`. No CI: pre-commit runs them with ruff and mypy whenever a commit touches Python files.
   - Type check: `.venv/Scripts/python.exe -m mypy` (strict)
   - Lint and format: `.venv/Scripts/python.exe -m ruff check .` and `.venv/Scripts/python.exe -m ruff format .`

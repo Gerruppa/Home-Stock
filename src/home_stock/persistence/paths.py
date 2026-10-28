@@ -1,6 +1,7 @@
-"""Location of the user's data, always outside the repository."""
+"""Location of the user's data, and of the demo's, always outside the repository."""
 
 import os
+import tempfile
 from pathlib import Path
 
 from platformdirs import user_data_dir
@@ -18,3 +19,8 @@ def data_dir() -> Path:
 
 def database_path() -> Path:
     return data_dir() / DATABASE_FILE
+
+
+def demo_database_path() -> Path:
+    """The ``--demo`` database, in TEMP, apart from the user's real one."""
+    return Path(tempfile.gettempdir()) / "Home-Stock-demo" / DATABASE_FILE
