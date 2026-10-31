@@ -47,7 +47,6 @@ async def test_clicking_the_version_opens_every_released_version(engine: Engine)
             await user.should_see("Nowe funkcje")
             await user.should_see("Lista zakupów wynika z minimalnych zapasów")
             await user.should_not_see("Nieopublikowane")
-            await user.should_not_see("kopię zapasową")
 
 
 async def test_the_first_start_of_a_new_version_shows_it_once(engine: Engine) -> None:

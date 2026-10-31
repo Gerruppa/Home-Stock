@@ -1,6 +1,6 @@
 # Historia zmian
 
-## Nieopublikowane
+## 0.2.0 — 2026-10-31
 
 ### Nowe funkcje
 - Przy każdym uruchomieniu, zanim baza zostanie zaktualizowana, Home Stock zapisuje jej kopię zapasową w folderze danych i zachowuje 30 najnowszych.
