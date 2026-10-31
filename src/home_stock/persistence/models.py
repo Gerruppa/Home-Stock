@@ -50,3 +50,10 @@ class BatchRow(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"))
     quantity: Mapped[int]
     expiry: Mapped[date | None] = mapped_column(Date)
+
+
+class SettingRow(Base):
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[str] = mapped_column(String)

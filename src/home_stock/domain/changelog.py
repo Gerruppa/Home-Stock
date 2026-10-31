@@ -47,6 +47,9 @@ class Changelog:
     # Newest first
     releases: tuple[Release, ...]
 
+    def release(self, version: str) -> Release | None:
+        return next((release for release in self.releases if release.version == version), None)
+
 
 def is_newer(version: str, than: str) -> bool:
     """Whether ``version`` is newer than ``than``, part by part as numbers: ``1.10.0`` is newer than ``1.9.0``."""
