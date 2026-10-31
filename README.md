@@ -5,7 +5,7 @@ A desktop app for Windows (NiceGUI in a native window, SQLite).
 ## Install from the installer
 
 Run `Home-Stock-<version>-setup.exe`. It installs for the current user only (no administrator rights) into
-`%LOCALAPPDATA%\Programs\Home Stock`, adds Home Stock to the Start menu and, if you tick it, to the desktop. Installing a
+`%LOCALAPPDATA%\Programs\Home Stock`, adds Home Stock to the Start menu and to the desktop (untick it in the wizard to skip that). Installing a
 newer version over it upgrades in place; uninstalling (Settings > Apps) leaves your data alone. Home Stock needs the
 Microsoft Edge WebView2 runtime, which Windows 11 already has.
 

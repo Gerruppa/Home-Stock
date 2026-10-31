@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 
 from nicegui import ui
 from sqlalchemy import Engine
@@ -15,6 +16,8 @@ from home_stock.ui.shopping import ShoppingTab
 from home_stock.ui.start import StartTab
 
 APP_TITLE = "Home Stock"
+# The favicon; the exe, the installer and the shortcuts use home-stock.ico beside it
+APP_ICON = Path(__file__).parent / "assets" / "home-stock.png"
 # How long the undo bar offers Cofnij
 UNDO_SECONDS = 8.0
 

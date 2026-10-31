@@ -77,12 +77,13 @@ def test_a_start_without_a_console_writes_its_output_to_the_log(
     monkeypatch.setenv(DATA_DIR_ENV, str(tmp_path))
     # pythonw and the frozen exe have no streams; pywebview swaps them for os.devnull when imported
     monkeypatch.setattr(sys, "stdout", None)
-    monkeypatch.setattr(sys, "stderr", open(os.devnull, "w"))
+    with open(os.devnull, "w") as devnull:
+        monkeypatch.setattr(sys, "stderr", devnull)
 
-    attach_log_when_windowless()
-    print("hello")
-    print("oops", file=sys.stderr)
-    sys.stdout.close()
+        attach_log_when_windowless()
+        print("hello")
+        print("oops", file=sys.stderr)
+        sys.stdout.close()
 
     assert log_path() == tmp_path / "home_stock.log"
     assert log_path().read_text(encoding="utf-8") == "hello\noops\n"

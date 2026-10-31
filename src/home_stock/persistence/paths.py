@@ -23,7 +23,7 @@ def database_path() -> Path:
 
 
 def log_path() -> Path:
-    """Where the output goes when there is no console (pythonw, the installed Home Stock.exe)."""
+    """Where the output goes when there is no console (pythonw, the installed HomeStock.exe)."""
     return data_dir() / LOG_FILE
 
 

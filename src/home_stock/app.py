@@ -7,7 +7,6 @@ import os
 import sys
 from collections.abc import Sequence
 from datetime import date
-from pathlib import Path
 from typing import Any, TextIO
 
 from nicegui import ui
@@ -17,9 +16,7 @@ from home_stock.persistence.backup import backup_database
 from home_stock.persistence.db import init_db
 from home_stock.persistence.paths import backups_dir, database_path, demo_database_path, log_path
 from home_stock.sources.demo_data import seed_demo_data
-from home_stock.ui.shell import APP_TITLE, build_shell
-
-ICON = Path(__file__).parent / "ui" / "assets" / "home-stock.png"
+from home_stock.ui.shell import APP_ICON, APP_TITLE, build_shell
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
@@ -81,4 +78,6 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     attach_log_when_windowless()
     engine = start_demo_database() if args.demo else start_database()
-    ui.run(lambda: build_shell(engine), title=APP_TITLE, favicon=ICON, reload=False, language="pl", **run_options(args))
+    ui.run(
+        lambda: build_shell(engine), title=APP_TITLE, favicon=APP_ICON, reload=False, language="pl", **run_options(args)
+    )
