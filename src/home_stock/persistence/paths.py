@@ -21,6 +21,11 @@ def database_path() -> Path:
     return data_dir() / DATABASE_FILE
 
 
+def backups_dir() -> Path:
+    """Where the Backups of the real database go; the demo has none."""
+    return data_dir() / "backups"
+
+
 def demo_database_path() -> Path:
     """The ``--demo`` database, in TEMP, apart from the user's real one."""
     return Path(tempfile.gettempdir()) / "Home-Stock-demo" / DATABASE_FILE

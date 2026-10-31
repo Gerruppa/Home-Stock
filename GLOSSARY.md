@@ -73,3 +73,9 @@ _Avoid_: Out of date, spoiled
 **Shopping List**:
 The Products currently Running Low, derived from Minimum Stock rather than kept by hand.
 _Avoid_: To-buy list, cart, order
+
+## Data
+
+**Backup**:
+A copy of the database taken at every start before migrations run, of which the newest 30 are kept; restored by hand.
+_Avoid_: Snapshot, export, dump
