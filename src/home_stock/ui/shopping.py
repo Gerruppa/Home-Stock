@@ -13,7 +13,7 @@ from home_stock.ui.purchase_dialog import open_purchase_dialog
 class ShoppingTab:
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
-        self.content = ui.column().classes("w-full")
+        self.content = ui.column().classes("w-full gap-4")
         self.refresh()
 
     def refresh(self) -> None:
@@ -29,12 +29,18 @@ class ShoppingTab:
                 shown = [p for p in products if p.category_id == category.id]
                 if not shown:
                     continue
-                with ui.column().classes("w-full gap-1").mark(f"shopping-category-{category.id}"):
-                    ui.label(category.name).classes("text-subtitle1 text-weight-medium")
+                with (
+                    ui.column()
+                    .classes("w-full gap-0 hs-section hs-running-low")
+                    .mark(f"shopping-category-{category.id}")
+                ):
+                    ui.label(category.name).classes("hs-section-title q-mb-xs")
                     for product in shown:
-                        with ui.row().classes("w-full items-center").mark(f"shopping-{product.id}"):
+                        with ui.row().classes("w-full items-center no-wrap hs-line").mark(f"shopping-{product.id}"):
                             ui.label(product.name).classes("grow")
-                            ui.label(format_quantity(product.quantity, units[product.unit_id], product.pack_size))
+                            ui.label(
+                                format_quantity(product.quantity, units[product.unit_id], product.pack_size)
+                            ).classes("hs-qty")
                             ui.button(
                                 "Kupione", icon="check", on_click=lambda p=product: open_purchase_dialog(self.ctx, p)
                             ).props("dense outline").mark(f"bought-{product.id}")

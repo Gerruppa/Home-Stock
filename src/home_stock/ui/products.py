@@ -4,7 +4,7 @@ from nicegui import ui
 from nicegui.events import ValueChangeEventArguments
 
 from home_stock.domain.formatting import format_quantity
-from home_stock.domain.stock import Product, name_key
+from home_stock.domain.stock import Product, is_running_low, name_key
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.products import list_products, restore_batch, use_one
 from home_stock.ui.context import Context
@@ -17,9 +17,10 @@ class ProductsTab:
         self.ctx = ctx
         self.search = ""
         with ui.row().classes("w-full items-center"):
-            ui.input("Szukaj", on_change=self._searched).props("clearable").mark("search")
+            search = ui.input("Szukaj", on_change=self._searched).props("clearable outlined dense")
+            search.classes("grow").mark("search")
             ui.button("Dodaj produkt", icon="add", on_click=lambda: open_product_form(ctx)).mark("add-product")
-        self.content = ui.column().classes("w-full")
+        self.content = ui.column().classes("w-full gap-4")
         self.refresh()
 
     def _searched(self, event: ValueChangeEventArguments[str | None]) -> None:
@@ -40,15 +41,19 @@ class ProductsTab:
                 shown = [p for p in products if p.category_id == category.id and wanted in name_key(p.name)]
                 if not shown:
                     continue
-                with ui.column().classes("w-full gap-1").mark(f"category-{category.id}"):
-                    ui.label(category.name).classes("text-subtitle1 text-weight-medium")
+                with ui.column().classes("w-full gap-0 hs-section hs-category").mark(f"category-{category.id}"):
+                    ui.label(category.name).classes("hs-section-title q-mb-xs")
                     for product in shown:
-                        with ui.row().classes("w-full items-center").mark(f"product-{product.id}"):
+                        with ui.row().classes("w-full items-center no-wrap hs-line").mark(f"product-{product.id}"):
                             name = ui.label(product.name).classes("grow cursor-pointer")
                             name.on("click", lambda p=product: open_product_card(self.ctx, p.id)).mark(
                                 f"open-{product.id}"
                             )
-                            ui.label(format_quantity(product.quantity, units[product.unit_id], product.pack_size))
+                            quantity = ui.label(
+                                format_quantity(product.quantity, units[product.unit_id], product.pack_size)
+                            ).classes("hs-qty")
+                            if is_running_low(product):
+                                quantity.classes("hs-qty-low")
                             use = ui.button("−1", on_click=lambda p=product: self._use(p)).props("dense outline")
                             use.mark(f"use-{product.id}").set_enabled(product.quantity > 0)
 

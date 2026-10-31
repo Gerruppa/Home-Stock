@@ -16,6 +16,7 @@ from home_stock.ui.products import ProductsTab
 from home_stock.ui.settings import SettingsTab
 from home_stock.ui.shopping import ShoppingTab
 from home_stock.ui.start import StartTab
+from home_stock.ui.theme import apply_theme
 
 APP_TITLE = "Home Stock"
 # The favicon; the exe, the installer and the shortcuts use home-stock.ico beside it
@@ -69,6 +70,7 @@ def build_shell(
         for refresh in refreshers:
             refresh()
 
+    apply_theme()
     undo_bar = UndoBar(changed)
     ctx = Context(engine, today, ui.element(), changed, undo_bar.show)
     with ui.header().classes("items-center"):
@@ -76,18 +78,18 @@ def build_shell(
         ui.space()
         update_notice(ctx.overlay, updates, version)
         version_label(ctx.overlay, version)
-    with ui.tabs() as tabs:
+    with ui.tabs().props("align=left active-color=primary indicator-color=primary no-caps").classes("w-full") as tabs:
         ui.tab("start", "Start").mark("tab-start")
         ui.tab("products", "Produkty").mark("tab-products")
         ui.tab("shopping", "Lista zakupów").mark("tab-shopping")
         ui.tab("settings", "Ustawienia").mark("tab-settings")
     with ui.tab_panels(tabs, value="start").classes("w-full"):
-        with ui.tab_panel("start"):
+        with ui.tab_panel("start").classes("hs-page"):
             refreshers.append(StartTab(ctx).refresh)
-        with ui.tab_panel("products"):
+        with ui.tab_panel("products").classes("hs-page"):
             refreshers.append(ProductsTab(ctx).refresh)
-        with ui.tab_panel("shopping"):
+        with ui.tab_panel("shopping").classes("hs-page"):
             refreshers.append(ShoppingTab(ctx).refresh)
-        with ui.tab_panel("settings"):
+        with ui.tab_panel("settings").classes("hs-page"):
             refreshers.append(SettingsTab(ctx).refresh)
     announce_new_version(ctx.overlay, engine, version)
