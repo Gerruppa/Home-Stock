@@ -5,6 +5,7 @@
 ### Nowe funkcje
 - Przy każdym uruchomieniu, zanim baza zostanie zaktualizowana, Home Stock zapisuje jej kopię zapasową w folderze danych i zachowuje 30 najnowszych.
 - Nagłówek pokazuje wersję programu; kliknięcie jej otwiera tę historię zmian.
+- Pierwsze uruchomienie nowej wersji pokazuje raz okno „Co nowego” z jej zmianami.
 
 ## 0.1.0 — 2026-10-28
 

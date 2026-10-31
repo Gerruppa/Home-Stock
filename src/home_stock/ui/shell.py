@@ -7,7 +7,7 @@ from nicegui import ui
 from sqlalchemy import Engine
 
 from home_stock import __version__
-from home_stock.ui.changelog import version_label
+from home_stock.ui.changelog import announce_new_version, version_label
 from home_stock.ui.context import Context
 from home_stock.ui.products import ProductsTab
 from home_stock.ui.settings import SettingsTab
@@ -50,7 +50,7 @@ class UndoBar:
         self.bar.set_visibility(False)
 
 
-def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
+def build_shell(engine: Engine, today: Callable[[], date] = date.today, version: str = __version__) -> None:
     refreshers: list[Callable[[], None]] = []
 
     def changed() -> None:
@@ -63,7 +63,7 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
     with ui.header().classes("items-center"):
         ui.label(APP_TITLE).classes("text-h6")
         ui.space()
-        version_label(ctx.overlay, __version__)
+        version_label(ctx.overlay, version)
     with ui.tabs() as tabs:
         ui.tab("start", "Start").mark("tab-start")
         ui.tab("products", "Produkty").mark("tab-products")
@@ -78,3 +78,4 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
             refreshers.append(ShoppingTab(ctx).refresh)
         with ui.tab_panel("settings"):
             refreshers.append(SettingsTab(ctx).refresh)
+    announce_new_version(ctx.overlay, engine, version)
