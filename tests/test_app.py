@@ -1,11 +1,19 @@
+import io
 import os
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from home_stock.app import parse_args, run_options, start_database, start_demo_database
-from home_stock.persistence.paths import DATA_DIR_ENV, demo_database_path
+from home_stock.app import (
+    attach_log_when_windowless,
+    parse_args,
+    run_options,
+    start_database,
+    start_demo_database,
+)
+from home_stock.persistence.paths import DATA_DIR_ENV, demo_database_path, log_path
 from home_stock.persistence.products import list_products
 
 
@@ -61,3 +69,32 @@ def test_demo_database_lives_in_temp_and_is_fresh_on_every_start(
     assert not real.exists()
     assert os.environ[DATA_DIR_ENV] == str(real)
     assert not (tmp_path / "temp" / "Home-Stock-demo" / "backups").exists()
+
+
+def test_a_start_without_a_console_writes_its_output_to_the_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(DATA_DIR_ENV, str(tmp_path))
+    # pythonw and the frozen exe have no streams; pywebview swaps them for os.devnull when imported
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", open(os.devnull, "w"))
+
+    attach_log_when_windowless()
+    print("hello")
+    print("oops", file=sys.stderr)
+    sys.stdout.close()
+
+    assert log_path() == tmp_path / "home_stock.log"
+    assert log_path().read_text(encoding="utf-8") == "hello\noops\n"
+
+
+def test_a_start_from_a_console_keeps_writing_there(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(DATA_DIR_ENV, str(tmp_path))
+    console = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", console)
+    monkeypatch.setattr(sys, "stderr", console)
+
+    attach_log_when_windowless()
+
+    assert sys.stdout is console and sys.stderr is console
+    assert not log_path().exists()

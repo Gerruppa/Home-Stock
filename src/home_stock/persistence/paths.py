@@ -9,6 +9,7 @@ from platformdirs import user_data_dir
 APP_NAME = "Home Stock"
 DATA_DIR_ENV = "HOME_STOCK_DATA_DIR"
 DATABASE_FILE = "home_stock.sqlite3"
+LOG_FILE = "home_stock.log"
 
 
 def data_dir() -> Path:
@@ -19,6 +20,11 @@ def data_dir() -> Path:
 
 def database_path() -> Path:
     return data_dir() / DATABASE_FILE
+
+
+def log_path() -> Path:
+    """Where the output goes when there is no console (pythonw, the installed Home Stock.exe)."""
+    return data_dir() / LOG_FILE
 
 
 def backups_dir() -> Path:
