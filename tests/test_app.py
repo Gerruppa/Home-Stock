@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from home_stock.app import parse_args, run_options, start_demo_database
+from home_stock.app import parse_args, run_options, start_database, start_demo_database
 from home_stock.persistence.paths import DATA_DIR_ENV, demo_database_path
 from home_stock.persistence.products import list_products
 
@@ -30,6 +30,18 @@ def test_demo_serves_in_the_browser() -> None:
     assert run_options(parse_args(["--demo"])) == {"host": "127.0.0.1", "port": 8080, "show": False}
 
 
+def test_every_start_after_the_first_takes_a_backup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(DATA_DIR_ENV, str(tmp_path))
+    backups = tmp_path / "backups"
+
+    start_database().dispose()
+    assert not backups.exists()
+
+    for _ in range(2):
+        start_database().dispose()
+    assert len(list(backups.iterdir())) == 2
+
+
 def test_demo_database_lives_in_temp_and_is_fresh_on_every_start(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -48,3 +60,4 @@ def test_demo_database_lives_in_temp_and_is_fresh_on_every_start(
     assert counts[0] > 0 and counts[0] == counts[1]
     assert not real.exists()
     assert os.environ[DATA_DIR_ENV] == str(real)
+    assert not (tmp_path / "temp" / "Home-Stock-demo" / "backups").exists()

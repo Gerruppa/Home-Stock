@@ -1,5 +1,6 @@
-"""App entry point: the database in the user's app-data folder, migrated, and the shell on it in a native window
-(``--browser`` serves it on http://127.0.0.1:8080 instead; ``--demo`` serves made-up data from TEMP there)."""
+"""App entry point: the database in the user's app-data folder, backed up and migrated, and the shell on it in a
+native window (``--browser`` serves it on http://127.0.0.1:8080 instead; ``--demo`` serves made-up data from TEMP
+there)."""
 
 import argparse
 import sys
@@ -10,8 +11,9 @@ from typing import Any
 from nicegui import ui
 from sqlalchemy import Engine
 
+from home_stock.persistence.backup import backup_database
 from home_stock.persistence.db import init_db
-from home_stock.persistence.paths import database_path, demo_database_path
+from home_stock.persistence.paths import backups_dir, database_path, demo_database_path
 from home_stock.sources.demo_data import seed_demo_data
 from home_stock.ui.shell import APP_TITLE, build_shell
 
@@ -35,6 +37,13 @@ def run_options(args: argparse.Namespace) -> dict[str, Any]:
     return {"native": True, "window_size": (1200, 800)}
 
 
+def start_database() -> Engine:
+    """The user's database, with a Backup taken before migrations touch it."""
+    path = database_path()
+    backup_database(path, backups_dir())
+    return init_db(path)
+
+
 def start_demo_database() -> Engine:
     """A fresh database in TEMP filled with the demo data, replacing the last demo's; real data stays untouched."""
     path = demo_database_path()
@@ -46,5 +55,5 @@ def start_demo_database() -> Engine:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    engine = start_demo_database() if args.demo else init_db(database_path())
+    engine = start_demo_database() if args.demo else start_database()
     ui.run(lambda: build_shell(engine), title=APP_TITLE, reload=False, language="pl", **run_options(args))

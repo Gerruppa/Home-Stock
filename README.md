@@ -24,6 +24,9 @@ Your data lives in the app-data folder (`%LOCALAPPDATA%\Home Stock`; set `HOME_S
 `--demo` never touches it: it serves a database of made-up Products from `%TEMP%\Home-Stock-demo`, created afresh on
 every start, with something in every section of Start and on the Shopping List.
 
+Every start takes a Backup of the database into `backups\` in the data folder before migrations run, keeping the newest
+30 (the demo takes none). To restore one, close Home Stock and copy the chosen file over `home_stock.sqlite3`.
+
 ## Checks
 
 ```
