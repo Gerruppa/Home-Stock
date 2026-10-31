@@ -22,6 +22,22 @@ The installer lands in `dist\Home-Stock-<version>-setup.exe`; the version comes 
 silent install (`/SILENT /CLOSEAPPLICATIONS /NORESTART`) closes a running Home Stock and starts the new one when done.
 To change the icon, edit and run `.venv\Scripts\python.exe scripts\make_icons.py`.
 
+## Release
+
+The changelog `src/home_stock/ui/changelog.md` gathers the coming changes under `## Nieopublikowane`. A release is two
+steps around a release PR:
+
+```
+.venv\Scripts\python.exe scripts\release.py prepare 0.2.0   # on a release/0.2.0 branch: version and dated changelog
+.venv\Scripts\python.exe scripts\release.py publish         # on main once the PR is merged
+```
+
+`prepare` sets `__version__` and turns `## Nieopublikowane` into `## 0.2.0 — <today>`; it refuses a version that is not
+X.Y.Z or not newer, and an empty Nieopublikowane section. `publish` needs a clean main equal to `origin/main` and an
+authenticated `gh`: it builds the installer, pushes the tag `v0.2.0` and creates the GitHub Release "Home Stock 0.2.0"
+with `Home-Stock-0.2.0-setup.exe`, its notes a short install paragraph and that version's changelog section.
+`scripts\release.py notes 0.2.0` prints those notes.
+
 ## Install for development
 
 Requires Python 3.14.
