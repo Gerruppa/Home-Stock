@@ -12,9 +12,11 @@ from home_stock.app import (
     run_options,
     start_database,
     start_demo_database,
+    update_source,
 )
 from home_stock.persistence.paths import DATA_DIR_ENV, demo_database_path, log_path
 from home_stock.persistence.products import list_products
+from home_stock.sources.app_update import UpdateSource
 
 
 def test_defaults_open_the_native_window() -> None:
@@ -36,6 +38,12 @@ def test_unknown_arguments_are_ignored() -> None:
 def test_demo_serves_in_the_browser() -> None:
     assert parse_args([]).demo is False
     assert run_options(parse_args(["--demo"])) == {"host": "127.0.0.1", "port": 8080, "show": False}
+
+
+def test_the_real_app_checks_for_updates_and_the_demo_does_not() -> None:
+    assert isinstance(update_source(parse_args([])), UpdateSource)
+    assert isinstance(update_source(parse_args(["--browser"])), UpdateSource)
+    assert update_source(parse_args(["--demo"])) is None
 
 
 def test_every_start_after_the_first_takes_a_backup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

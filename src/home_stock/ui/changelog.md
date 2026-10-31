@@ -6,6 +6,7 @@
 - Przy każdym uruchomieniu, zanim baza zostanie zaktualizowana, Home Stock zapisuje jej kopię zapasową w folderze danych i zachowuje 30 najnowszych.
 - Nagłówek pokazuje wersję programu; kliknięcie jej otwiera tę historię zmian.
 - Pierwsze uruchomienie nowej wersji pokazuje raz okno „Co nowego” z jej zmianami.
+- Gdy na GitHubie jest nowsza wersja, obok numeru wersji pojawia się „Dostępna wersja X”; jedno kliknięcie pobiera instalator i aktualizuje program, a dane zostają.
 
 ## 0.1.0 — 2026-10-28
 

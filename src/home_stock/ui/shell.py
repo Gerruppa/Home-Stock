@@ -8,6 +8,8 @@ from nicegui import ui
 from sqlalchemy import Engine
 
 from home_stock import __version__
+from home_stock.sources.app_update import UpdateSource
+from home_stock.ui.app_update import update_notice
 from home_stock.ui.changelog import announce_new_version, version_label
 from home_stock.ui.context import Context
 from home_stock.ui.products import ProductsTab
@@ -53,7 +55,13 @@ class UndoBar:
         self.bar.set_visibility(False)
 
 
-def build_shell(engine: Engine, today: Callable[[], date] = date.today, version: str = __version__) -> None:
+def build_shell(
+    engine: Engine,
+    today: Callable[[], date] = date.today,
+    version: str = __version__,
+    updates: UpdateSource | None = None,
+) -> None:
+    """The window on ``engine``; ``updates`` checks GitHub for a newer version (none in the demo and the tests)."""
     refreshers: list[Callable[[], None]] = []
 
     def changed() -> None:
@@ -66,6 +74,7 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today, version:
     with ui.header().classes("items-center"):
         ui.label(APP_TITLE).classes("text-h6")
         ui.space()
+        update_notice(ctx.overlay, updates, version)
         version_label(ctx.overlay, version)
     with ui.tabs() as tabs:
         ui.tab("start", "Start").mark("tab-start")
