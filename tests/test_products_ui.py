@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -208,6 +209,37 @@ async def test_minimum_stock_is_prefilled_with_one_and_clearing_it_saves_none(us
     await user.should_see("Pieprz")
     [pieprz] = list_products(engine)
     assert pieprz.minimum_stock is None
+
+
+async def test_a_new_product_with_a_usual_shelf_life_starts_with_a_batch_dated_today_plus_its_days(
+    engine: Engine,
+) -> None:
+    async with user_simulation(lambda: build_shell(engine, today=lambda: date(2026, 10, 27))) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker="add-product").click()
+        user.find(marker="name").type("Mleko")
+        user.find(marker="shelf-life").type("7")
+        user.find(marker="first-quantity").type("2")
+        user.find(marker="save").click()
+
+        await user.should_see("Mleko")
+    [mleko] = list_products(engine)
+    assert mleko.shelf_life_days == 7
+    assert [(b.quantity, b.expiry) for b in mleko.batches] == [(2, date(2026, 11, 3))]
+
+
+@pytest.mark.parametrize("bad", ["0", "-3", "tydzień"])
+async def test_a_bad_usual_shelf_life_shows_a_polish_error_and_saves_nothing(
+    user: User, engine: Engine, bad: str
+) -> None:
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("Mleko")
+    user.find(marker="shelf-life").type(bad)
+    user.find(marker="save").click()
+
+    await user.should_see("Podaj liczbę dni większą od zera, np. 7.")
+    assert list_products(engine) == []
 
 
 async def test_bad_pack_size_or_minimum_stock_shows_polish_errors_and_saves_nothing(user: User, engine: Engine) -> None:

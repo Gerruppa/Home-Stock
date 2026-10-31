@@ -3,11 +3,9 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 
-from home_stock.domain.stock import ProductDraft
 from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
-from home_stock.persistence.products import add_product
 from home_stock.persistence.settings import LAST_ANNOUNCED_VERSION, load_setting, save_setting
 
 
@@ -44,6 +42,13 @@ def _migrate_to(engine: Engine, revision: str) -> None:
 def test_a_database_in_use_before_settings_existed_counts_as_having_announced_0_1_0(tmp_path: Path) -> None:
     engine = open_engine(tmp_path / "db.sqlite3")
     _migrate_to(engine, "0001")
-    add_product(engine, ProductDraft("Mleko", category_id=1, unit_id=1))
+    # Raw SQL, as add_product writes columns of later migrations
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO products (name, name_key, category_id, unit_id, archived)"
+                " VALUES ('Mleko', 'mleko', 1, 1, 0)"
+            )
+        )
 
     assert load_setting(init_db(tmp_path / "db.sqlite3"), LAST_ANNOUNCED_VERSION) == "0.1.0"

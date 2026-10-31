@@ -10,12 +10,12 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, get_product, list_products, purchase
+from home_stock.persistence.products import add_product, get_product, list_products, purchase, update_product
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, CHEMIA = 1, 3
 SZTUKA, OPAKOWANIE = 1, 2
-FORM_FIELDS = ("name", "category", "unit", "pack-size", "minimum-stock")
+FORM_FIELDS = ("name", "category", "unit", "pack-size", "minimum-stock", "shelf-life")
 
 
 @pytest.fixture
@@ -147,6 +147,34 @@ async def test_purchase_from_the_card_adds_a_batch(user: User, engine: Engine, m
     assert get_product(engine, mleko).quantity == 7
 
 
+async def test_a_usual_shelf_life_pre_fills_the_purchase_expiry_and_a_changed_date_is_saved_as_typed(
+    user: User, engine: Engine, mleko: int
+) -> None:
+    update_product(engine, mleko, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, shelf_life_days=7))
+    user.find(marker=f"open-{mleko}").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_see("zwykle ważne 7 dni")
+    user.find(marker="card-purchase").click()
+    [expiry] = user.find(marker="purchase-expiry", kind=ui.input).elements
+    assert expiry.value == "03.11.2026"
+
+    _fill(user, "purchase-expiry", "05.11.2026")
+    user.find(marker="purchase-save").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_see("05.11.2026")
+    assert date(2026, 11, 5) in [b.expiry for b in get_product(engine, mleko).batches]
+
+
+async def test_without_a_usual_shelf_life_the_purchase_expiry_starts_blank(user: User, mleko: int) -> None:
+    user.find(marker=f"open-{mleko}").click()
+    user.find(marker="card-purchase").click()
+
+    [expiry] = user.find(marker="purchase-expiry", kind=ui.input).elements
+    assert expiry.value == ""
+
+
 @pytest.mark.parametrize("bad", ["31.02.2026", "2026-10-30"])
 async def test_a_bad_purchase_date_shows_a_polish_error_and_saves_nothing(
     user: User, engine: Engine, mleko: int, bad: str
@@ -192,7 +220,9 @@ async def test_edit_from_the_card_saves_minimum_stock_under_the_same_name(
 
 async def test_the_edit_form_is_filled_in_with_the_product(engine: Engine) -> None:
     cukier = add_product(
-        engine, ProductDraft("Cukier", CHEMIA, OPAKOWANIE, PackSize(Decimal("0.5"), "kg"), None), BatchDraft(1)
+        engine,
+        ProductDraft("Cukier", CHEMIA, OPAKOWANIE, PackSize(Decimal("0.5"), "kg"), None, shelf_life_days=365),
+        BatchDraft(1),
     )
     async with user_simulation(lambda: build_shell(engine)) as user:
         await user.open("/")
@@ -207,6 +237,7 @@ async def test_the_edit_form_is_filled_in_with_the_product(engine: Engine) -> No
             "unit": OPAKOWANIE,
             "pack-size": "0,5 kg",
             "minimum-stock": "",
+            "shelf-life": "365",
         }
         await user.should_not_see(marker="first-quantity")
 

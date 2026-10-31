@@ -9,6 +9,7 @@ from home_stock.domain.stock import (
     Product,
     ProductDraft,
     batch_to_use,
+    default_expiry,
     expiry_status,
     is_running_low,
     name_key,
@@ -71,3 +72,14 @@ def test_drafts_validate() -> None:
     with pytest.raises(ValueError, match="większą od zera"):
         BatchDraft(0)
     assert ProductDraft(" Cukier ", 1, 1).name == "Cukier"
+
+
+@pytest.mark.parametrize("days", [0, -3])
+def test_a_usual_shelf_life_below_one_day_is_refused(days: int) -> None:
+    with pytest.raises(ValueError, match="większą od zera"):
+        ProductDraft("Mleko", 1, 1, shelf_life_days=days)
+
+
+def test_default_expiry_is_today_plus_the_usual_shelf_life() -> None:
+    assert default_expiry(7, date(2026, 10, 27)) == date(2026, 11, 3)
+    assert default_expiry(None, date(2026, 10, 27)) is None

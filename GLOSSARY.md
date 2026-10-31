@@ -28,6 +28,10 @@ _Avoid_: Amount, stock level, count
 The best-before or use-by date printed on a Batch; Batches of things that do not go off have none.
 _Avoid_: Shelf life, best-before, deadline
 
+**Usual Shelf Life**:
+The number of days a fresh Batch of a Product usually keeps; optional, and only a default: a Purchase starts with today plus that many days as its Expiry Date, which the user can change.
+_Avoid_: Expiry period, durability, best-before days
+
 **Minimum Stock**:
 The Quantity of a Product below which it counts as Running Low.
 _Avoid_: Threshold, reorder point, alarm level

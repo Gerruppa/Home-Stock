@@ -2,8 +2,8 @@
 
 from nicegui import ui
 
-from home_stock.domain.formatting import parse_count, parse_date
-from home_stock.domain.stock import BatchDraft, Product, suggested_purchase
+from home_stock.domain.formatting import format_date, parse_count, parse_date
+from home_stock.domain.stock import BatchDraft, Product, default_expiry, suggested_purchase
 from home_stock.persistence.products import purchase
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
@@ -14,7 +14,12 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
         ui.label(f"Zakup: {product.name}").classes("hs-dialog-title")
         quantity = ui.input("Ilość", value=str(suggested_purchase(product))).classes("w-full").mark("purchase-quantity")
         quantity_error = error_label()
-        expiry = ui.input("Termin ważności (opcjonalnie)", placeholder="DD.MM.RRRR").classes("w-full")
+        default = default_expiry(product.shelf_life_days, ctx.today())
+        expiry = ui.input(
+            "Termin ważności (opcjonalnie)",
+            value="" if default is None else format_date(default),
+            placeholder="DD.MM.RRRR",
+        ).classes("w-full")
         expiry.mark("purchase-expiry")
         expiry_error = error_label()
 
