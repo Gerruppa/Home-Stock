@@ -6,6 +6,8 @@ from datetime import date
 from nicegui import ui
 from sqlalchemy import Engine
 
+from home_stock import __version__
+from home_stock.ui.changelog import version_label
 from home_stock.ui.context import Context
 from home_stock.ui.products import ProductsTab
 from home_stock.ui.settings import SettingsTab
@@ -60,6 +62,8 @@ def build_shell(engine: Engine, today: Callable[[], date] = date.today) -> None:
     ctx = Context(engine, today, ui.element(), changed, undo_bar.show)
     with ui.header().classes("items-center"):
         ui.label(APP_TITLE).classes("text-h6")
+        ui.space()
+        version_label(ctx.overlay, __version__)
     with ui.tabs() as tabs:
         ui.tab("start", "Start").mark("tab-start")
         ui.tab("products", "Produkty").mark("tab-products")

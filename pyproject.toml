@@ -40,7 +40,7 @@ where = ["src"]
 version = { attr = "home_stock.__version__" }
 
 [tool.setuptools.package-data]
-home_stock = ["persistence/migrations/*.py", "persistence/migrations/*.mako", "persistence/migrations/versions/*.py"]
+home_stock = ["ui/changelog.md", "persistence/migrations/*.py", "persistence/migrations/*.mako", "persistence/migrations/versions/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
