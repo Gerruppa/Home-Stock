@@ -30,8 +30,8 @@ class SettingsTab:
         self.ctx = ctx
         self.category_list, self.category_error = _section("categories", "Kategorie", "category-error")
         self.unit_list, self.unit_error = _section("units", "Jednostki", "unit-error")
-        with ui.column().classes("w-full gap-1").mark("archive"):
-            ui.label("Archiwum").classes("text-subtitle1 text-weight-medium")
+        with ui.column().classes("w-full gap-1 hs-section hs-category").mark("archive"):
+            ui.label("Archiwum").classes("hs-section-title")
             self.archive_list = ui.column().classes("w-full gap-1")
         self.refresh()
 
@@ -139,8 +139,8 @@ class SettingsTab:
 
 def _section(marker: str, title: str, error_marker: str) -> tuple[ui.column, ui.label]:
     """A titled section: the column its rows are drawn into and the label its refusals show in."""
-    with ui.column().classes("w-full gap-1").mark(marker):
-        ui.label(title).classes("text-subtitle1 text-weight-medium")
+    with ui.column().classes("w-full gap-1 hs-section hs-category").mark(marker):
+        ui.label(title).classes("hs-section-title")
         rows = ui.column().classes("w-full gap-1")
         error = error_label().mark(error_marker)
     return rows, error

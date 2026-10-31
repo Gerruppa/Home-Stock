@@ -12,7 +12,7 @@ from home_stock.ui.context import Context
 class StartTab:
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
-        self.content = ui.column().classes("w-full")
+        self.content = ui.column().classes("w-full gap-4")
         self.refresh()
 
     def refresh(self) -> None:
@@ -38,13 +38,15 @@ class StartTab:
         self.content.clear()
         with self.content:
             if not any(lines for _, _, lines in sections):
-                ui.label("Wszystko w porządku.")
+                ui.label("Wszystko w porządku.").classes("text-h6")
                 return
             for marker, title, lines in sections:
-                with ui.column().classes("w-full gap-1").mark(marker):
-                    ui.label(title).classes("text-subtitle1 text-weight-medium")
-                    for line in lines or ["Nic tutaj."]:
-                        ui.label(line)
+                with ui.column().classes(f"w-full gap-0 hs-section hs-{marker}").mark(marker):
+                    ui.label(title).classes("hs-section-title q-mb-xs")
+                    if not lines:
+                        ui.label("Nic tutaj.").classes("hs-empty")
+                    for line in lines:
+                        ui.label(line).classes("hs-line w-full")
 
 
 def _expiry_lines(dated: list[tuple[Product, Batch]], units: dict[int, Unit]) -> list[str]:
