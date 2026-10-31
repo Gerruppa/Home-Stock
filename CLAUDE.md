@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Home Stock (version `0.2.0`, `home_stock.__version__`) tracks household stock by hand and reminds the user what is running low or about to expire; modelled on the sibling app KAPITA (`D:\PythonProject\FinancialApp`). The agreed spec is `docs/spec.md`, the glossary `GLOSSARY.md`, key decisions `docs/adr/`.
+Home Stock (version `0.2.0`, `home_stock.__version__`) tracks household stock by hand and reminds the user what is running low or about to expire; modelled on the sibling app KAPITA (`D:\PythonProject\FinancialApp`), a read-only reference: run git and edits in this repo only. The agreed spec is `docs/spec.md`, the glossary `GLOSSARY.md`, key decisions `docs/adr/`.
 
 Work is tracked in GitHub Issues on Gerruppa/Home-Stock (label `ready-for-agent`; each ticket names the tickets that block it). Take the lowest open ticket whose blockers are closed. `docs/superpowers/plans/2026-10-27-home-stock-v1.md` is superseded by the tickets; read it only for intended names and test cases. Each ticket goes on a branch `feat/<n>-<slug>` and a PR with `Closes #<n>`; merge with `gh pr merge <n> --merge --delete-branch` only when the user says so.
 
@@ -35,6 +35,8 @@ The changelog `src/home_stock/ui/changelog.md` (Polish) collects, under `## Nieo
 - `.venv/Scripts/python.exe scripts/release.py prepare <X.Y.Z>` on a branch `release/<X.Y.Z>`: sets `__version__` and renames Nieopublikowane to `<X.Y.Z> — <today>`; it refuses a version that is not X.Y.Z or not newer, and an empty Nieopublikowane. Commit, open the PR, merge when the user says so.
 - `.venv/Scripts/python.exe scripts/release.py publish` on an up-to-date, clean main: builds the installer (several minutes, needs Inno Setup; ask first if the user is busy at the computer), pushes the tag `v<X.Y.Z>` and creates the GitHub Release "Home Stock <X.Y.Z>" with `Home-Stock-<X.Y.Z>-setup.exe`. `scripts/release.py notes [<X.Y.Z>]` prints the Release text without publishing.
 
+Try an installer in the scratchpad: `Home-Stock-<X.Y.Z>-setup.exe /DIR="<scratchpad>\app"` with `HOME_STOCK_DATA_DIR` set to a scratch folder. The user's own install in `%LOCALAPPDATA%\Programs\Home Stock`, and its running `HomeStock` processes, are theirs.
+
 ## Environment
 
 - Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`.
@@ -43,4 +45,4 @@ The changelog `src/home_stock/ui/changelog.md` (Polish) collects, under `## Nieo
   - Tests: `.venv/Scripts/python.exe -m pytest -n auto`. No CI: pre-commit runs them with ruff and mypy whenever a commit touches Python files.
   - Type check: `.venv/Scripts/python.exe -m mypy` (strict)
   - Lint and format: `.venv/Scripts/python.exe -m ruff check .` and `.venv/Scripts/python.exe -m ruff format .`
-- Write multi-line text (issue bodies, long files) with the Write tool; Bash heredocs break on some quotes.
+- Change files with Edit and Write, issue bodies too; a Python or `sed` script through Bash breaks on quotes.
