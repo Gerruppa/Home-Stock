@@ -1,6 +1,6 @@
 # Historia zmian
 
-## Nieopublikowane
+## 0.2.1 — 2026-11-01
 
 ### Zmiany
 - Nowy wygląd: jasny motyw w zieleni, czytelne zakładki i karty z kolorem według pilności (przeterminowane na czerwono, kończący się termin na bursztynowo, do kupienia na niebiesko), a w Produktach ilość poniżej minimum jest wyróżniona.
