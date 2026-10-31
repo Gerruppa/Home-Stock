@@ -46,3 +46,17 @@ Try an installer in the scratchpad: `Home-Stock-<X.Y.Z>-setup.exe /DIR="<scratch
   - Type check: `.venv/Scripts/python.exe -m mypy` (strict)
   - Lint and format: `.venv/Scripts/python.exe -m ruff check .` and `.venv/Scripts/python.exe -m ruff format .`
 - Change files with Edit and Write, issue bodies too; a Python or `sed` script through Bash breaks on quotes.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on Gerruppa/Home-Stock, worked through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
