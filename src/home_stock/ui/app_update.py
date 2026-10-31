@@ -42,7 +42,7 @@ def update_notice(overlay: ui.element, updates: UpdateSource | None, version: st
 
 def _open_dialog(overlay: ui.element, updates: UpdateSource, latest: LatestRelease) -> None:
     with overlay, ui.dialog() as dialog, ui.card().classes("w-[28rem] max-w-full").mark("update-dialog"):
-        ui.label(f"Dostępna wersja {latest.version}").classes("text-h6")
+        ui.label(f"Dostępna wersja {latest.version}").classes("hs-dialog-title")
         if updates.can_install:
             ui.label(
                 "Home Stock pobierze instalator, zamknie się, zaktualizuje i uruchomi ponownie. Twoje dane zostają."

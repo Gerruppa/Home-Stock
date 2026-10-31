@@ -98,17 +98,18 @@ class SettingsTab:
         self, kind: str, row_id: int, error: ui.label, save: Callable[[], object], remove: Callable[[], object]
     ) -> None:
         """Zapisz and Usuń for a row, marked "<kind>-save-<id>" and "<kind>-delete-<id>"."""
-        ui.button(icon="save", on_click=lambda: self._change(error, save)).props("dense flat").tooltip("Zapisz").mark(
-            f"{kind}-save-{row_id}"
-        )
-        ui.button(icon="delete", on_click=lambda: self._change(error, remove)).props("dense flat").tooltip("Usuń").mark(
-            f"{kind}-delete-{row_id}"
-        )
+        with ui.row().classes("hs-actions"):
+            save_button = ui.button(icon="save", on_click=lambda: self._change(error, save))
+            save_button.props("dense flat").tooltip("Zapisz").mark(f"{kind}-save-{row_id}")
+            delete_button = ui.button(icon="delete", on_click=lambda: self._change(error, remove))
+            delete_button.props("dense flat").tooltip("Usuń").mark(f"{kind}-delete-{row_id}")
 
     def _add_button(self, marker: str, error: ui.label, add: Callable[[], object]) -> None:
-        ui.button(icon="add", on_click=lambda: self._change(error, add)).props("dense flat").tooltip("Dodaj").mark(
-            marker
-        )
+        # In a column as wide as the Zapisz and Usuń pair above, so the new row lines up with the saved ones
+        with ui.row().classes("hs-actions"):
+            ui.button(icon="add", on_click=lambda: self._change(error, add)).props("dense flat").tooltip("Dodaj").mark(
+                marker
+            )
 
     def _change(self, error: ui.label, action: Callable[[], object]) -> None:
         """Run a change and redraw every tab; a refused one shows its Polish message under its section instead."""

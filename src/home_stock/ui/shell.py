@@ -31,7 +31,7 @@ class UndoBar:
 
     def __init__(self, changed: Callable[[], None]) -> None:
         self.changed = changed
-        self.bar = ui.row().classes("fixed-bottom q-ma-md q-pa-sm items-center bg-grey-9 text-white rounded-borders")
+        self.bar = ui.row().classes("fixed-bottom q-ma-md q-pa-sm items-center hs-undo-bar text-white rounded-borders")
         self.bar.mark("undo-bar")
         self.bar.set_visibility(False)
         self.timer: ui.timer | None = None

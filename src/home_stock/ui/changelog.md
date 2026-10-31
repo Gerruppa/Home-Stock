@@ -4,6 +4,7 @@
 
 ### Zmiany
 - Nowy wygląd: jasny motyw w zieleni, czytelne zakładki i karty z kolorem według pilności (przeterminowane na czerwono, kończący się termin na bursztynowo, do kupienia na niebiesko), a w Produktach ilość poniżej minimum jest wyróżniona.
+- Na ekranie Start nazwa produktu stoi po lewej, a ilość i termin po prawej; okna (karta produktu, formularze, zakup, aktualizacja) i pasek „Cofnij” mają ten sam wygląd co zakładki.
 
 ## 0.2.0 — 2026-10-31
 
