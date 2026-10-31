@@ -21,6 +21,11 @@ dev = [
     "mypy>=2.4",
     "ruff>=0.16",
 ]
+# Builds the Windows installer (scripts/build_installer.ps1) and the icons (scripts/make_icons.py)
+build = [
+    "pyinstaller>=6.16",
+    "pillow>=11",
+]
 
 [project.scripts]
 home-stock = "home_stock.app:main"
@@ -40,7 +45,7 @@ where = ["src"]
 version = { attr = "home_stock.__version__" }
 
 [tool.setuptools.package-data]
-home_stock = ["ui/changelog.md", "persistence/migrations/*.py", "persistence/migrations/*.mako", "persistence/migrations/versions/*.py"]
+home_stock = ["ui/changelog.md", "ui/assets/*", "persistence/migrations/*.py", "persistence/migrations/*.mako", "persistence/migrations/versions/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

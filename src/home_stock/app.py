@@ -3,19 +3,20 @@ native window (``--browser`` serves it on http://127.0.0.1:8080 instead; ``--dem
 there)."""
 
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 from datetime import date
-from typing import Any
+from typing import Any, TextIO
 
 from nicegui import ui
 from sqlalchemy import Engine
 
 from home_stock.persistence.backup import backup_database
 from home_stock.persistence.db import init_db
-from home_stock.persistence.paths import backups_dir, database_path, demo_database_path
+from home_stock.persistence.paths import backups_dir, database_path, demo_database_path, log_path
 from home_stock.sources.demo_data import seed_demo_data
-from home_stock.ui.shell import APP_TITLE, build_shell
+from home_stock.ui.shell import APP_ICON, APP_TITLE, build_shell
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
@@ -37,6 +38,26 @@ def run_options(args: argparse.Namespace) -> dict[str, Any]:
     return {"native": True, "window_size": (1200, 800)}
 
 
+def _no_console(stream: TextIO | None) -> bool:
+    """No console behind ``stream``: None, or the os.devnull pywebview puts in its place when imported."""
+    return stream is None or getattr(stream, "name", None) == os.devnull
+
+
+def attach_log_when_windowless() -> None:
+    """Send output to the log without a console (pythonw, the frozen exe), where uvicorn would crash on None."""
+    out, err = _no_console(sys.stdout), _no_console(sys.stderr)
+    if not (out or err):
+        return
+    path = log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Overwritten at each start so it never grows unbounded; open for the life of the process
+    log = open(path, "w", encoding="utf-8", buffering=1)
+    if out:
+        sys.stdout = log
+    if err:
+        sys.stderr = log
+
+
 def start_database() -> Engine:
     """The user's database, with a Backup taken before migrations touch it."""
     path = database_path()
@@ -55,5 +76,8 @@ def start_demo_database() -> Engine:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    attach_log_when_windowless()
     engine = start_demo_database() if args.demo else start_database()
-    ui.run(lambda: build_shell(engine), title=APP_TITLE, reload=False, language="pl", **run_options(args))
+    ui.run(
+        lambda: build_shell(engine), title=APP_TITLE, favicon=APP_ICON, reload=False, language="pl", **run_options(args)
+    )

@@ -2,6 +2,26 @@
 
 A desktop app for Windows (NiceGUI in a native window, SQLite).
 
+## Install from the installer
+
+Run `Home-Stock-<version>-setup.exe`. It installs for the current user only (no administrator rights) into
+`%LOCALAPPDATA%\Programs\Home Stock`, adds Home Stock to the Start menu and to the desktop (untick it in the wizard to skip that). Installing a
+newer version over it upgrades in place; uninstalling (Settings > Apps) leaves your data alone. Home Stock needs the
+Microsoft Edge WebView2 runtime, which Windows 11 already has.
+
+## Build the installer
+
+Needs Inno Setup 6 (`winget install JRSoftware.InnoSetup`) and the `build` extra:
+
+```
+.venv\Scripts\python.exe -m pip install -e ".[dev,build]"
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+```
+
+The installer lands in `dist\Home-Stock-<version>-setup.exe`; the version comes from `src/home_stock/__init__.py`. A
+silent install (`/SILENT /CLOSEAPPLICATIONS /NORESTART`) closes a running Home Stock and starts the new one when done.
+To change the icon, edit and run `.venv\Scripts\python.exe scripts\make_icons.py`.
+
 ## Install for development
 
 Requires Python 3.14.
@@ -26,6 +46,9 @@ every start, with something in every section of Start and on the Shopping List.
 
 Every start takes a Backup of the database into `backups\` in the data folder before migrations run, keeping the newest
 30 (the demo takes none). To restore one, close Home Stock and copy the chosen file over `home_stock.sqlite3`.
+
+Without a console (the installed app, or `home-stock-gui`), the output goes to `home_stock.log` in the data folder,
+overwritten at each start.
 
 ## Checks
 
