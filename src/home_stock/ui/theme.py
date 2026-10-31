@@ -24,6 +24,12 @@ body {{ background: {PAPER}; color: {INK}; }}
 .hs-page {{ width: 100%; max-width: {CONTENT_WIDTH}; margin: 0 auto; padding: 1.5rem 1rem 5rem; }}
 .hs-section {{ background: white; border: 1px solid #d9ded6; border-left: 6px solid var(--hs-accent);
     border-radius: 6px; padding: 0.9rem 1.1rem 1rem; }}
+.q-dialog .q-card {{ border-radius: 8px; padding: 0.5rem 0.75rem; }}
+.hs-dialog-title {{ color: {GREEN}; font-size: 1.3rem; font-weight: 600; line-height: 1.8rem; }}
+.hs-section-title-green {{ color: {GREEN}; font-size: 1.05rem; margin-top: 0.5rem; }}
+.hs-muted {{ color: #55645a; }}
+.hs-undo-bar {{ background: {INK}; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }}
+.hs-actions {{ width: 5.5rem; flex-wrap: nowrap; justify-content: space-around; gap: 0; }}
 .hs-section + .hs-section {{ margin-top: 1rem; }}
 .hs-section-title {{ color: var(--hs-accent); font-size: 1.15rem; font-weight: 600; }}
 .hs-expired {{ --hs-accent: {EXPIRED}; }}

@@ -25,7 +25,7 @@ from home_stock.ui.purchase_dialog import open_purchase_dialog
 
 def open_product_card(ctx: Context, product_id: int) -> None:
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-[36rem]").mark("product-card"):
-        content = ui.column().classes("w-full")
+        content = ui.column().classes("w-full gap-1")
         with ui.row().classes("w-full justify-end"):
             ui.button("Zamknij", on_click=dialog.close).props("flat")
 
@@ -42,15 +42,15 @@ def open_product_card(ctx: Context, product_id: int) -> None:
         unit = next(u for u in list_units(ctx.engine) if u.id == product.unit_id)
         content.clear()
         with content:
-            ui.label(product.name).classes("text-h6")
-            ui.label(f"Kategoria: {category.name}")
-            ui.label(f"Jednostka: {unit.name}")
+            ui.label(product.name).classes("hs-dialog-title")
+            ui.label(f"Kategoria: {category.name}").classes("hs-muted")
+            ui.label(f"Jednostka: {unit.name}").classes("hs-muted")
             if product.pack_size is not None:
-                ui.label(f"Rozmiar opakowania: {format_pack_size(product.pack_size)}")
+                ui.label(f"Rozmiar opakowania: {format_pack_size(product.pack_size)}").classes("hs-muted")
             minimum = "brak" if product.minimum_stock is None else str(product.minimum_stock)
-            ui.label(f"Stan minimalny: {minimum}")
-            ui.label(f"Razem: {format_quantity(product.quantity, unit, product.pack_size)}")
-            ui.label("Partie").classes("text-subtitle1 text-weight-medium")
+            ui.label(f"Stan minimalny: {minimum}").classes("hs-muted")
+            ui.label(f"Razem: {format_quantity(product.quantity, unit, product.pack_size)}").classes("hs-qty")
+            ui.label("Partie").classes("hs-section-title hs-section-title-green")
             if not product.batches:
                 ui.label("Brak partii.")
             for batch in product.batches:

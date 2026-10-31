@@ -11,7 +11,7 @@ from home_stock.ui.fields import error_label, show_error
 
 def open_purchase_dialog(ctx: Context, product: Product) -> None:
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-80").mark("purchase-dialog"):
-        ui.label(f"Zakup: {product.name}").classes("text-h6")
+        ui.label(f"Zakup: {product.name}").classes("hs-dialog-title")
         quantity = ui.input("Ilość", value=str(suggested_purchase(product))).classes("w-full").mark("purchase-quantity")
         quantity_error = error_label()
         expiry = ui.input("Termin ważności (opcjonalnie)", placeholder="DD.MM.RRRR").classes("w-full")

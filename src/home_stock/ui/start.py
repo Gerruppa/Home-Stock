@@ -45,22 +45,24 @@ class StartTab:
                     ui.label(title).classes("hs-section-title q-mb-xs")
                     if not lines:
                         ui.label("Nic tutaj.").classes("hs-empty")
-                    for line in lines:
-                        ui.label(line).classes("hs-line w-full")
+                    for name, detail in lines:
+                        with ui.row().classes("w-full items-baseline no-wrap hs-line"):
+                            ui.label(name).classes("grow")
+                            ui.label(detail).classes("hs-qty")
 
 
-def _expiry_lines(dated: list[tuple[Product, Batch]], units: dict[int, Unit]) -> list[str]:
-    """ "Mleko: 2 szt., termin 27.10.2026", soonest first."""
+def _expiry_lines(dated: list[tuple[Product, Batch]], units: dict[int, Unit]) -> list[tuple[str, str]]:
+    """("Mleko", "2 szt., termin 27.10.2026"), soonest first."""
     lines = []
     for product, batch in sorted(dated, key=lambda pair: (pair[1].expiry, pair[0].name)):
         assert batch.expiry is not None  # only dated Batches have an Expiry Status
         quantity = format_quantity(batch.quantity, units[product.unit_id], product.pack_size)
-        lines.append(f"{product.name}: {quantity}, termin {format_date(batch.expiry)}")
+        lines.append((product.name, f"{quantity}, termin {format_date(batch.expiry)}"))
     return lines
 
 
-def _running_low_line(product: Product, units: dict[int, Unit]) -> str:
+def _running_low_line(product: Product, units: dict[int, Unit]) -> tuple[str, str]:
     unit = units[product.unit_id]
     quantity = format_quantity(product.quantity, unit, product.pack_size)
     minimum = format_quantity(product.minimum_stock or 0, unit, None)
-    return f"{product.name}: {quantity}, minimum {minimum}"
+    return product.name, f"{quantity}, minimum {minimum}"

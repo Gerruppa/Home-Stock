@@ -69,7 +69,8 @@ async def test_a_longer_warning_window_moves_a_batch_into_expiring_soon(engine: 
 
         user.find(marker="tab-start").click()
         with user.scope(marker="expiring"):
-            await user.should_see("Szynka: 1 szt., termin 31.10.2026")
+            await user.should_see("Szynka")
+            await user.should_see("1 szt., termin 31.10.2026")
 
 
 async def test_a_new_category_starts_with_seven_days_and_an_unused_one_can_be_deleted(engine: Engine) -> None:

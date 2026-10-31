@@ -54,14 +54,18 @@ async def test_expired_and_expiring_by_warning_window(engine: Engine) -> None:
         await user.open("/")
         with user.scope(marker="expired"):
             await user.should_see("Przeterminowane")
-            await user.should_see("Jogurt: 2 szt., termin 26.10.2026")
+            await user.should_see("Jogurt")
+            await user.should_see("2 szt., termin 26.10.2026")
             await user.should_not_see("Mleko", retries=1)
             await user.should_not_see("Szynka", retries=1)
         with user.scope(marker="expiring"):
             await user.should_see("Kończy się termin")
-            await user.should_see("Mleko: 1 szt., termin 27.10.2026")
-            await user.should_see("Ser: 1 szt., termin 30.10.2026")
-            await user.should_see("Aspiryna: 1 szt., termin 20.11.2026")
+            await user.should_see("Mleko")
+            await user.should_see("1 szt., termin 27.10.2026")
+            await user.should_see("Ser")
+            await user.should_see("1 szt., termin 30.10.2026")
+            await user.should_see("Aspiryna")
+            await user.should_see("1 szt., termin 20.11.2026")
             await user.should_not_see("Jogurt", retries=1)
             await user.should_not_see("Szynka", retries=1)
         with user.scope(marker="running-low"):
@@ -76,14 +80,14 @@ async def test_expiring_lines_run_soonest_first(engine: Engine) -> None:
 
     async with user_simulation(lambda: _shell(engine)) as user:
         await user.open("/")
-        await user.should_see("Ser: 1 szt., termin 30.10.2026")
+        await user.should_see("1 szt., termin 30.10.2026")
         # The order on the page is the order in the element tree; ElementFilter makes no promise about its own
         [section] = user.find(marker="expiring").elements
-        [_title, *lines] = section.default_slot.children
-        assert [line.text for line in lines if isinstance(line, ui.label)] == [
-            "Mleko: 1 szt., termin 27.10.2026",
-            "Ser: 1 szt., termin 30.10.2026",
-            "Aspiryna: 1 szt., termin 20.11.2026",
+        [_title, *rows] = section.default_slot.children
+        assert [[label.text for label in row.default_slot.children if isinstance(label, ui.label)] for row in rows] == [
+            ["Mleko", "1 szt., termin 27.10.2026"],
+            ["Ser", "1 szt., termin 30.10.2026"],
+            ["Aspiryna", "1 szt., termin 20.11.2026"],
         ]
 
 
@@ -96,7 +100,8 @@ async def test_do_kupienia_lists_products_running_low(engine: Engine) -> None:
         await user.open("/")
         with user.scope(marker="running-low"):
             await user.should_see("Do kupienia")
-            await user.should_see("Cukier: 3 opak. (3 kg), minimum 3 opak.")
+            await user.should_see("Cukier")
+            await user.should_see("3 opak. (3 kg), minimum 3 opak.")
             await user.should_not_see("Pieprz", retries=1)
         with user.scope(marker="expired"):
             await user.should_see("Nic tutaj.")
@@ -107,7 +112,7 @@ async def test_a_purchase_on_the_shopping_list_clears_do_kupienia(engine: Engine
 
     async with user_simulation(lambda: _shell(engine)) as user:
         await user.open("/")
-        await user.should_see("Cukier: 1 opak., minimum 1 opak.")
+        await user.should_see("1 opak., minimum 1 opak.")
         user.find(marker="tab-shopping").click()
         user.find(marker=f"bought-{cukier}").click()
         user.find(marker="purchase-save").click()

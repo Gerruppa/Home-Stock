@@ -24,7 +24,7 @@ def load_changelog() -> Changelog:
 def open_changelog(overlay: ui.element, title: str, releases: Iterable[Release]) -> None:
     """A scrolling dialog of ``releases``, newest first."""
     with overlay, ui.dialog() as dialog, ui.card().classes("w-[40rem] max-w-full").mark("changelog"):
-        ui.label(title).classes("text-h6")
+        ui.label(title).classes("hs-dialog-title")
         with ui.scroll_area().classes("w-full h-[60vh]"):
             for release in releases:
                 ui.label(f"{release.version} — {format_date(release.released)}").classes("text-base text-bold pt-2")

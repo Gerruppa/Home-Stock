@@ -23,7 +23,7 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
     categories = list_categories(ctx.engine)
     units = list_units(ctx.engine)
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96"):
-        ui.label("Nowy produkt" if product is None else "Edytuj produkt").classes("text-h6")
+        ui.label("Nowy produkt" if product is None else "Edytuj produkt").classes("hs-dialog-title")
         name = ui.input("Nazwa", value="" if product is None else product.name).classes("w-full").mark("name")
         name_error = error_label()
         # Shown when a new Product's name exists: offers the first Batch to the existing Product instead, or, when it
