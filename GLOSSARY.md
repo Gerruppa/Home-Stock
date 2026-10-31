@@ -79,3 +79,9 @@ _Avoid_: To-buy list, cart, order
 **Backup**:
 A copy of the database taken at every start before migrations run, of which the newest 30 are kept; restored by hand.
 _Avoid_: Snapshot, export, dump
+
+## Distribution
+
+**Release**:
+A published version of Home Stock: the GitHub Release tagged `v<X.Y.Z>`, carrying its installer and its changelog section; the installed app offers a newer one.
+_Avoid_: Build, update package

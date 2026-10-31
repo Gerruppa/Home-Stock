@@ -16,6 +16,7 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
+from home_stock.domain.app_update import installer_name
 from home_stock.domain.changelog import UNRELEASED, ChangelogError, is_newer, parse_changelog
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,10 +72,6 @@ def release_notes(text: str, version: str) -> str:
     for group in release.groups:
         lines += ["", f"### {group.title}", *(f"- {entry}" for entry in group.entries)]
     return "\n".join(lines) + "\n"
-
-
-def installer_name(version: str) -> str:
-    return f"Home-Stock-{version}-setup.exe"
 
 
 def _run(*command: str) -> str:

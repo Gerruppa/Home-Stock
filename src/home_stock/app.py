@@ -15,6 +15,7 @@ from sqlalchemy import Engine
 from home_stock.persistence.backup import backup_database
 from home_stock.persistence.db import init_db
 from home_stock.persistence.paths import backups_dir, database_path, demo_database_path, log_path
+from home_stock.sources.app_update import UpdateSource
 from home_stock.sources.demo_data import seed_demo_data
 from home_stock.ui.shell import APP_ICON, APP_TITLE, build_shell
 
@@ -74,10 +75,21 @@ def start_demo_database() -> Engine:
     return engine
 
 
+def update_source(args: argparse.Namespace) -> UpdateSource | None:
+    """GitHub's Releases for the real app; the demo never checks for updates."""
+    return None if args.demo else UpdateSource.real()
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     attach_log_when_windowless()
     engine = start_demo_database() if args.demo else start_database()
+    updates = update_source(args)
     ui.run(
-        lambda: build_shell(engine), title=APP_TITLE, favicon=APP_ICON, reload=False, language="pl", **run_options(args)
+        lambda: build_shell(engine, updates=updates),
+        title=APP_TITLE,
+        favicon=APP_ICON,
+        reload=False,
+        language="pl",
+        **run_options(args),
     )
