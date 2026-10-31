@@ -9,3 +9,7 @@ Judgement calls for review; what tooling checks (ruff, mypy, `tests/test_archite
 - The UI parses text with `domain/formatting.py` parsers, builds the draft, calls persistence, and shows any `ValueError` or `StockError` as it is.
 
 Known exception: `persistence/catalog.py` checks Category and Unit fields itself (blank name, negative days) instead of through drafts.
+
+## Tests
+
+- A test reads the shipped `ui/changelog.md` only for what every release keeps: its released sections. A test of the Nieopublikowane section builds its own changelog text, since `release.py prepare` renames that section.
