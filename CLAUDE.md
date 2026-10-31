@@ -29,6 +29,12 @@ UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` marke
 - `should_see` reads text, labels and values, not props: show a form error as a `ui.label`, not as the `error-message` prop.
 - `user.find(...)` raises when nothing matches: check that an element is absent with `should_not_see(marker=...)`.
 
+## Releasing
+
+The changelog `src/home_stock/ui/changelog.md` (Polish) collects, under `## Nieopublikowane`, one sentence per change the user sees, without issue numbers. A release takes two steps of `scripts/release.py`:
+- `.venv/Scripts/python.exe scripts/release.py prepare <X.Y.Z>` on a branch `release/<X.Y.Z>`: sets `__version__` and renames Nieopublikowane to `<X.Y.Z> — <today>`; it refuses a version that is not X.Y.Z or not newer, and an empty Nieopublikowane. Commit, open the PR, merge when the user says so.
+- `.venv/Scripts/python.exe scripts/release.py publish` on an up-to-date, clean main: builds the installer (several minutes, needs Inno Setup; ask first if the user is busy at the computer), pushes the tag `v<X.Y.Z>` and creates the GitHub Release "Home Stock <X.Y.Z>" with `Home-Stock-<X.Y.Z>-setup.exe`. `scripts/release.py notes [<X.Y.Z>]` prints the Release text without publishing.
+
 ## Environment
 
 - Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`.
