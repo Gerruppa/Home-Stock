@@ -19,7 +19,7 @@ class ShoppingTab:
         self.refresh()
 
     @staticmethod
-    def _copy(text: str) -> None:
+    def _copy_list(text: str) -> None:
         ui.run_javascript(f"navigator.clipboard.writeText({json.dumps(text)})")
         ui.notify("Skopiowano listę zakupów.")
 
@@ -34,7 +34,7 @@ class ShoppingTab:
                 return
             categories = list_categories(engine)
             text = format_shopping_list(categories, units, products)
-            ui.button("Kopiuj listę", icon="content_copy", on_click=lambda: self._copy(text)).props(
+            ui.button("Kopiuj listę", icon="content_copy", on_click=lambda: self._copy_list(text)).props(
                 "dense outline"
             ).mark("copy-list")
             for category in categories:
@@ -50,10 +50,9 @@ class ShoppingTab:
                     for product in shown:
                         with ui.row().classes("w-full items-center no-wrap hs-line").mark(f"shopping-{product.id}"):
                             ui.label(product.name).classes("grow")
-                            ui.label(
-                                format_quantity(product.quantity, units[product.unit_id], product.pack_size)
-                            ).classes("hs-qty")
-                            ui.label(format_purchase_amount(product, units[product.unit_id])).classes("hs-qty")
+                            unit = units[product.unit_id]
+                            ui.label(format_quantity(product.quantity, unit, product.pack_size)).classes("hs-qty")
+                            ui.label(format_purchase_amount(product, unit)).classes("hs-qty")
                             ui.button(
                                 "Kupione", icon="check", on_click=lambda p=product: open_purchase_dialog(self.ctx, p)
                             ).props("dense outline").mark(f"bought-{product.id}")

@@ -57,7 +57,7 @@ async def test_each_product_shows_the_amount_to_buy(engine: Engine) -> None:
             await user.should_see("kup 3 rol.")
 
 
-async def test_kopiuj_liste_confirms_and_is_hidden_when_the_list_is_empty(engine: Engine) -> None:
+async def test_kopiuj_liste_confirms_that_the_list_was_copied(engine: Engine) -> None:
     add_product(engine, ProductDraft("Papier toaletowy", HIGIENA, ROLKA, minimum_stock=3), BatchDraft(1))
 
     async with user_simulation(lambda: build_shell(engine)) as user:
