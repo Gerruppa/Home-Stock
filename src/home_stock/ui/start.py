@@ -1,4 +1,7 @@
-"""Start: what has expired, what expires soon and what to buy; the only place reminders appear (ADR-0002)."""
+"""Start: what has expired, what expires soon and what to buy; the only place reminders appear (ADR-0002). Each line
+opens its Product's card."""
+
+from typing import NamedTuple
 
 from nicegui import ui
 
@@ -7,6 +10,14 @@ from home_stock.domain.stock import Batch, ExpiryStatus, Product, Unit, expiry_s
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.products import list_products
 from home_stock.ui.context import Context
+from home_stock.ui.product_card import open_product_card
+
+
+class _StartLine(NamedTuple):
+    marker: str
+    product_id: int
+    name: str
+    detail: str
 
 
 class StartTab:
@@ -45,24 +56,27 @@ class StartTab:
                     ui.label(title).classes("hs-section-title q-mb-xs")
                     if not lines:
                         ui.label("Nic tutaj.").classes("hs-empty")
-                    for name, detail in lines:
-                        with ui.row().classes("w-full items-baseline no-wrap hs-line"):
-                            ui.label(name).classes("grow")
-                            ui.label(detail).classes("hs-qty")
+                    for line in lines:
+                        row = ui.row().classes("w-full items-baseline no-wrap hs-line cursor-pointer").mark(line.marker)
+                        row.on("click", lambda line=line: open_product_card(self.ctx, line.product_id))
+                        with row:
+                            ui.label(line.name).classes("grow")
+                            ui.label(line.detail).classes("hs-qty")
 
 
-def _expiry_lines(dated: list[tuple[Product, Batch]], units: dict[int, Unit]) -> list[tuple[str, str]]:
-    """("Mleko", "2 szt., termin 27.10.2026"), soonest first."""
+def _expiry_lines(dated: list[tuple[Product, Batch]], units: dict[int, Unit]) -> list[_StartLine]:
+    """One line per Batch, e.g. Mleko / "2 szt., termin 27.10.2026", soonest first."""
     lines = []
     for product, batch in sorted(dated, key=lambda pair: (pair[1].expiry, pair[0].name)):
         assert batch.expiry is not None  # only dated Batches have an Expiry Status
         quantity = format_quantity(batch.quantity, units[product.unit_id], product.pack_size)
-        lines.append((product.name, f"{quantity}, termin {format_date(batch.expiry)}"))
+        detail = f"{quantity}, termin {format_date(batch.expiry)}"
+        lines.append(_StartLine(f"start-batch-{batch.id}", product.id, product.name, detail))
     return lines
 
 
-def _running_low_line(product: Product, units: dict[int, Unit]) -> tuple[str, str]:
+def _running_low_line(product: Product, units: dict[int, Unit]) -> _StartLine:
     unit = units[product.unit_id]
     quantity = format_quantity(product.quantity, unit, product.pack_size)
     minimum = format_quantity(product.minimum_stock or 0, unit, None)
-    return product.name, f"{quantity}, minimum {minimum}"
+    return _StartLine(f"start-low-{product.id}", product.id, product.name, f"{quantity}, minimum {minimum}")
