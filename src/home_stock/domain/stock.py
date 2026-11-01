@@ -8,6 +8,9 @@ from enum import Enum
 
 # What a Pack Size may be measured in; never what a Quantity is counted in (ADR-0001)
 MEASURES = ("g", "kg", "ml", "l")
+# Ten years: longer than anything at home keeps, and short enough for any date it gives
+MAX_USUAL_SHELF_LIFE_DAYS = 3650
+USUAL_SHELF_LIFE_ERROR = f"Podaj liczbę dni od 1 do {MAX_USUAL_SHELF_LIFE_DAYS}, np. 7."
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,8 @@ class ProductDraft:
     unit_id: int
     pack_size: PackSize | None = None
     minimum_stock: int | None = None
+    # Usual Shelf Life in days
+    usual_shelf_life_days: int | None = None
 
     def __post_init__(self) -> None:
         name = " ".join(self.name.split())
@@ -63,6 +68,8 @@ class ProductDraft:
             raise ValueError("Podaj nazwę produktu.")
         if self.minimum_stock is not None and self.minimum_stock < 0:
             raise ValueError("Stan minimalny nie może być ujemny.")
+        if self.usual_shelf_life_days is not None and not 1 <= self.usual_shelf_life_days <= MAX_USUAL_SHELF_LIFE_DAYS:
+            raise ValueError(USUAL_SHELF_LIFE_ERROR)
         object.__setattr__(self, "name", name)
 
 
@@ -76,6 +83,8 @@ class Product:
     minimum_stock: int | None
     archived: bool
     batches: tuple[Batch, ...]
+    # Usual Shelf Life in days
+    usual_shelf_life_days: int | None = None
 
     @property
     def quantity(self) -> int:
@@ -115,6 +124,13 @@ def use_order(batch: Batch) -> tuple[bool, date, int]:
 
 def batch_to_use(batches: Sequence[Batch]) -> Batch | None:
     return min(batches, key=use_order, default=None)
+
+
+def default_expiry(usual_shelf_life_days: int | None, today: date) -> date | None:
+    """The Expiry Date a new Batch starts with: today plus the Usual Shelf Life, None for a Product without one."""
+    if usual_shelf_life_days is None:
+        return None
+    return today + timedelta(days=usual_shelf_life_days)
 
 
 def suggested_purchase(product: Product) -> int:

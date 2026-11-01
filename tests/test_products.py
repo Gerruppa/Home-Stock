@@ -2,11 +2,13 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from sqlalchemy import Engine
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import Engine, text
 
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.catalog import StockError
-from home_stock.persistence.db import init_db
+from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
 from home_stock.persistence.products import (
     DuplicateProductError,
     add_product,
@@ -36,6 +38,32 @@ def test_added_product_is_listed_with_its_first_batch(engine: Engine) -> None:
 
     [cukier] = list_products(engine)
     assert (cukier.name, cukier.category_id, cukier.unit_id, cukier.quantity) == ("Cukier", SPOZYWCZE, OPAKOWANIE, 3)
+
+
+def test_usual_shelf_life_is_saved_and_changed(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, usual_shelf_life_days=7))
+    assert get_product(engine, mleko).usual_shelf_life_days == 7
+
+    update_product(engine, mleko, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    assert get_product(engine, mleko).usual_shelf_life_days is None
+
+
+def test_products_from_before_usual_shelf_life_migrate_without_one(tmp_path: Path) -> None:
+    engine = open_engine(tmp_path / "db.sqlite3")
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS_DIR))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0002")
+        connection.execute(
+            text(
+                "INSERT INTO products (name, name_key, category_id, unit_id, archived)"
+                " VALUES ('Mleko', 'mleko', 1, 1, 0)"
+            )
+        )
+
+    [mleko] = list_products(init_db(tmp_path / "db.sqlite3"))
+    assert (mleko.name, mleko.usual_shelf_life_days) == ("Mleko", None)
 
 
 def test_product_without_first_batch_is_at_zero(engine: Engine) -> None:

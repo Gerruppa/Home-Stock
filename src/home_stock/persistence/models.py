@@ -39,6 +39,7 @@ class ProductRow(Base):
     pack_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
     pack_measure: Mapped[str | None] = mapped_column(String)
     minimum_stock: Mapped[int | None]
+    usual_shelf_life_days: Mapped[int | None]
     archived: Mapped[bool] = mapped_column(default=False)
 
 

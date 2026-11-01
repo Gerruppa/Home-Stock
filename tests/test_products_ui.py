@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -210,6 +211,37 @@ async def test_minimum_stock_is_prefilled_with_one_and_clearing_it_saves_none(us
     assert pieprz.minimum_stock is None
 
 
+async def test_a_new_product_with_a_usual_shelf_life_starts_with_a_batch_dated_today_plus_its_days(
+    engine: Engine,
+) -> None:
+    async with user_simulation(lambda: build_shell(engine, today=lambda: date(2026, 10, 27))) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker="add-product").click()
+        user.find(marker="name").type("Mleko")
+        user.find(marker="shelf-life").type("7")
+        user.find(marker="first-quantity").type("2")
+        user.find(marker="save").click()
+
+        await user.should_see("Mleko")
+    [mleko] = list_products(engine)
+    assert mleko.usual_shelf_life_days == 7
+    assert [(b.quantity, b.expiry) for b in mleko.batches] == [(2, date(2026, 11, 3))]
+
+
+@pytest.mark.parametrize("bad", ["0", "-3", "tydzień", "3651", "99999999", "²"])
+async def test_a_bad_usual_shelf_life_shows_a_polish_error_and_saves_nothing(
+    user: User, engine: Engine, bad: str
+) -> None:
+    user.find(marker="add-product").click()
+    user.find(marker="name").type("Mleko")
+    user.find(marker="shelf-life").type(bad)
+    user.find(marker="save").click()
+
+    await user.should_see("Podaj liczbę dni od 1 do 3650, np. 7.")
+    assert list_products(engine) == []
+
+
 async def test_bad_pack_size_or_minimum_stock_shows_polish_errors_and_saves_nothing(user: User, engine: Engine) -> None:
     user.find(marker="add-product").click()
     user.find(marker="name").type("Cukier")
@@ -245,6 +277,25 @@ async def test_adding_an_existing_name_offers_its_first_batch_to_the_existing_pr
         await user.should_see("5 szt.")
     [product] = list_products(engine)
     assert (product.id, product.quantity) == (mleko, 5)
+
+
+async def test_a_batch_offered_to_the_existing_product_is_dated_by_that_products_usual_shelf_life(
+    engine: Engine,
+) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, usual_shelf_life_days=7))
+    async with user_simulation(lambda: build_shell(engine, today=lambda: date(2026, 10, 27))) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker="add-product").click()
+        user.find(marker="name").type("Mleko")
+        user.find(marker="first-quantity").type("2")
+        user.find(marker="save").click()
+        user.find(marker="duplicate-add-batch").click()
+
+        with user.scope(marker=f"product-{mleko}"):
+            await user.should_see("2 szt.")
+    [product] = list_products(engine)
+    assert [(b.quantity, b.expiry) for b in product.batches] == [(2, date(2026, 11, 3))]
 
 
 async def test_changing_the_name_withdraws_the_offer(user: User, engine: Engine) -> None:

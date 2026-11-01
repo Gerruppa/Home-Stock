@@ -1,5 +1,10 @@
 # Historia zmian
 
+## Nieopublikowane
+
+### Nowe funkcje
+- Produkt może mieć zwykły termin ważności w dniach („zwykle ważne 7 dni”): zakup i pierwsza partia nowego produktu dostają wtedy od razu datę ważności, którą można zmienić.
+
 ## 0.2.1 — 2026-11-01
 
 ### Zmiany

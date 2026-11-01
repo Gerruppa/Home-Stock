@@ -4,7 +4,8 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Model
 
-- A **Product** has a unique name (case-insensitive, Archived Products included), one **Category**, one **Unit**, an optional **Pack Size** and an optional **Minimum Stock**.
+- A **Product** has a unique name (case-insensitive, Archived Products included), one **Category**, one **Unit**, an optional **Pack Size**, an optional **Minimum Stock** and an optional **Usual Shelf Life** (a whole number of days, 1 to 3650).
+- **Usual Shelf Life** ("zwykle ważne 7 dni") pre-fills a new Batch's Expiry Date with today plus that many days, in the Purchase dialog and for a new Product's first Batch; the date stays editable. A Product without one leaves the Expiry Date blank.
 - **Pack Size** (e.g. 1 kg of sugar per opakowanie) is shown next to the Quantity ("2 opak. (2 kg)") but never counted: Quantity and Minimum Stock stay in Units (ADR-0001).
 - A Product holds **Batches**: a whole-number Quantity and an optional Expiry Date each (ADR-0001). The Product's Quantity is their sum.
 - **Running Low**: Quantity at or below Minimum Stock. No Minimum Stock means never Running Low (Expiry reminders still apply).
@@ -21,7 +22,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Adding a Product
 
-A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled with 1; clearing it leaves the Product without one) and, optionally, a first Batch. A name that already exists offers to add a Batch to that Product instead; if it is archived, to restore it.
+A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled with 1; clearing it leaves the Product without one), optional Usual Shelf Life and, optionally, a first Batch. A name that already exists offers to add a Batch to that Product instead; if it is archived, to restore it.
 
 ## Tabs
 
