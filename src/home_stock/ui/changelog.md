@@ -4,6 +4,7 @@
 
 ### Nowe funkcje
 - Produkt może mieć zwykły termin ważności w dniach („zwykle ważne 7 dni”): zakup i pierwsza partia nowego produktu dostają wtedy od razu datę ważności, którą można zmienić.
+- Zakup, także odhaczony na liście zakupów, można cofnąć przyciskiem „Cofnij”: dodana partia znika.
 
 ## 0.2.1 — 2026-11-01
 

@@ -18,7 +18,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - **Discard**: removes a whole Batch.
 - Editing a Batch's Quantity or Expiry Date by hand, on the Product's card.
 - **Archive** a Product (hidden with its Batches) and restore it from Ustawienia.
-- After a Use, Discard or Archive a toast offers "Cofnij" for a few seconds; there is no history log.
+- After a Use, Purchase, Discard or Archive a toast offers "Cofnij" for a few seconds; there is no history log. Undoing a Purchase removes the Batch it added; when that Batch is already gone (e.g. removed in another window), the toast says so and nothing changes.
 
 ## Adding a Product
 

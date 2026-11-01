@@ -40,8 +40,18 @@ def open_product_card(ctx: Context, product_id: int) -> None:
         ctx.changed()
         draw()
 
-    # What the card opens (the Purchase dialog) redraws the card too
-    card_ctx = replace(ctx, changed=changed)
+    def undo(message: str, action: Callable[[], None]) -> None:
+        def undo_and_draw() -> None:
+            try:
+                action()
+            finally:
+                # The shell's Cofnij redraws the tabs, not the card
+                draw()
+
+        ctx.undo(message, undo_and_draw)
+
+    # What the card does or opens (a Discard, the Purchase dialog) redraws the card too, also on Cofnij
+    card_ctx = replace(ctx, changed=changed, undo=undo)
 
     def draw() -> None:
         product = get_product(ctx.engine, product_id)
@@ -63,7 +73,7 @@ def open_product_card(ctx: Context, product_id: int) -> None:
             if not product.batches:
                 ui.label("Brak partii.")
             for batch in product.batches:
-                _batch_row(card_ctx, product, batch, draw)
+                _batch_row(card_ctx, product, batch)
             with ui.row():
                 ui.button("Dodaj partię", icon="add", on_click=lambda: open_purchase_dialog(card_ctx, product)).mark(
                     "card-purchase"
@@ -87,7 +97,7 @@ def open_product_card(ctx: Context, product_id: int) -> None:
     dialog.open()
 
 
-def _batch_row(ctx: Context, product: Product, batch: Batch, draw: Callable[[], None]) -> None:
+def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
     with ui.row().classes("w-full items-start no-wrap").mark(f"batch-{batch.id}"):
         quantity = ui.input("Ilość", value=str(batch.quantity)).classes("w-24").mark(f"batch-quantity-{batch.id}")
         expiry = ui.input(
@@ -119,10 +129,4 @@ def _batch_row(ctx: Context, product: Product, batch: Batch, draw: Callable[[], 
             show_error(error, str(problem))
             return
         ctx.changed()
-
-        def undo() -> None:
-            restore_batch(engine, discarded)
-            # The shell's Cofnij redraws the tabs, not the card
-            draw()
-
-        ctx.undo(f"Wyrzucono partię: {product.name}", undo)
+        ctx.undo(f"Wyrzucono partię: {product.name}", lambda: restore_batch(engine, discarded))

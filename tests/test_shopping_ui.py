@@ -73,3 +73,21 @@ async def test_a_product_still_running_low_after_the_purchase_stays(engine: Engi
 
         with user.scope(marker=f"shopping-{chusteczki}"):
             await user.should_see("2 opak.")
+
+
+async def test_a_purchase_from_the_list_can_be_undone_and_the_product_returns(engine: Engine) -> None:
+    chusteczki = add_product(engine, ProductDraft("Chusteczki", HIGIENA, OPAKOWANIE, minimum_stock=2), BatchDraft(1))
+    original = get_product(engine, chusteczki)
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_shopping(user)
+        user.find(marker=f"bought-{chusteczki}").click()
+        user.find(marker="purchase-save").click()
+        await user.should_see("Zakupiono: Chusteczki")
+
+        user.find(marker="undo").click()
+
+        with user.scope(marker=f"shopping-{chusteczki}"):
+            await user.should_see("1 opak.")
+        await user.should_not_see("Zakupiono: Chusteczki")
+        assert get_product(engine, chusteczki) == original
