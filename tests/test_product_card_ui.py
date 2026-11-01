@@ -10,7 +10,14 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, get_product, list_products, purchase, update_product
+from home_stock.persistence.products import (
+    add_product,
+    discard_batch,
+    get_product,
+    list_products,
+    purchase,
+    update_product,
+)
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, CHEMIA = 1, 3
@@ -145,6 +152,44 @@ async def test_purchase_from_the_card_adds_a_batch(user: User, engine: Engine, m
     with user.scope(marker=f"product-{mleko}"):
         await user.should_see("7 szt.")
     assert get_product(engine, mleko).quantity == 7
+
+
+async def test_undo_takes_the_purchased_batch_back_off_the_card(user: User, engine: Engine, mleko: int) -> None:
+    original = get_product(engine, mleko)
+    user.find(marker=f"open-{mleko}").click()
+    user.find(marker="card-purchase").click()
+    _fill(user, "purchase-quantity", "2")
+    user.find(marker="purchase-expiry").type("01.03.2027")
+    user.find(marker="purchase-save").click()
+    await user.should_see("Zakupiono: Mleko")
+
+    user.find(marker="undo").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_not_see("01.03.2027")
+    with user.scope(marker=f"product-{mleko}"):
+        await user.should_see("5 szt.")
+    assert get_product(engine, mleko) == original
+
+
+async def test_undoing_a_purchase_whose_batch_is_gone_says_so_and_changes_nothing(
+    user: User, engine: Engine, mleko: int
+) -> None:
+    user.find(marker=f"open-{mleko}").click()
+    user.find(marker="card-purchase").click()
+    user.find(marker="purchase-expiry").type("01.03.2027")
+    user.find(marker="purchase-save").click()
+    await user.should_see("Zakupiono: Mleko")
+    # Removed meanwhile, e.g. in a second window, which does not hide this one's undo bar
+    [bought] = [b for b in get_product(engine, mleko).batches if b.expiry == date(2027, 3, 1)]
+    discard_batch(engine, bought.id)
+    before = get_product(engine, mleko)
+
+    user.find(marker="undo").click()
+
+    with user.scope(marker="undo-bar"):
+        await user.should_see("Tej partii już nie ma.")
+    assert get_product(engine, mleko) == before
 
 
 async def test_a_usual_shelf_life_pre_fills_the_purchase_expiry_and_a_changed_date_is_saved_as_typed(

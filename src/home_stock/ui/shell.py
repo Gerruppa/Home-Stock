@@ -8,6 +8,7 @@ from nicegui import ui
 from sqlalchemy import Engine
 
 from home_stock import __version__
+from home_stock.persistence.catalog import StockError
 from home_stock.sources.app_update import UpdateSource
 from home_stock.ui.app_update import update_notice
 from home_stock.ui.changelog import announce_new_version, version_label
@@ -38,13 +39,24 @@ class UndoBar:
 
     def show(self, message: str, action: Callable[[], None]) -> None:
         def undo() -> None:
-            action()
+            try:
+                action()
+            except StockError as problem:
+                # Changed meanwhile, e.g. in another window: show the stock as it is and say why nothing was undone
+                self.changed()
+                self.say(str(problem))
+                return
             self.changed()
 
+        self.say(message)
+        with self.bar:
+            ui.button("Cofnij", on_click=undo).props("flat color=amber").mark("undo")
+
+    def say(self, message: str) -> None:
+        """Show ``message`` in the bar for a while, without Cofnij."""
         self.hide()
         with self.bar:
             ui.label(message)
-            ui.button("Cofnij", on_click=undo).props("flat color=amber").mark("undo")
             self.timer = ui.timer(UNDO_SECONDS, self.hide, once=True)
         self.bar.set_visibility(True)
 

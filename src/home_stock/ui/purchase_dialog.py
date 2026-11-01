@@ -4,7 +4,7 @@ from nicegui import ui
 
 from home_stock.domain.formatting import format_date, parse_count, parse_date
 from home_stock.domain.stock import BatchDraft, Product, default_expiry, suggested_purchase
-from home_stock.persistence.products import purchase
+from home_stock.persistence.products import discard_batch, purchase
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
 
@@ -43,9 +43,16 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
             except ValueError as error:
                 show_error(quantity_error, str(error))
                 return
-            purchase(ctx.engine, product.id, draft)
+            engine = ctx.engine
+            batch_id = purchase(engine, product.id, draft)
             dialog.close()
             ctx.changed()
+
+            def undo() -> None:
+                # Not a Discard, but the same removal of the Batch by id; MissingBatchError if it is already gone
+                discard_batch(engine, batch_id)
+
+            ctx.undo(f"Zakupiono: {product.name}", undo)
 
         with ui.row().classes("w-full justify-end"):
             ui.button("Anuluj", on_click=dialog.close).props("flat")
