@@ -9,7 +9,7 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product
+from home_stock.persistence.products import add_product, get_product, list_products
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, APTECZKA = 1, 5
@@ -118,3 +118,58 @@ async def test_a_purchase_on_the_shopping_list_clears_do_kupienia(engine: Engine
         user.find(marker="purchase-save").click()
 
         await user.should_see("Wszystko w porządku.")
+
+
+@pytest.mark.parametrize(
+    ("name", "line"),
+    [("Jogurt", "start-batch-{batch}"), ("Mleko", "start-batch-{batch}"), ("Cukier", "start-low-{product}")],
+)
+async def test_each_start_line_opens_its_products_card(engine: Engine, name: str, line: str) -> None:
+    _add(engine, "Jogurt", date(2026, 10, 26))
+    _add(engine, "Mleko", date(2026, 10, 28))
+    add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=1), BatchDraft(1))
+    [product] = [p for p in list_products(engine) if p.name == name]
+    marker = line.format(batch=product.batches[0].id, product=product.id)
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await user.open("/")
+        user.find(marker=marker).click()
+
+        with user.scope(marker="product-card"):
+            await user.should_see(name)
+
+
+async def test_discarding_the_expired_batch_from_the_card_clears_przeterminowane(engine: Engine) -> None:
+    jogurt = _add(engine, "Jogurt", date(2026, 10, 26))
+    [batch] = get_product(engine, jogurt).batches
+    # Keeps the sections on Start once Jogurt's line goes
+    _add(engine, "Mleko", date(2026, 10, 28))
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await user.open("/")
+        user.find(marker=f"start-batch-{batch.id}").click()
+        user.find(marker=f"discard-{batch.id}").click()
+
+        with user.scope(marker="expired"):
+            await user.should_see("Nic tutaj.")
+            await user.should_not_see("Jogurt", retries=1)
+
+
+async def test_a_purchase_from_the_card_above_the_minimum_clears_do_kupienia(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=1), BatchDraft(1))
+    # Keeps the sections on Start once Cukier's line goes
+    _add(engine, "Mleko", date(2026, 10, 28))
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await user.open("/")
+        user.find(marker=f"start-low-{cukier}").click()
+        user.find(marker="card-purchase").click()
+        quantity = user.find(marker="purchase-quantity")
+        quantity.clear()
+        quantity.type("2")
+        user.find(marker="purchase-save").click()
+
+        with user.scope(marker="running-low"):
+            await user.should_see("Nic tutaj.")
+            await user.should_not_see("Cukier", retries=1)
+    assert get_product(engine, cukier).quantity == 3
