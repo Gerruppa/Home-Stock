@@ -17,6 +17,7 @@ from home_stock.persistence.db import init_db
 from home_stock.persistence.paths import backups_dir, database_path, demo_database_path, log_path
 from home_stock.sources.app_update import UpdateSource
 from home_stock.sources.demo_data import seed_demo_data
+from home_stock.ui.print_list import register_print_page
 from home_stock.ui.shell import APP_ICON, APP_TITLE, build_shell
 
 
@@ -85,6 +86,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     attach_log_when_windowless()
     engine = start_demo_database() if args.demo else start_database()
     updates = update_source(args)
+    register_print_page(engine)
     ui.run(
         lambda: build_shell(engine, updates=updates),
         title=APP_TITLE,

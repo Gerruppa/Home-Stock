@@ -6,7 +6,7 @@
 - Produkt może mieć zwykły termin ważności w dniach („zwykle ważne 7 dni”): zakup i pierwsza partia nowego produktu dostają wtedy od razu datę ważności, którą można zmienić.
 - Zakup, także odhaczony na liście zakupów, można cofnąć przyciskiem „Cofnij”: dodana partia znika.
 - Na karcie produktu „Zużyj” zdejmuje kilka sztuk naraz, zaczynając od partii z najbliższym terminem ważności; jedno „Cofnij” przywraca wszystkie partie.
-- Lista zakupów podaje, ile sztuk kupić, a „Kopiuj listę” kopiuje ją jako zwykły tekst.
+- Lista zakupów podaje, ile sztuk kupić, a „Kopiuj listę” kopiuje ją jako zwykły tekst, a „Drukuj” otwiera czystą stronę do wydruku.
 - Kliknięcie pozycji na ekranie Start otwiera kartę produktu, skąd można wyrzucić przeterminowaną partię albo dodać zakup.
 
 ## 0.2.1 — 2026-11-01
