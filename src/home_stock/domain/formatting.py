@@ -1,10 +1,20 @@
 """Polish text for dates, counts and Pack Sizes, both ways: every value shown in or read from the UI goes here."""
 
 import re
+from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from home_stock.domain.stock import MAX_USUAL_SHELF_LIFE_DAYS, MEASURES, USUAL_SHELF_LIFE_ERROR, PackSize, Unit
+from home_stock.domain.stock import (
+    MAX_USUAL_SHELF_LIFE_DAYS,
+    MEASURES,
+    USUAL_SHELF_LIFE_ERROR,
+    Category,
+    PackSize,
+    Product,
+    Unit,
+    suggested_purchase,
+)
 
 DATE_ERROR = "Podaj datę w formacie DD.MM.RRRR."
 COUNT_ERROR = "Podaj liczbę całkowitą, np. 2."
@@ -99,3 +109,22 @@ def format_quantity(quantity: int, unit: Unit, pack_size: PackSize | None) -> st
     if pack_size is None:
         return text
     return f"{text} ({format_pack_size(PackSize(pack_size.amount * quantity, pack_size.measure))})"
+
+
+def format_purchase_amount(product: Product, unit: Unit) -> str:
+    """ "kup 3 opak.": how much of the Product the Shopping List says to buy."""
+    return f"kup {suggested_purchase(product)} {unit.short}"
+
+
+def format_shopping_list(categories: Sequence[Category], units: Mapping[int, Unit], products: Sequence[Product]) -> str:
+    """The Shopping List as plain text: a heading per Category that has Products to buy, in the order given."""
+    sections = []
+    for category in categories:
+        lines = [
+            f"{product.name} — {format_purchase_amount(product, units[product.unit_id])}"
+            for product in products
+            if product.category_id == category.id
+        ]
+        if lines:
+            sections.append("\n".join([category.name, *lines]))
+    return "\n\n".join(sections)

@@ -48,6 +48,31 @@ async def test_lists_products_running_low_by_category(engine: Engine) -> None:
         await user.should_not_see("Nic nie trzeba kupować.")
 
 
+async def test_each_product_shows_the_amount_to_buy(engine: Engine) -> None:
+    papier = add_product(engine, ProductDraft("Papier toaletowy", HIGIENA, ROLKA, minimum_stock=3), BatchDraft(1))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_shopping(user)
+        with user.scope(marker=f"shopping-{papier}"):
+            await user.should_see("kup 3 rol.")
+
+
+async def test_kopiuj_liste_confirms_that_the_list_was_copied(engine: Engine) -> None:
+    add_product(engine, ProductDraft("Papier toaletowy", HIGIENA, ROLKA, minimum_stock=3), BatchDraft(1))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_shopping(user)
+        user.find(marker="copy-list").click()
+        await user.should_see("Skopiowano listę zakupów.")
+
+
+async def test_no_kopiuj_liste_for_an_empty_list(engine: Engine) -> None:
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await _open_shopping(user)
+        await user.should_see("Nic nie trzeba kupować.")
+        await user.should_not_see(marker="copy-list")
+
+
 async def test_kupione_suggests_enough_and_the_product_leaves_the_list(engine: Engine) -> None:
     chusteczki = add_product(engine, ProductDraft("Chusteczki", HIGIENA, OPAKOWANIE, minimum_stock=2), BatchDraft(1))
 
