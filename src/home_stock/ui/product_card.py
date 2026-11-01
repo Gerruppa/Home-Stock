@@ -1,5 +1,5 @@
-"""The Product card: its fields, editable through the Product form, its Batches, each editable or Discarded, and
-Purchases."""
+"""The Product card: its fields, editable through the Product form, a Use of several Units, its Batches, each
+editable or Discarded, and Purchases."""
 
 from collections.abc import Callable
 from dataclasses import replace
@@ -23,6 +23,7 @@ from home_stock.persistence.products import (
     get_product,
     restore_batch,
     restore_product,
+    use_units,
 )
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
@@ -69,6 +70,7 @@ def open_product_card(ctx: Context, product_id: int) -> None:
             if product.usual_shelf_life_days is not None:
                 ui.label(f"Po zakupie: zwykle ważne {format_days(product.usual_shelf_life_days)}").classes("hs-muted")
             ui.label(f"Razem: {format_quantity(product.quantity, unit, product.pack_size)}").classes("hs-qty")
+            _use_row(card_ctx, product)
             ui.label("Partie").classes("hs-section-title hs-section-title-green")
             if not product.batches:
                 ui.label("Brak partii.")
@@ -95,6 +97,30 @@ def open_product_card(ctx: Context, product_id: int) -> None:
 
     draw()
     dialog.open()
+
+
+def _use_row(ctx: Context, product: Product) -> None:
+    with ui.row().classes("w-full items-start no-wrap"):
+        quantity = ui.input("Ilość", value="1").classes("w-24").mark("card-use-quantity")
+        use_button = ui.button("Zużyj", on_click=lambda: use()).props("outline").mark("card-use")
+        use_button.set_enabled(product.quantity > 0)
+    error = error_label()
+
+    def use() -> None:
+        engine = ctx.engine
+        try:
+            count = parse_count(quantity.value) or 0
+            touched = use_units(engine, product.id, count)
+        except (ValueError, StockError) as problem:
+            show_error(error, str(problem))
+            return
+
+        def restore() -> None:
+            for batch in touched:
+                restore_batch(engine, batch)
+
+        ctx.changed()
+        ctx.undo(f"Zużyto {count} × {product.name}", restore)
 
 
 def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:

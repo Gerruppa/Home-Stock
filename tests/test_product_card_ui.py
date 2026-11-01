@@ -234,6 +234,43 @@ async def test_a_bad_purchase_date_shows_a_polish_error_and_saves_nothing(
     assert get_product(engine, mleko).quantity == 5
 
 
+async def test_using_several_units_from_the_card_and_one_undo_restores_every_batch(
+    user: User, engine: Engine, mleko: int
+) -> None:
+    original = get_product(engine, mleko)
+    user.find(marker=f"open-{mleko}").click()
+
+    _fill(user, "card-use-quantity", "3")
+    user.find(marker="card-use").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_not_see("30.10.2026")
+        await user.should_see("Razem: 2 szt.")
+    await user.should_see("Zużyto 3 × Mleko")
+    [left] = get_product(engine, mleko).batches
+    assert (left.quantity, left.expiry) == (2, date(2026, 11, 12))
+
+    user.find(marker="undo").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_see("30.10.2026")
+    assert get_product(engine, mleko) == original
+
+
+async def test_using_more_than_the_quantity_shows_a_polish_error_and_changes_nothing(
+    user: User, engine: Engine, mleko: int
+) -> None:
+    original = get_product(engine, mleko)
+    user.find(marker=f"open-{mleko}").click()
+
+    _fill(user, "card-use-quantity", "6")
+    user.find(marker="card-use").click()
+
+    with user.scope(marker="product-card"):
+        await user.should_see("Na stanie jest tylko 5.")
+    assert get_product(engine, mleko) == original
+
+
 async def test_two_uses_leave_the_later_batch(user: User, engine: Engine, mleko: int) -> None:
     user.find(marker=f"use-{mleko}").click()
     user.find(marker=f"use-{mleko}").click()

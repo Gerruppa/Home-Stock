@@ -1,4 +1,4 @@
-"""Products, Batches and the rules on them: Running Low, Expiry Status and which Batch a Use takes (GLOSSARY.md)."""
+"""Products, Batches and the rules on them: Running Low, Expiry Status and which Batches a Use takes (GLOSSARY.md)."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -122,8 +122,16 @@ def use_order(batch: Batch) -> tuple[bool, date, int]:
     return (batch.expiry is None, batch.expiry or date.max, batch.id)
 
 
-def batch_to_use(batches: Sequence[Batch]) -> Batch | None:
-    return min(batches, key=use_order, default=None)
+def units_to_use(batches: Sequence[Batch], count: int) -> list[tuple[Batch, int]]:
+    """How many Units a Use of ``count`` takes off each Batch: in use_order, each emptied before the next."""
+    taken: list[tuple[Batch, int]] = []
+    for batch in sorted(batches, key=use_order):
+        if count == 0:
+            break
+        units = min(count, batch.quantity)
+        taken.append((batch, units))
+        count -= units
+    return taken
 
 
 def default_expiry(usual_shelf_life_days: int | None, today: date) -> date | None:
