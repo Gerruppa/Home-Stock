@@ -9,12 +9,27 @@ from home_stock.domain.formatting import (
     format_decimal,
     format_pack_size,
     format_quantity,
+    format_shopping_list,
     parse_count,
     parse_date,
     parse_pack_size,
     parse_usual_shelf_life,
 )
-from home_stock.domain.stock import PackSize, Unit
+from home_stock.domain.stock import Category, PackSize, Product, Unit
+
+
+def test_format_shopping_list() -> None:
+    spozywcze, higiena, chemia = Category(1, "Spożywcze", 7), Category(4, "Higiena", 30), Category(5, "Chemia", 30)
+    opak, rolka = Unit(2, "opakowanie", "opak."), Unit(3, "rolka", "rol.")
+    units = {opak.id: opak, rolka.id: rolka}
+    cukier = Product(1, "Cukier", 1, 2, None, 3, False, ())
+    papier = Product(2, "Papier toaletowy", 4, 3, None, 4, False, ())
+    mleko = Product(3, "Mleko", 1, 2, None, None, False, ())
+
+    text = format_shopping_list([higiena, spozywcze, chemia], units, [cukier, papier, mleko])
+
+    assert text == "Higiena\nPapier toaletowy — kup 5 rol.\n\nSpożywcze\nCukier — kup 4 opak.\nMleko — kup 1 opak."
+    assert format_shopping_list([spozywcze], units, []) == ""
 
 
 def test_dates() -> None:

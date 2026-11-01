@@ -1,8 +1,10 @@
 """Lista zakupów: every Product Running Low under its Category, each bought through the Purchase dialog."""
 
+import json
+
 from nicegui import ui
 
-from home_stock.domain.formatting import format_quantity
+from home_stock.domain.formatting import format_purchase_amount, format_quantity, format_shopping_list
 from home_stock.domain.stock import is_running_low
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.products import list_products
@@ -16,6 +18,11 @@ class ShoppingTab:
         self.content = ui.column().classes("w-full gap-4")
         self.refresh()
 
+    @staticmethod
+    def _copy(text: str) -> None:
+        ui.run_javascript(f"navigator.clipboard.writeText({json.dumps(text)})")
+        ui.notify("Skopiowano listę zakupów.")
+
     def refresh(self) -> None:
         engine = self.ctx.engine
         products = [p for p in list_products(engine) if is_running_low(p)]
@@ -25,7 +32,12 @@ class ShoppingTab:
             if not products:
                 ui.label("Nic nie trzeba kupować.")
                 return
-            for category in list_categories(engine):
+            categories = list_categories(engine)
+            text = format_shopping_list(categories, units, products)
+            ui.button("Kopiuj listę", icon="content_copy", on_click=lambda: self._copy(text)).props(
+                "dense outline"
+            ).mark("copy-list")
+            for category in categories:
                 shown = [p for p in products if p.category_id == category.id]
                 if not shown:
                     continue
@@ -41,6 +53,7 @@ class ShoppingTab:
                             ui.label(
                                 format_quantity(product.quantity, units[product.unit_id], product.pack_size)
                             ).classes("hs-qty")
+                            ui.label(format_purchase_amount(product, units[product.unit_id])).classes("hs-qty")
                             ui.button(
                                 "Kupione", icon="check", on_click=lambda p=product: open_purchase_dialog(self.ctx, p)
                             ).props("dense outline").mark(f"bought-{product.id}")
