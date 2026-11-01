@@ -12,7 +12,7 @@ from home_stock.domain.formatting import (
     parse_count,
     parse_date,
     parse_pack_size,
-    parse_shelf_life,
+    parse_usual_shelf_life,
 )
 from home_stock.domain.stock import PackSize, Unit
 
@@ -36,12 +36,13 @@ def test_counts() -> None:
             parse_count(bad)
 
 
-def test_shelf_life_days() -> None:
-    assert parse_shelf_life(" 7 ") == 7
-    assert parse_shelf_life("") is None
-    for bad in ("0", "-3", "1,5", "tydzień"):
-        with pytest.raises(ValueError, match="liczbę dni większą od zera"):
-            parse_shelf_life(bad)
+def test_usual_shelf_life_days() -> None:
+    assert parse_usual_shelf_life(" 7 ") == 7
+    assert parse_usual_shelf_life("") is None
+    assert parse_usual_shelf_life("3650") == 3650
+    for bad in ("0", "-3", "1,5", "tydzień", "3651", "²"):
+        with pytest.raises(ValueError, match="liczbę dni od 1 do 3650"):
+            parse_usual_shelf_life(bad)
     assert (format_days(1), format_days(2), format_days(14)) == ("1 dzień", "2 dni", "14 dni")
 
 

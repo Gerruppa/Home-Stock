@@ -14,7 +14,7 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
         ui.label(f"Zakup: {product.name}").classes("hs-dialog-title")
         quantity = ui.input("Ilość", value=str(suggested_purchase(product))).classes("w-full").mark("purchase-quantity")
         quantity_error = error_label()
-        default = default_expiry(product.shelf_life_days, ctx.today())
+        default = default_expiry(product.usual_shelf_life_days, ctx.today())
         expiry = ui.input(
             "Termin ważności (opcjonalnie)",
             value="" if default is None else format_date(default),

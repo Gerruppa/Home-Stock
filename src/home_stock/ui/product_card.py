@@ -56,8 +56,8 @@ def open_product_card(ctx: Context, product_id: int) -> None:
                 ui.label(f"Rozmiar opakowania: {format_pack_size(product.pack_size)}").classes("hs-muted")
             minimum = "brak" if product.minimum_stock is None else str(product.minimum_stock)
             ui.label(f"Stan minimalny: {minimum}").classes("hs-muted")
-            if product.shelf_life_days is not None:
-                ui.label(f"Termin ważności: zwykle ważne {format_days(product.shelf_life_days)}").classes("hs-muted")
+            if product.usual_shelf_life_days is not None:
+                ui.label(f"Po zakupie: zwykle ważne {format_days(product.usual_shelf_life_days)}").classes("hs-muted")
             ui.label(f"Razem: {format_quantity(product.quantity, unit, product.pack_size)}").classes("hs-qty")
             ui.label("Partie").classes("hs-section-title hs-section-title-green")
             if not product.batches:

@@ -74,10 +74,10 @@ def test_drafts_validate() -> None:
     assert ProductDraft(" Cukier ", 1, 1).name == "Cukier"
 
 
-@pytest.mark.parametrize("days", [0, -3])
-def test_a_usual_shelf_life_below_one_day_is_refused(days: int) -> None:
-    with pytest.raises(ValueError, match="większą od zera"):
-        ProductDraft("Mleko", 1, 1, shelf_life_days=days)
+@pytest.mark.parametrize("days", [0, -3, 3651])
+def test_a_usual_shelf_life_outside_one_day_to_ten_years_is_refused(days: int) -> None:
+    with pytest.raises(ValueError, match="od 1 do 3650"):
+        ProductDraft("Mleko", 1, 1, usual_shelf_life_days=days)
 
 
 def test_default_expiry_is_today_plus_the_usual_shelf_life() -> None:

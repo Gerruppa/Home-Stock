@@ -91,7 +91,7 @@ def _product_values(draft: ProductDraft) -> dict[str, object]:
         "pack_amount": None if pack is None else pack.amount,
         "pack_measure": None if pack is None else pack.measure,
         "minimum_stock": draft.minimum_stock,
-        "shelf_life_days": draft.shelf_life_days,
+        "usual_shelf_life_days": draft.usual_shelf_life_days,
     }
 
 
@@ -192,7 +192,7 @@ def _load_products(connection: Connection, condition: ColumnElement[bool]) -> li
             row.minimum_stock,
             row.archived,
             tuple(sorted(batches.get(row.id, []), key=use_order)),
-            row.shelf_life_days,
+            row.usual_shelf_life_days,
         )
         for row in rows
     ]

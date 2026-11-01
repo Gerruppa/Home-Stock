@@ -4,7 +4,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Model
 
-- A **Product** has a unique name (case-insensitive, Archived Products included), one **Category**, one **Unit**, an optional **Pack Size**, an optional **Minimum Stock** and an optional **Usual Shelf Life** (a whole number of days, at least 1).
+- A **Product** has a unique name (case-insensitive, Archived Products included), one **Category**, one **Unit**, an optional **Pack Size**, an optional **Minimum Stock** and an optional **Usual Shelf Life** (a whole number of days, 1 to 3650).
 - **Usual Shelf Life** ("zwykle ważne 7 dni") pre-fills a new Batch's Expiry Date with today plus that many days, in the Purchase dialog and for a new Product's first Batch; the date stays editable. A Product without one leaves the Expiry Date blank.
 - **Pack Size** (e.g. 1 kg of sugar per opakowanie) is shown next to the Quantity ("2 opak. (2 kg)") but never counted: Quantity and Minimum Stock stay in Units (ADR-0001).
 - A Product holds **Batches**: a whole-number Quantity and an optional Expiry Date each (ADR-0001). The Product's Quantity is their sum.

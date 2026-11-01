@@ -4,12 +4,13 @@ from collections.abc import Callable
 
 from nicegui import ui
 
-from home_stock.domain.formatting import format_pack_size, parse_count, parse_pack_size, parse_shelf_life
+from home_stock.domain.formatting import format_pack_size, parse_count, parse_pack_size, parse_usual_shelf_life
 from home_stock.domain.stock import BatchDraft, Product, ProductDraft, default_expiry
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.products import (
     DuplicateProductError,
     add_product,
+    get_product,
     purchase,
     restore_product,
     update_product,
@@ -52,13 +53,15 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
         minimum_text = "1" if product is None else "" if product.minimum_stock is None else str(product.minimum_stock)
         minimum_stock = ui.input("Stan minimalny", value=minimum_text).classes("w-full").mark("minimum-stock")
         minimum_stock_error = error_label()
-        shelf_life = ui.input(
+        usual_shelf_life = ui.input(
             "Zwykle ważne, dni (opcjonalnie)",
-            value="" if product is None or product.shelf_life_days is None else str(product.shelf_life_days),
+            value=""
+            if product is None or product.usual_shelf_life_days is None
+            else str(product.usual_shelf_life_days),
             placeholder="np. 7",
         )
-        shelf_life.classes("w-full").mark("shelf-life")
-        shelf_life_error = error_label()
+        usual_shelf_life.classes("w-full").mark("shelf-life")
+        usual_shelf_life_error = error_label()
         # Batches of an existing Product are edited on its card, not here
         if product is None:
             first_quantity = ui.input("Ilość na start (opcjonalnie)").classes("w-full").mark("first-quantity")
@@ -81,10 +84,10 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
                 show_error(minimum_stock_error, str(error))
                 valid = False
             try:
-                days = parse_shelf_life(shelf_life.value)
-                show_error(shelf_life_error, None)
+                days = parse_usual_shelf_life(usual_shelf_life.value)
+                show_error(usual_shelf_life_error, None)
             except ValueError as error:
-                show_error(shelf_life_error, str(error))
+                show_error(usual_shelf_life_error, str(error))
                 valid = False
             try:
                 draft = ProductDraft(name.value or "", category.value, unit.value, size, minimum, days)
@@ -126,7 +129,10 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
 
             def add_to_existing() -> None:
                 if first_batch is not None:
-                    purchase(ctx.engine, duplicate.product_id, first_batch)
+                    # Dated by the existing Product's Usual Shelf Life, as its Purchase dialog would, not by this form's
+                    existing = get_product(ctx.engine, duplicate.product_id)
+                    expiry = default_expiry(existing.usual_shelf_life_days, ctx.today())
+                    purchase(ctx.engine, duplicate.product_id, BatchDraft(first_batch.quantity, expiry))
 
             def restore_existing() -> None:
                 restore_product(ctx.engine, duplicate.product_id)

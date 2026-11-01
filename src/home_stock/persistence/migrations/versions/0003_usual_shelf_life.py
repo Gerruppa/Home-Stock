@@ -18,9 +18,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("products", sa.Column("shelf_life_days", sa.Integer(), nullable=True))
+    op.add_column("products", sa.Column("usual_shelf_life_days", sa.Integer(), nullable=True))
 
 
 def downgrade() -> None:
     with op.batch_alter_table("products") as batch:
-        batch.drop_column("shelf_life_days")
+        batch.drop_column("usual_shelf_life_days")

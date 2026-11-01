@@ -150,7 +150,7 @@ async def test_purchase_from_the_card_adds_a_batch(user: User, engine: Engine, m
 async def test_a_usual_shelf_life_pre_fills_the_purchase_expiry_and_a_changed_date_is_saved_as_typed(
     user: User, engine: Engine, mleko: int
 ) -> None:
-    update_product(engine, mleko, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, shelf_life_days=7))
+    update_product(engine, mleko, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, usual_shelf_life_days=7))
     user.find(marker=f"open-{mleko}").click()
 
     with user.scope(marker="product-card"):
@@ -221,7 +221,7 @@ async def test_edit_from_the_card_saves_minimum_stock_under_the_same_name(
 async def test_the_edit_form_is_filled_in_with_the_product(engine: Engine) -> None:
     cukier = add_product(
         engine,
-        ProductDraft("Cukier", CHEMIA, OPAKOWANIE, PackSize(Decimal("0.5"), "kg"), None, shelf_life_days=365),
+        ProductDraft("Cukier", CHEMIA, OPAKOWANIE, PackSize(Decimal("0.5"), "kg"), None, usual_shelf_life_days=365),
         BatchDraft(1),
     )
     async with user_simulation(lambda: build_shell(engine)) as user:

@@ -41,11 +41,11 @@ def test_added_product_is_listed_with_its_first_batch(engine: Engine) -> None:
 
 
 def test_usual_shelf_life_is_saved_and_changed(engine: Engine) -> None:
-    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, shelf_life_days=7))
-    assert get_product(engine, mleko).shelf_life_days == 7
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA, usual_shelf_life_days=7))
+    assert get_product(engine, mleko).usual_shelf_life_days == 7
 
     update_product(engine, mleko, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
-    assert get_product(engine, mleko).shelf_life_days is None
+    assert get_product(engine, mleko).usual_shelf_life_days is None
 
 
 def test_products_from_before_usual_shelf_life_migrate_without_one(tmp_path: Path) -> None:
@@ -63,7 +63,7 @@ def test_products_from_before_usual_shelf_life_migrate_without_one(tmp_path: Pat
         )
 
     [mleko] = list_products(init_db(tmp_path / "db.sqlite3"))
-    assert (mleko.name, mleko.shelf_life_days) == ("Mleko", None)
+    assert (mleko.name, mleko.usual_shelf_life_days) == ("Mleko", None)
 
 
 def test_product_without_first_batch_is_at_zero(engine: Engine) -> None:

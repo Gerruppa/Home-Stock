@@ -4,7 +4,7 @@ import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from home_stock.domain.stock import MEASURES, SHELF_LIFE_ERROR, PackSize, Unit
+from home_stock.domain.stock import MAX_USUAL_SHELF_LIFE_DAYS, MEASURES, USUAL_SHELF_LIFE_ERROR, PackSize, Unit
 
 DATE_ERROR = "Podaj datę w formacie DD.MM.RRRR."
 COUNT_ERROR = "Podaj liczbę całkowitą, np. 2."
@@ -48,13 +48,16 @@ def parse_count(text: str | None, *, allow_blank: bool = False) -> int | None:
     return int(text)
 
 
-def parse_shelf_life(text: str | None) -> int | None:
-    """A Usual Shelf Life: a whole number of days above zero; None for a blank field."""
+def parse_usual_shelf_life(text: str | None) -> int | None:
+    """A Usual Shelf Life: a whole number of days within ProductDraft's range; None for a blank field.
+
+    Checks the range itself, so the form shows the error under this field rather than under the name."""
     text = _field_text(text)
     if not text:
         return None
-    if not text.isdigit() or int(text) < 1:
-        raise ValueError(SHELF_LIFE_ERROR)
+    # isdigit alone takes "²", which int() refuses
+    if not (text.isascii() and text.isdigit()) or not 1 <= int(text) <= MAX_USUAL_SHELF_LIFE_DAYS:
+        raise ValueError(USUAL_SHELF_LIFE_ERROR)
     return int(text)
 
 
