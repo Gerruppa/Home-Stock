@@ -10,8 +10,8 @@ from home_stock.domain.stock import (
     PackSize,
     Product,
     ProductDraft,
-    batch_to_use,
     name_key,
+    units_to_use,
     use_order,
 )
 from home_stock.persistence.catalog import StockError
@@ -143,19 +143,40 @@ def discard_batch(engine: Engine, batch_id: int) -> Batch:
         return Batch(row.id, row.product_id, row.quantity, row.expiry)
 
 
-def use_one(engine: Engine, product_id: int) -> Batch | None:
-    """Take one Unit off the Batch a Use takes; a Batch that reaches 0 goes. Returns that Batch as it was before,
-    for restore_batch to undo the Use, or None when the Product has no Units."""
+class NotEnoughStockError(StockError):
+    """A Use of more Units than the Product's Quantity."""
+
+    def __init__(self, quantity: int) -> None:
+        super().__init__(f"Na stanie jest tylko {quantity}.")
+
+
+def use_units(engine: Engine, product_id: int, count: int) -> list[Batch]:
+    """Take ``count`` Units off the Batches in the order Uses take them; a Batch that reaches 0 goes. Returns the
+    Batches it touched as they were before, for restore_batch to undo the Use; nothing changes when it refuses."""
+    if count < 1:
+        raise StockError("Podaj co najmniej 1.")
     with engine.begin() as connection:
         [product] = _load_products(connection, ProductRow.id == product_id)
-        batch = batch_to_use(product.batches)
-        if batch is None:
-            return None
-        if batch.quantity == 1:
-            connection.execute(delete(BatchRow).where(BatchRow.id == batch.id))
-        else:
-            connection.execute(update(BatchRow).where(BatchRow.id == batch.id).values(quantity=batch.quantity - 1))
-        return batch
+        if count > product.quantity:
+            raise NotEnoughStockError(product.quantity)
+        taken = units_to_use(product.batches, count)
+        for batch, units in taken:
+            if units == batch.quantity:
+                connection.execute(delete(BatchRow).where(BatchRow.id == batch.id))
+            else:
+                connection.execute(
+                    update(BatchRow).where(BatchRow.id == batch.id).values(quantity=batch.quantity - units)
+                )
+        return [batch for batch, _ in taken]
+
+
+def use_one(engine: Engine, product_id: int) -> Batch | None:
+    """use_units of one Unit; returns the Batch it touched as it was, or None when the Product has no Units."""
+    try:
+        [batch] = use_units(engine, product_id, 1)
+    except NotEnoughStockError:
+        return None
+    return batch
 
 
 def restore_batch(engine: Engine, batch: Batch) -> None:

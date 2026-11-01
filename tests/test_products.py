@@ -22,6 +22,7 @@ from home_stock.persistence.products import (
     restore_product,
     update_product,
     use_one,
+    use_units,
 )
 
 SPOZYWCZE, CHEMIA = 1, 3
@@ -176,6 +177,51 @@ def test_uses_take_the_nearest_expiry_first(engine: Engine) -> None:
     assert second is not None and (second.quantity, second.expiry) == (1, date(2026, 10, 30))
     [batch] = get_product(engine, mleko).batches
     assert (batch.quantity, batch.expiry) == (3, date(2026, 11, 12))
+
+
+def test_using_several_units_empties_the_nearest_expiry_first(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(5, date(2026, 11, 12)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+
+    use_units(engine, mleko, 3)
+
+    [batch] = get_product(engine, mleko).batches
+    assert (batch.quantity, batch.expiry) == (4, date(2026, 11, 12))
+
+
+def test_using_several_units_takes_undated_batches_last(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 11, 12)))
+
+    use_units(engine, mleko, 3)
+
+    [batch] = get_product(engine, mleko).batches
+    assert (batch.quantity, batch.expiry) == (1, None)
+
+
+@pytest.mark.parametrize(("count", "message"), [(8, "Na stanie jest tylko 7."), (0, "Podaj co najmniej 1.")])
+def test_using_more_than_the_quantity_or_none_is_refused_and_changes_nothing(
+    engine: Engine, count: int, message: str
+) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(5, date(2026, 11, 12)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+    original = get_product(engine, mleko)
+
+    with pytest.raises(StockError, match=message):
+        use_units(engine, mleko, count)
+    assert get_product(engine, mleko) == original
+
+
+def test_restoring_every_batch_a_use_touched_undoes_it_exactly(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(5, date(2026, 11, 12)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+    original = get_product(engine, mleko)
+
+    before = use_units(engine, mleko, 3)
+    for batch in before:
+        restore_batch(engine, batch)
+
+    assert get_product(engine, mleko) == original
 
 
 def test_purchase_adds_a_batch(engine: Engine) -> None:

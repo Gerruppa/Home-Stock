@@ -13,7 +13,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Actions
 
-- **Use** ("−1"): takes one Unit off the Batch with the nearest Expiry Date, Batches without one last. A Batch at 0 disappears; the Product stays at 0.
+- **Use** ("−1"): takes one Unit off the Batch with the nearest Expiry Date, Batches without one last. A Batch at 0 disappears; the Product stays at 0. The Product card's "Zużyj" Uses several Units at once in the same order, refusing more than the Product's Quantity; one "Cofnij" restores every Batch it touched.
 - **Purchase**: a new Batch. From the Shopping List a dialog asks for the Quantity (suggested: Minimum Stock + 1 − current Quantity) and an optional Expiry Date.
 - **Discard**: removes a whole Batch.
 - Editing a Batch's Quantity or Expiry Date by hand, on the Product's card.

@@ -8,12 +8,13 @@ from home_stock.domain.stock import (
     ExpiryStatus,
     Product,
     ProductDraft,
-    batch_to_use,
     default_expiry,
     expiry_status,
     is_running_low,
     name_key,
     suggested_purchase,
+    units_to_use,
+    use_order,
 )
 
 
@@ -47,11 +48,20 @@ def test_expiry_status_boundaries() -> None:
     assert expiry_status(batch(1, 1, None), today, 3) is None
 
 
-def test_batch_to_use_takes_nearest_expiry_then_undated() -> None:
-    undated, late, soon = batch(1, 1, None), batch(2, 1, date(2026, 11, 12)), batch(3, 1, date(2026, 10, 30))
-    assert batch_to_use([undated, late, soon]) == soon
-    assert batch_to_use([undated, batch(4, 1, None)]) == undated
-    assert batch_to_use([]) is None
+def test_use_order_puts_nearest_expiry_first_then_undated_older_first() -> None:
+    undated, late, soon, newer_undated = (
+        batch(1, 1, None),
+        batch(2, 1, date(2026, 11, 12)),
+        batch(3, 1, date(2026, 10, 30)),
+        batch(4, 1, None),
+    )
+    assert sorted([newer_undated, undated, late, soon], key=use_order) == [soon, late, undated, newer_undated]
+
+
+def test_units_to_use_empties_each_batch_in_use_order_before_the_next() -> None:
+    undated, late, soon = batch(1, 4, None), batch(2, 5, date(2026, 11, 12)), batch(3, 2, date(2026, 10, 30))
+    assert units_to_use([undated, late, soon], 3) == [(soon, 2), (late, 1)]
+    assert units_to_use([undated, late, soon], 9) == [(soon, 2), (late, 5), (undated, 2)]
 
 
 def test_suggested_purchase() -> None:

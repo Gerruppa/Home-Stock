@@ -41,7 +41,7 @@ The state of a Product whose Quantity is at or below its Minimum Stock; a Produc
 _Avoid_: Low stock, shortage, ending
 
 **Use**:
-Recording that one Unit of a Product was used up, which takes it off the Batch with the nearest Expiry Date (Batches with none last).
+Recording that Units of a Product were used up (one with "−1", several with the card's "Zużyj"), which takes them off the Batches with the nearest Expiry Date first (Batches with none last).
 _Avoid_: Consume, decrement, take
 
 **Discard**:
