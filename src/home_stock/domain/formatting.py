@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from home_stock.domain.history import StockEvent, StockEventKind
+from home_stock.domain.history import StockEvent, StockEventKind, WasteLine
 from home_stock.domain.stock import (
     BUFFER_ERROR,
     MAX_USUAL_SHELF_LIFE_DAYS,
@@ -141,6 +141,11 @@ def format_event_change(event: StockEvent, unit: Unit) -> str:
     """ "−2 szt.": the Units the Stock Event added or took off, signed."""
     sign = "+" if event.change > 0 else "−"
     return f"{sign}{abs(event.change)} {unit.short}"
+
+
+def format_waste(line: WasteLine, unit: Unit) -> str:
+    """ "3 szt. (przeterminowane: 2)": the Units of a Product Discarded in a period, and how many were Expired."""
+    return f"{line.units} {unit.short} (przeterminowane: {line.expired_units})"
 
 
 def format_purchase_amount(count: int, unit: Unit) -> str:

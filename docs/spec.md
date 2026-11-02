@@ -34,6 +34,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - **Consumption Rate** ("Tempo zużycia"): the Units Used in the last 90 days divided by the days from the later of (the Product's first Stock Event, 90 days ago) to today. No rate below 3 Uses in that window or below 14 days of history. Purchases, Discards and Corrections never count.
 - **Days Left**: Quantity ÷ Consumption Rate, rounded down. Produkty and the Product card show "wystarczy na ok. N dni" for a Product with a rate, and nothing extra without one; a Product at 0 shows 0 days.
 - **Suggested Minimum Stock**: Consumption Rate × Buffer, rounded up, at least 1. The Product card shows "Sugerowany stan minimalny: N" only when it differs from the current Minimum Stock; "Zastosuj" sets it in one click, and "Cofnij" puts the old Minimum Stock back.
+- **Waste** ("Marnowanie"): the Units each Product had Discarded in the last 30 and the last 90 days (the days counted end today, as for the Consumption Rate), most first, each line saying how many were Expired ("3 szt. (przeterminowane: 2)"). Uses, Purchases and Corrections never count. A period without Discards reads "Nic nie wyrzucono."
 
 ## Adding a Product
 
@@ -44,7 +45,7 @@ A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled 
 1. **Start**: Przeterminowane, Kończy się termin, Do kupienia; clicking a line opens that Product's card.
 2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit, Days Left when there is a Consumption Rate and a "−1" button; clicking opens the Product's card with its Batches.
 3. **Lista zakupów**: the Shopping List, each line with its reason; ticking a Product records a Purchase.
-4. **Historia**: the latest 200 Stock Events of all Products, newest first, with a name filter.
+4. **Historia**: Waste over the last 30 and 90 days, then the latest 200 Stock Events of all Products, newest first, with a name filter (which leaves Waste as it is).
 5. **Ustawienia**: the Buffer, Categories with their Warning Windows, Units, the archive.
 
 Reminders appear only in the app (ADR-0002).

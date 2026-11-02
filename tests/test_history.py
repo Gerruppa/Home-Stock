@@ -7,10 +7,16 @@ from pathlib import Path
 import pytest
 from sqlalchemy import Engine
 
-from home_stock.domain.history import StockEventKind
+from home_stock.domain.history import StockEventKind, WasteLine
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.history import consumption_rates, list_events_since, list_latest_events, list_product_events
+from home_stock.persistence.history import (
+    consumption_rates,
+    list_events_since,
+    list_latest_events,
+    list_product_events,
+    waste_by_period,
+)
 from home_stock.persistence.products import (
     MissingBatchError,
     add_product,
@@ -243,3 +249,13 @@ def test_an_event_older_than_the_window_makes_the_rate_span_ninety_days(engine: 
         use_units(engine, cukier, 3, MONDAY - timedelta(days=days_ago))
 
     assert consumption_rates(engine, MONDAY) == {cukier: Fraction(9, 90)}
+
+
+def test_waste_by_period_sums_the_discards_of_the_last_30_and_90_days(engine: Engine) -> None:
+    cukier = _product(engine, quantity=4)
+    [old] = purchase(engine, cukier, BatchDraft(2), MONDAY - timedelta(days=70)).batches
+    discard_batch(engine, old.id, MONDAY - timedelta(days=60))
+    [recent] = get_product(engine, cukier).batches
+    discard_batch(engine, recent.id, MONDAY - timedelta(days=5))
+
+    assert waste_by_period(engine, MONDAY) == {30: [WasteLine(cukier, 4, 0)], 90: [WasteLine(cukier, 6, 0)]}

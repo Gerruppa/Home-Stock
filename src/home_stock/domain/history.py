@@ -1,5 +1,5 @@
-"""The Stock History: what happened to a Product's stock, one Stock Event per change, and the Consumption Rate and
-Days Left worked out from it."""
+"""The Stock History: what happened to a Product's stock, one Stock Event per change, and the Consumption Rate,
+Days Left and Waste worked out from it."""
 
 import math
 from collections.abc import Sequence
@@ -53,3 +53,31 @@ def consumption_rate(events: Sequence[StockEvent], first_event_on: date, today: 
 def days_left(quantity: int, rate: Fraction) -> int:
     """How many days the Quantity lasts at the Consumption Rate, rounded down."""
     return math.floor(quantity / rate)
+
+
+# The periods Historia sums Waste over, each ending today like the Consumption Rate's window
+WASTE_PERIODS_DAYS = (30, 90)
+
+
+@dataclass(frozen=True)
+class WasteLine:
+    product_id: int
+    # Units Discarded in the period, and how many of them were in Expired Batches
+    units: int
+    expired_units: int
+
+
+def waste(events: Sequence[StockEvent], today: date, days: int) -> list[WasteLine]:
+    """Waste: the Units each Product had Discarded in the last ``days`` days, most first (ties by Product id), with
+    how many were Expired. Uses, Purchases and Corrections never count."""
+    period_start = today - timedelta(days=days)
+    # Product id → [Units, Expired Units]
+    totals: dict[int, list[int]] = {}
+    for event in events:
+        if event.kind is StockEventKind.DISCARD and event.on > period_start:
+            total = totals.setdefault(event.product_id, [0, 0])
+            total[0] -= event.change
+            if event.expired:
+                total[1] -= event.change
+    lines = [WasteLine(product_id, units, expired) for product_id, (units, expired) in totals.items()]
+    return sorted(lines, key=lambda line: (-line.units, line.product_id))
