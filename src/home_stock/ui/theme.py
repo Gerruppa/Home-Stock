@@ -44,6 +44,9 @@ body {{ background: {PAPER}; color: {INK}; }}
 .hs-line-main {{ flex: 1 1 14rem; min-width: 0; }}
 .hs-line-main > * {{ min-width: 0; overflow-wrap: anywhere; }}
 .hs-line-end {{ margin-left: auto; }}
+/* Beside its field on a wide screen, shrinking to the room left; under it on a phone (Quasar's xs breakpoint) */
+.hs-hint-below {{ flex: 1 1 0; min-width: 0; }}
+@media (max-width: 599.98px) {{ .hs-hint-below {{ order: 1; flex-basis: 100%; }} }}
 .hs-empty {{ color: #6b7a70; }}
 """
 
