@@ -122,9 +122,18 @@ _EVENT_KINDS = {
 
 def format_stock_event(event: StockEvent, unit: Unit) -> str:
     """ "02.11.2026 · Zużycie · −2 szt.": a line of the Stock History, the change signed."""
+    return f"{format_date(event.on)} · {format_event_kind(event)} · {format_event_change(event, unit)}"
+
+
+def format_event_kind(event: StockEvent) -> str:
+    """ "Wyrzucenie (przeterminowane)": what the Stock Event was."""
+    return _EVENT_KINDS[event.kind] + (" (przeterminowane)" if event.expired else "")
+
+
+def format_event_change(event: StockEvent, unit: Unit) -> str:
+    """ "−2 szt.": the Units the Stock Event added or took off, signed."""
     sign = "+" if event.change > 0 else "−"
-    kind = _EVENT_KINDS[event.kind] + (" (przeterminowane)" if event.expired else "")
-    return f"{format_date(event.on)} · {kind} · {sign}{abs(event.change)} {unit.short}"
+    return f"{sign}{abs(event.change)} {unit.short}"
 
 
 def format_purchase_amount(product: Product, unit: Unit) -> str:

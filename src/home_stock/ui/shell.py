@@ -1,4 +1,4 @@
-"""The window: a header and the four tabs, which all redraw after any change."""
+"""The window: a header and the five tabs, which all redraw after any change."""
 
 from collections.abc import Callable
 from datetime import date
@@ -14,6 +14,7 @@ from home_stock.sources.app_update import UpdateSource
 from home_stock.ui.app_update import update_notice
 from home_stock.ui.changelog import announce_new_version, version_label
 from home_stock.ui.context import Context
+from home_stock.ui.history import HistoryTab
 from home_stock.ui.products import ProductsTab
 from home_stock.ui.settings import SettingsTab
 from home_stock.ui.shopping import ShoppingTab
@@ -95,6 +96,7 @@ def build_shell(
         ui.tab("start", "Start").mark("tab-start")
         ui.tab("products", "Produkty").mark("tab-products")
         ui.tab("shopping", "Lista zakupów").mark("tab-shopping")
+        ui.tab("history", "Historia").mark("tab-history")
         ui.tab("settings", "Ustawienia").mark("tab-settings")
     with ui.tab_panels(tabs, value="start").classes("w-full") as panels:
         with ui.tab_panel("start").classes("hs-page"):
@@ -104,6 +106,8 @@ def build_shell(
             refreshers.append(products.refresh)
         with ui.tab_panel("shopping").classes("hs-page"):
             refreshers.append(ShoppingTab(ctx).refresh)
+        with ui.tab_panel("history").classes("hs-page"):
+            refreshers.append(HistoryTab(ctx).refresh)
         with ui.tab_panel("settings").classes("hs-page"):
             refreshers.append(SettingsTab(ctx).refresh)
     _focus_search_keys(panels, products)

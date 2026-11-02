@@ -24,7 +24,7 @@ Rules no config enforces:
 The test seams are fixed, no need to agree them per ticket: `persistence/` functions (`tests/test_<module>.py`) and each tab through `user_simulation` (`tests/test_<tab>_ui.py`).
 
 UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` markers; `tests/conftest.py` makes `should_see`/`should_not_see` wait up to 5 s. Gotchas:
-- All four tabs sit on the page at once: scope a text check with a marker or `user.scope(...)`, since another tab may show the same text (Ustawienia shows every Category name). Markers share one namespace across tabs, so give a tab's markers its own shape (Produkty's `category-<id>`, Ustawienia's `category-row-<id>`).
+- All five tabs sit on the page at once: scope a text check with a marker or `user.scope(...)`, since another tab may show the same text (Ustawienia shows every Category name). Markers share one namespace across tabs, so give a tab's markers its own shape (Produkty's `category-<id>`, Ustawienia's `category-row-<id>`).
 - `user.find(...).elements` comes back in no page order: compare positions through `element.parent_slot.children`.
 - `should_see` reads text, labels and values, not props: show a form error as a `ui.label`, not as the `error-message` prop.
 - `user.find(...)` raises when nothing matches: check that an element is absent with `should_not_see(marker=...)`.
