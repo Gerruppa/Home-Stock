@@ -168,16 +168,19 @@ def _use_row(ctx: Context, product: Product) -> None:
 
 
 def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
-    with ui.row().classes("w-full items-start no-wrap").mark(f"batch-{batch.id}"):
-        quantity = ui.input("Ilość", value=str(batch.quantity)).classes("w-24").mark(f"batch-quantity-{batch.id}")
-        expiry = ui.input(
-            "Termin ważności",
-            value="" if batch.expiry is None else format_date(batch.expiry),
-            placeholder="DD.MM.RRRR",
-        )
-        expiry.classes("grow").mark(f"batch-expiry-{batch.id}")
-        ui.button("Zapisz", on_click=lambda: save()).props("flat").mark(f"batch-save-{batch.id}")
-        ui.button("Wyrzuć", on_click=lambda: discard()).props("flat color=negative").mark(f"discard-{batch.id}")
+    # The buttons wrap under the fields where they don't fit (a phone), so the whole date shows
+    with ui.row().classes("w-full items-start").mark(f"batch-{batch.id}"):
+        with ui.row().classes("items-start no-wrap hs-line-main"):
+            quantity = ui.input("Ilość", value=str(batch.quantity)).classes("w-24").mark(f"batch-quantity-{batch.id}")
+            expiry = ui.input(
+                "Termin ważności",
+                value="" if batch.expiry is None else format_date(batch.expiry),
+                placeholder="DD.MM.RRRR",
+            )
+            expiry.classes("grow").mark(f"batch-expiry-{batch.id}")
+        with ui.row().classes("items-center no-wrap hs-line-end"):
+            ui.button("Zapisz", on_click=lambda: save()).props("flat").mark(f"batch-save-{batch.id}")
+            ui.button("Wyrzuć", on_click=lambda: discard()).props("flat color=negative").mark(f"discard-{batch.id}")
     for field in (quantity, expiry):
         field.on("keydown.enter", lambda: save())
     error = error_label()
