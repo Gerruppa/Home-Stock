@@ -1,6 +1,10 @@
 # Coding standards
 
-Judgement calls for review; what tooling checks (ruff, mypy, `tests/test_architecture.py`, `tests/test_database.py`) is not repeated here. CLAUDE.md holds the rules every change follows.
+Judgement calls for review; what tooling checks (ruff, mypy, `tests/test_architecture.py`, `tests/test_database.py`, `tests/test_glossary.py`) is not repeated here. CLAUDE.md holds the rules every change follows.
+
+## Names
+
+- `tests/test_glossary.py` rejects a name using a GLOSSARY.md _Avoid_ word, except the everyday ones in its `EVERYDAY` (count, entry, order…). Those are for review: one that names the glossary's concept (an `entry` that is a Batch, a `count` that is a Quantity) takes the glossary's term.
 
 ## Where a rule lives
 
