@@ -8,7 +8,7 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, get_product
+from home_stock.persistence.products import add_product, archive_product, get_product
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, HIGIENA = 1, 4
@@ -159,3 +159,105 @@ async def test_an_empty_shopping_list_says_there_is_nothing_to_unpack(engine: En
 
         await user.should_see("Nie ma nic do rozpakowania.")
         await user.should_not_see(marker="unpack-save")
+
+
+def _stocked(engine: Engine, name: str, shelf_life: int | None = None) -> int:
+    """A Product that is not Running Low, so not on the Shopping List."""
+    draft = ProductDraft(name, SPOZYWCZE, OPAKOWANIE, minimum_stock=1, usual_shelf_life_days=shelf_life)
+    return add_product(engine, draft, BatchDraft(5))
+
+
+def _add_by_name(user: User, product: int) -> None:
+    [field] = user.find(marker="unpack-add", kind=ui.select).elements
+    field.set_value(product)
+
+
+async def test_the_name_field_offers_active_products_but_not_archived_ones(engine: Engine) -> None:
+    _low(engine, "Cukier")
+    _stocked(engine, "Sól")
+    archive_product(engine, _stocked(engine, "Soda"))
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+
+        [field] = user.find(marker="unpack-add", kind=ui.select).elements
+        assert sorted(field.options.values()) == ["Cukier", "Sól"]  # type: ignore[union-attr]
+
+
+async def test_picking_a_product_adds_a_ticked_row_with_its_defaults(engine: Engine) -> None:
+    _low(engine, "Cukier")
+    sol = _stocked(engine, "Sól", shelf_life=30)
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+        with user.scope(marker="unpacking-dialog"):
+            await user.should_not_see("Spoza listy")
+        _add_by_name(user, sol)
+
+        with user.scope(marker=f"unpack-row-{sol}"):
+            await user.should_see("Sól")
+        with user.scope(marker="unpacking-dialog"):
+            await user.should_see("Spoza listy")
+        [tick] = user.find(marker=f"unpack-tick-{sol}", kind=ui.checkbox).elements
+        [quantity] = user.find(marker=f"unpack-quantity-{sol}", kind=ui.input).elements
+        [expiry] = user.find(marker=f"unpack-expiry-{sol}", kind=ui.input).elements
+        assert (tick.value, quantity.value, expiry.value) == (True, "1", "01.12.2026")
+
+
+async def test_a_product_already_in_the_dialog_is_not_added_again(engine: Engine) -> None:
+    cukier = _low(engine, "Cukier")
+    sol = _stocked(engine, "Sól")
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+        _add_by_name(user, cukier)
+        _add_by_name(user, sol)
+        _add_by_name(user, sol)
+
+        assert len(user.find(marker=f"unpack-row-{cukier}").elements) == 1
+        assert len(user.find(marker=f"unpack-row-{sol}").elements) == 1
+
+
+async def test_an_added_row_is_saved_with_the_rest_and_undone_by_the_same_cofnij(engine: Engine) -> None:
+    cukier = _low(engine, "Cukier")
+    sol = _stocked(engine, "Sól")
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+        _add_by_name(user, sol)
+        user.find(marker=f"unpack-quantity-{sol}").clear().type("2")
+        user.find(marker="unpack-save").click()
+
+        await user.should_see("Rozpakowano zakupy: 2")
+        assert (get_product(engine, cukier).quantity, get_product(engine, sol).quantity) == (3, 7)
+
+        user.find(marker="undo").click()
+
+        await user.should_not_see("Rozpakowano zakupy")
+        assert (get_product(engine, cukier).quantity, get_product(engine, sol).quantity) == (1, 5)
+
+
+async def test_an_added_row_is_validated_like_the_others(engine: Engine) -> None:
+    sol = _stocked(engine, "Sól")
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+        _add_by_name(user, sol)
+        user.find(marker=f"unpack-expiry-{sol}").type("jutro")
+        user.find(marker="unpack-save").click()
+
+        with user.scope(marker=f"unpack-row-{sol}"):
+            await user.should_see("Podaj datę")
+        assert get_product(engine, sol).quantity == 5
+
+
+async def test_an_empty_shopping_list_still_takes_a_product_by_name(engine: Engine) -> None:
+    sol = _stocked(engine, "Sól")
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+        _add_by_name(user, sol)
+        user.find(marker="unpack-save").click()
+
+        await user.should_see("Rozpakowano zakupy: 1")
+        assert get_product(engine, sol).quantity == 6

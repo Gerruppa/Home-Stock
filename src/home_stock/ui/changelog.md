@@ -8,6 +8,7 @@
 - Na karcie produktu „Zużyj” zdejmuje kilka sztuk naraz, zaczynając od partii z najbliższym terminem ważności; jedno „Cofnij” przywraca wszystkie partie.
 - Lista zakupów podaje, ile sztuk kupić, a „Kopiuj listę” kopiuje ją jako zwykły tekst, a „Drukuj” otwiera czystą stronę do wydruku.
 - „Rozpakuj zakupy” na liście zakupów zapisuje po powrocie ze sklepu wszystkie zaznaczone produkty naraz, z ilością i terminem ważności do poprawienia; jedno „Cofnij” usuwa wszystkie dodane partie.
+- W „Rozpakuj zakupy” można dopisać po nazwie produkt spoza listy zakupów, kupiony przy okazji; zapisuje się i cofa razem z resztą.
 - Kliknięcie pozycji na ekranie Start otwiera kartę produktu, skąd można wyrzucić przeterminowaną partię albo dodać zakup.
 - Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
 
