@@ -17,6 +17,7 @@
 - Produkty i karta produktu podają, na ile dni wystarczy zapas („wystarczy na ok. 12 dni”), liczone z zużyć z ostatnich 90 dni; prognoza pojawia się po co najmniej 3 zużyciach i 14 dniach historii.
 - Na liście zakupów pojawia się też produkt, któremu zostało zapasu na tyle dni lub mniej, ile ustawisz w Ustawieniach jako „Zapas dni” (domyślnie 7), a każda pozycja mówi, dlaczego tam jest: „poniżej minimum” albo „wystarczy na ok. N dni”.
 - Dla produktu z prognozą lista zakupów, „Kupione” i „Rozpakuj zakupy” proponują tyle sztuk, by ponad stan minimalny starczyło na „Zapas dni”, a karta produktu podpowiada stan minimalny dopasowany do zużycia („Sugerowany stan minimalny: 3”), który „Zastosuj” ustawia jednym kliknięciem, a „Cofnij” przywraca poprzedni.
+- Tryb demonstracyjny ma około dwóch miesięcy przykładowej historii, więc od razu widać prognozy, produkt na liście zakupów z powodu kończącego się zapasu i marnowanie w Historii.
 
 ## 0.2.1 — 2026-11-01
 
