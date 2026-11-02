@@ -10,6 +10,7 @@
 - „Rozpakuj zakupy” na liście zakupów zapisuje po powrocie ze sklepu wszystkie zaznaczone produkty naraz, z ilością i terminem ważności do poprawienia; jedno „Cofnij” usuwa wszystkie dodane partie.
 - W „Rozpakuj zakupy” można dopisać po nazwie produkt spoza listy zakupów, kupiony przy okazji; zapisuje się i cofa razem z resztą.
 - Kliknięcie pozycji na ekranie Start otwiera kartę produktu, skąd można wyrzucić przeterminowaną partię albo dodać zakup.
+- Na karcie produktu przy terminie ważności partii widać, czy jest „przeterminowana” (na czerwono), czy „kończy się termin” (na pomarańczowo).
 - Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
 - Karta produktu pokazuje historię: ostatnie zużycia, zakupy, wyrzucenia (z oznaczeniem przeterminowanych) i ręczne korekty ilości, z datami. Historia zaczyna się od tej wersji, a „Cofnij” usuwa też jej wpis.
 - Nowa zakładka Historia pokazuje 200 ostatnich zdarzeń wszystkich produktów, od najnowszych; wpisanie części nazwy zostawia tylko zdarzenia pasujących produktów.

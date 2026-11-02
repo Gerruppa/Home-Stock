@@ -106,6 +106,33 @@ async def test_editing_a_batch_changes_its_expiry(user: User, engine: Engine, ml
     assert get_product(engine, mleko).batches[0].expiry == date(2026, 11, 1)
 
 
+async def test_each_batch_is_marked_with_its_expiry_status(user: User, engine: Engine, mleko: int) -> None:
+    purchase(engine, mleko, BatchDraft(1, date(2026, 10, 20)), date(2026, 10, 27))
+    purchase(engine, mleko, BatchDraft(1, None), date(2026, 10, 27))
+    by_expiry = {batch.expiry: batch.id for batch in get_product(engine, mleko).batches}
+    expired, expiring = f"batch-status-{by_expiry[date(2026, 10, 20)]}", f"batch-status-{by_expiry[date(2026, 10, 30)]}"
+    user.find(marker=f"open-{mleko}").click()
+
+    await user.should_see(marker=expired, content="przeterminowana")
+    await user.should_see(marker=expiring, content="kończy się termin")
+    # The colours of the Start sections Przeterminowane and Kończy się termin
+    assert {"hs-status", "hs-expired"} <= set(next(iter(user.find(marker=expired).elements)).classes)
+    assert {"hs-status", "hs-expiring"} <= set(next(iter(user.find(marker=expiring).elements)).classes)
+    for fresh_or_undated in (date(2026, 11, 12), None):
+        await user.should_not_see(marker=f"batch-status-{by_expiry[fresh_or_undated]}")
+
+
+async def test_the_expiry_status_mark_follows_the_saved_date(user: User, engine: Engine, mleko: int) -> None:
+    fresh = next(batch for batch in get_product(engine, mleko).batches if batch.expiry == date(2026, 11, 12))
+    user.find(marker=f"open-{mleko}").click()
+
+    _fill(user, f"batch-expiry-{fresh.id}", "26.10.2026")
+    await user.should_not_see(marker=f"batch-status-{fresh.id}")
+
+    user.find(marker=f"batch-save-{fresh.id}").click()
+    await user.should_see(marker=f"batch-status-{fresh.id}", content="przeterminowana")
+
+
 @pytest.mark.parametrize("bad", ["31.02.2026", "2026-10-30"])
 async def test_a_bad_batch_date_shows_a_polish_error_and_saves_nothing(
     user: User, engine: Engine, mleko: int, bad: str

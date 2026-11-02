@@ -3,6 +3,7 @@ editable or Discarded, and Purchases."""
 
 from collections.abc import Callable
 from dataclasses import replace
+from datetime import date
 
 from nicegui import ui
 from sqlalchemy import Engine
@@ -18,7 +19,7 @@ from home_stock.domain.formatting import (
     parse_date,
 )
 from home_stock.domain.history import days_left
-from home_stock.domain.stock import Batch, Product, Unit, suggested_minimum_stock
+from home_stock.domain.stock import Batch, ExpiryStatus, Product, Unit, expiry_status, suggested_minimum_stock
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.history import consumption_rates, list_product_events
 from home_stock.persistence.products import (
@@ -90,7 +91,7 @@ def open_product_card(ctx: Context, product_id: int) -> None:
             if not product.batches:
                 ui.label("Brak partii.")
             for batch in product.batches:
-                _batch_row(card_ctx, product, batch)
+                _batch_row(card_ctx, product, batch, category.warning_days)
             with ui.row():
                 ui.button("Dodaj partię", icon="add", on_click=lambda: open_purchase_dialog(card_ctx, product)).mark(
                     "card-purchase"
@@ -167,17 +168,19 @@ def _use_row(ctx: Context, product: Product) -> None:
         ctx.undo(f"Zużyto {count} × {product.name}", lambda: undo_use(engine, used))
 
 
-def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
+def _batch_row(ctx: Context, product: Product, batch: Batch, warning_days: int) -> None:
     # The buttons wrap under the fields where they don't fit (a phone), so the whole date shows
     with ui.row().classes("w-full items-start").mark(f"batch-{batch.id}"):
         with ui.row().classes("items-start no-wrap hs-line-main"):
             quantity = ui.input("Ilość", value=str(batch.quantity)).classes("w-24").mark(f"batch-quantity-{batch.id}")
-            expiry = ui.input(
-                "Termin ważności",
-                value="" if batch.expiry is None else format_date(batch.expiry),
-                placeholder="DD.MM.RRRR",
-            )
-            expiry.classes("grow").mark(f"batch-expiry-{batch.id}")
+            with ui.column().classes("grow gap-0"):
+                expiry = ui.input(
+                    "Termin ważności",
+                    value="" if batch.expiry is None else format_date(batch.expiry),
+                    placeholder="DD.MM.RRRR",
+                )
+                expiry.classes("w-full").mark(f"batch-expiry-{batch.id}")
+                _expiry_status_mark(batch, ctx.today(), warning_days)
         with ui.row().classes("items-center no-wrap hs-line-end"):
             ui.button("Zapisz", on_click=lambda: save()).props("flat").mark(f"batch-save-{batch.id}")
             ui.button("Wyrzuć", on_click=lambda: discard()).props("flat color=negative").mark(f"discard-{batch.id}")
@@ -205,3 +208,18 @@ def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
             return
         ctx.changed()
         ctx.undo(f"Wyrzucono partię: {product.name}", lambda: undo_discard(engine, discarded))
+
+
+def _expiry_status_mark(batch: Batch, today: date, warning_days: int) -> None:
+    """The saved Expiry Date's status under the field, in its Start section's colour; none for a Fresh or undated
+    Batch."""
+    status = expiry_status(batch, today, warning_days)
+    if status in _STATUS_MARKS:
+        text, accent = _STATUS_MARKS[status]
+        ui.label(text).classes(f"hs-status {accent}").mark(f"batch-status-{batch.id}")
+
+
+_STATUS_MARKS = {
+    ExpiryStatus.EXPIRED: ("przeterminowana", "hs-expired"),
+    ExpiryStatus.EXPIRING_SOON: ("kończy się termin", "hs-expiring"),
+}

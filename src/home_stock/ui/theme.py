@@ -36,6 +36,7 @@ body {{ background: {PAPER}; color: {INK}; }}
 .hs-expiring {{ --hs-accent: {EXPIRING}; }}
 .hs-running-low {{ --hs-accent: {TO_BUY}; }}
 .hs-category {{ --hs-accent: {GREEN}; }}
+.hs-status {{ color: var(--hs-accent); font-size: 0.85rem; font-weight: 500; padding-left: 0.75rem; }}
 .hs-qty {{ font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }}
 .hs-qty-low {{ color: {TO_BUY}; }}
 .hs-line {{ font-size: 1rem; line-height: 1.5; padding: 0.3rem 0; border-top: 1px solid #e8ece5; }}
