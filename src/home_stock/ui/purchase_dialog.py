@@ -6,6 +6,7 @@ from home_stock.domain.formatting import format_date, parse_count, parse_date
 from home_stock.domain.stock import BatchDraft, Product, default_expiry, suggested_purchase
 from home_stock.persistence.products import discard_batch, purchase
 from home_stock.ui.context import Context
+from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label, show_error
 
 
@@ -35,7 +36,7 @@ def read_batch_draft(
 
 
 def open_purchase_dialog(ctx: Context, product: Product) -> None:
-    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-80").mark("purchase-dialog"):
+    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-80").mark("purchase-dialog") as card:
         ui.label(f"Zakup: {product.name}").classes("hs-dialog-title")
         quantity = ui.input("Ilość", value=str(suggested_purchase(product))).classes("w-full").mark("purchase-quantity")
         quantity_error = error_label()
@@ -66,4 +67,5 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
         with ui.row().classes("w-full justify-end"):
             ui.button("Anuluj", on_click=dialog.close).props("flat")
             ui.button("Dodaj", on_click=save).mark("purchase-save")
+    wire_dialog_keys(dialog, card, save)
     dialog.open()

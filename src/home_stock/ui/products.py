@@ -17,11 +17,15 @@ class ProductsTab:
         self.ctx = ctx
         self.search = ""
         with ui.row().classes("w-full items-center"):
-            search = ui.input("Szukaj", on_change=self._searched).props("clearable outlined dense")
-            search.classes("grow").mark("search")
+            self.search_input = ui.input("Szukaj", on_change=self._searched).props("clearable outlined dense")
+            self.search_input.classes("grow").mark("search")
             ui.button("Dodaj produkt", icon="add", on_click=lambda: open_product_form(ctx)).mark("add-product")
         self.content = ui.column().classes("w-full gap-4")
         self.refresh()
+
+    def focus_search(self) -> None:
+        """Put the cursor in the search box, ready to type."""
+        self.search_input.run_method("focus")
 
     def _searched(self, event: ValueChangeEventArguments[str | None]) -> None:
         self.search = event.value or ""

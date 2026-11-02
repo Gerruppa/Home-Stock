@@ -9,6 +9,7 @@
 - Lista zakupów podaje, ile sztuk kupić, a „Kopiuj listę” kopiuje ją jako zwykły tekst, a „Drukuj” otwiera czystą stronę do wydruku.
 - „Rozpakuj zakupy” na liście zakupów zapisuje po powrocie ze sklepu wszystkie zaznaczone produkty naraz, z ilością i terminem ważności do poprawienia; jedno „Cofnij” usuwa wszystkie dodane partie.
 - Kliknięcie pozycji na ekranie Start otwiera kartę produktu, skąd można wyrzucić przeterminowaną partię albo dodać zakup.
+- Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
 
 ## 0.2.1 — 2026-11-01
 

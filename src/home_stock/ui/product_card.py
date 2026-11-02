@@ -26,13 +26,14 @@ from home_stock.persistence.products import (
     use_units,
 )
 from home_stock.ui.context import Context
+from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label, show_error
 from home_stock.ui.product_form import open_product_form
 from home_stock.ui.purchase_dialog import open_purchase_dialog
 
 
 def open_product_card(ctx: Context, product_id: int) -> None:
-    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-[36rem]").mark("product-card"):
+    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-[36rem]").mark("product-card") as card:
         content = ui.column().classes("w-full gap-1")
         with ui.row().classes("w-full justify-end"):
             ui.button("Zamknij", on_click=dialog.close).props("flat")
@@ -95,6 +96,8 @@ def open_product_card(ctx: Context, product_id: int) -> None:
         ctx.changed()
         ctx.undo(f"Zarchiwizowano: {product.name}", lambda: restore_product(engine, product_id))
 
+    # No Enter for the whole card: each field answers its own Enter (Zużyj, Zapisz of its Batch)
+    wire_dialog_keys(dialog, card)
     draw()
     dialog.open()
 
@@ -104,6 +107,7 @@ def _use_row(ctx: Context, product: Product) -> None:
         quantity = ui.input("Ilość", value="1").classes("w-24").mark("card-use-quantity")
         use_button = ui.button("Zużyj", on_click=lambda: use()).props("outline").mark("card-use")
         use_button.set_enabled(product.quantity > 0)
+    quantity.on("keydown.enter", lambda: use())
     error = error_label()
 
     def use() -> None:
@@ -134,6 +138,8 @@ def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
         expiry.classes("grow").mark(f"batch-expiry-{batch.id}")
         ui.button("Zapisz", on_click=lambda: save()).props("flat").mark(f"batch-save-{batch.id}")
         ui.button("Wyrzuć", on_click=lambda: discard()).props("flat color=negative").mark(f"discard-{batch.id}")
+    for field in (quantity, expiry):
+        field.on("keydown.enter", lambda: save())
     error = error_label()
 
     def save() -> None:

@@ -14,6 +14,7 @@ from sqlalchemy import Engine
 from home_stock.domain.changelog import TITLE, Changelog, ChangelogError, Release, is_newer, parse_changelog
 from home_stock.domain.formatting import format_date
 from home_stock.persistence.settings import LAST_ANNOUNCED_VERSION, load_setting, save_setting
+from home_stock.ui.dialog_keys import wire_dialog_keys
 
 
 def load_changelog() -> Changelog:
@@ -23,7 +24,7 @@ def load_changelog() -> Changelog:
 
 def open_changelog(overlay: ui.element, title: str, releases: Iterable[Release]) -> None:
     """A scrolling dialog of ``releases``, newest first."""
-    with overlay, ui.dialog() as dialog, ui.card().classes("w-[40rem] max-w-full").mark("changelog"):
+    with overlay, ui.dialog() as dialog, ui.card().classes("w-[40rem] max-w-full").mark("changelog") as card:
         ui.label(title).classes("hs-dialog-title")
         with ui.scroll_area().classes("w-full h-[60vh]"):
             for release in releases:
@@ -35,6 +36,7 @@ def open_changelog(overlay: ui.element, title: str, releases: Iterable[Release])
                     ui.markdown("\n".join(f"- {entry}" for entry in group.entries)).classes("text-sm")
         with ui.row().classes("w-full justify-end"):
             ui.button("Zamknij", on_click=dialog.close).props("flat")
+    wire_dialog_keys(dialog, card)
     dialog.on("hide", dialog.delete)
     dialog.open()
 

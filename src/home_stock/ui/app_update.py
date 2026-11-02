@@ -10,6 +10,7 @@ from nicegui import app, run, ui
 
 from home_stock.domain.app_update import RELEASES_PAGE, LatestRelease, UpdateError, newer_release
 from home_stock.sources.app_update import UpdateSource
+from home_stock.ui.dialog_keys import wire_dialog_keys
 
 # Seconds after start, so the check never slows the first paint
 CHECK_DELAY = 3.0
@@ -41,7 +42,7 @@ def update_notice(overlay: ui.element, updates: UpdateSource | None, version: st
 
 
 def _open_dialog(overlay: ui.element, updates: UpdateSource, latest: LatestRelease) -> None:
-    with overlay, ui.dialog() as dialog, ui.card().classes("w-[28rem] max-w-full").mark("update-dialog"):
+    with overlay, ui.dialog() as dialog, ui.card().classes("w-[28rem] max-w-full").mark("update-dialog") as card:
         ui.label(f"Dostępna wersja {latest.version}").classes("hs-dialog-title")
         if updates.can_install:
             ui.label(
@@ -58,6 +59,7 @@ def _open_dialog(overlay: ui.element, updates: UpdateSource, latest: LatestRelea
             if updates.can_install:
                 install = ui.button("Zainstaluj teraz").mark("update-install")
                 install.on_click(lambda: _install(updates, latest, install, status))
+    wire_dialog_keys(dialog, card)
     dialog.on("hide", dialog.delete)
     dialog.open()
 

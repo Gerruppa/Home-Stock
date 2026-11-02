@@ -9,6 +9,7 @@ from home_stock.domain.stock import Product, default_expiry, suggested_purchase
 from home_stock.persistence.catalog import list_categories
 from home_stock.persistence.products import discard_batches, list_running_low, purchase_many
 from home_stock.ui.context import Context
+from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label
 from home_stock.ui.purchase_dialog import read_batch_draft
 
@@ -26,7 +27,7 @@ class _Row:
 def open_unpacking_dialog(ctx: Context) -> None:
     products = list_running_low(ctx.engine)
     rows: list[_Row] = []
-    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96").mark("unpacking-dialog"):
+    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96").mark("unpacking-dialog") as card:
         ui.label("Rozpakuj zakupy").classes("hs-dialog-title")
         if not products:
             ui.label("Nie ma nic do rozpakowania.")
@@ -65,6 +66,7 @@ def open_unpacking_dialog(ctx: Context) -> None:
             ui.button("Anuluj", on_click=dialog.close).props("flat")
             if products:
                 ui.button("Zapisz", on_click=save).mark("unpack-save")
+    wire_dialog_keys(dialog, card, save if products else None)
     dialog.open()
 
 
