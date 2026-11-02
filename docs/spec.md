@@ -19,7 +19,14 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - **Discard**: removes a whole Batch.
 - Editing a Batch's Quantity or Expiry Date by hand, on the Product's card.
 - **Archive** a Product (hidden with its Batches) and restore it from Ustawienia.
-- After a Use, Purchase, Discard or Archive a toast offers "Cofnij" for a few seconds; there is no history log. Undoing a Purchase removes the Batch it added; when that Batch is already gone (e.g. removed in another window), the toast says so and nothing changes.
+- After a Use, Purchase, Discard or Archive a toast offers "Cofnij" for a few seconds. Undoing a Purchase removes the Batch it added; when that Batch is already gone (e.g. removed in another window), the toast says so and nothing changes.
+
+## Stock History
+
+- Every Use and Purchase (single or from Unpacking) records a **Stock Event** with the Product, its kind, the signed change in Units and the date, in the same transaction as the change. A Product's first Batch, entered with the Product, is its starting stock, not a Purchase.
+- A "Cofnij" removes exactly the Stock Events of the action it takes back.
+- The history starts empty on the update that brings it; no past is made up. An Archived Product keeps its events.
+- The Product card lists its latest Stock Events, newest first ("02.11.2026 · Zużycie · −2 szt.").
 
 ## Adding a Product
 

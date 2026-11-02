@@ -7,7 +7,7 @@ from nicegui import ui
 from home_stock.domain.formatting import format_date
 from home_stock.domain.stock import Product, default_expiry, suggested_purchase
 from home_stock.persistence.catalog import list_categories
-from home_stock.persistence.products import discard_batches, list_products, list_running_low, purchase_many
+from home_stock.persistence.products import list_products, list_running_low, purchase_many, undo_purchase
 from home_stock.ui.context import Context
 from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label
@@ -79,14 +79,10 @@ def open_unpacking_dialog(ctx: Context) -> None:
             if not purchases:
                 return
             engine = ctx.engine
-            batches = purchase_many(engine, purchases)
+            unpacked = purchase_many(engine, purchases, ctx.today())
             ctx.changed()
-
-            def undo() -> None:
-                # All or nothing: MissingBatchError leaves every Batch in place when one is already gone
-                discard_batches(engine, [batch.id for batch in batches])
-
-            ctx.undo(f"Rozpakowano zakupy: {len(batches)}", undo)
+            # All or nothing: MissingBatchError leaves every Batch in place when one is already gone
+            ctx.undo(f"Rozpakowano zakupy: {len(unpacked.batches)}", lambda: undo_purchase(engine, unpacked))
 
         with ui.row().classes("w-full justify-end"):
             ui.button("Anuluj", on_click=dialog.close).props("flat")

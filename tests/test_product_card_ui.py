@@ -34,7 +34,7 @@ def engine(tmp_path: Path) -> Engine:
 def mleko(engine: Engine) -> int:
     """Mleko with Batches 2 @ 30.10.2026 and 3 @ 12.11.2026."""
     product_id = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
-    purchase(engine, product_id, BatchDraft(3, date(2026, 11, 12)))
+    purchase(engine, product_id, BatchDraft(3, date(2026, 11, 12)), date(2026, 10, 27))
     return product_id
 
 
@@ -367,3 +367,38 @@ async def test_archive_hides_the_product_from_every_tab_and_undo_brings_it_back(
             with user.scope(marker=section):
                 await user.should_see("Mleko")
     assert get_product(engine, mleko).quantity == 2
+
+
+async def test_card_lists_its_stock_events_newest_first_and_cofnij_takes_one_back(user: User, mleko: int) -> None:
+    user.find(marker=f"open-{mleko}").click()
+    with user.scope(marker="card-history"):
+        await user.should_see("27.10.2026 · Zakup · +3 szt.")
+
+    _fill(user, "card-use-quantity", "2")
+    user.find(marker="card-use").click()
+
+    with user.scope(marker="card-history"):
+        await user.should_see("27.10.2026 · Zużycie · −2 szt.")
+    events = list(user.find(marker="card-event").elements)
+    texts = sorted(events, key=lambda e: e.parent_slot.children.index(e))  # type: ignore[union-attr]
+    assert [e.text for e in texts] == ["27.10.2026 · Zużycie · −2 szt.", "27.10.2026 · Zakup · +3 szt."]  # type: ignore[attr-defined]
+
+    user.find(marker="undo").click()
+
+    with user.scope(marker="card-history"):
+        await user.should_not_see("Zużycie")
+        await user.should_see("Zakup")
+
+
+async def test_a_product_with_no_events_says_so(tmp_path: Path) -> None:
+    # Its own database: Mleko's fixture already records a Purchase
+    engine = init_db(tmp_path / "empty.sqlite3")
+    sol = add_product(engine, ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
+
+    async with user_simulation(lambda: build_shell(engine)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{sol}").click()
+
+        with user.scope(marker="card-history"):
+            await user.should_see("Brak zdarzeń.")

@@ -56,6 +56,14 @@ _Avoid_: Restock, buy, add stock
 Recording the whole Shopping List as Purchases in one go, after a shop: one dialog with a row per Product, of which the ticked ones become Batches.
 _Avoid_: Bulk purchase, check-in
 
+**Stock Event** ("Zdarzenie"):
+One recorded change to a Product's stock: a Use or a Purchase, with its date and the signed change in Units.
+_Avoid_: Transaction, log entry, movement
+
+**Stock History** ("Historia stanu"):
+All the Stock Events recorded since the update that brought them, from which the Product card shows a Product's latest.
+_Avoid_: Log, audit trail, ledger
+
 **Archived Product**:
 A Product the user no longer keeps, hidden from every list with its Batches but restorable with its settings.
 _Avoid_: Deleted product, inactive, hidden

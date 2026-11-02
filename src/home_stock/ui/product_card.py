@@ -11,11 +11,13 @@ from home_stock.domain.formatting import (
     format_days,
     format_pack_size,
     format_quantity,
+    format_stock_event,
     parse_count,
     parse_date,
 )
-from home_stock.domain.stock import Batch, Product
+from home_stock.domain.stock import Batch, Product, Unit
 from home_stock.persistence.catalog import StockError, list_categories, list_units
+from home_stock.persistence.history import list_product_events
 from home_stock.persistence.products import (
     archive_product,
     discard_batch,
@@ -23,6 +25,7 @@ from home_stock.persistence.products import (
     get_product,
     restore_batch,
     restore_product,
+    undo_use,
     use_units,
 )
 from home_stock.ui.context import Context
@@ -87,6 +90,7 @@ def open_product_card(ctx: Context, product_id: int) -> None:
                 ui.button("Archiwizuj", icon="inventory_2", on_click=lambda: archive()).props(
                     "flat color=negative"
                 ).mark("card-archive")
+            _history(ctx, product, unit)
 
     def archive() -> None:
         engine = ctx.engine
@@ -102,6 +106,17 @@ def open_product_card(ctx: Context, product_id: int) -> None:
     dialog.open()
 
 
+def _history(ctx: Context, product: Product, unit: Unit) -> None:
+    """The Product's latest Stock Events, newest first."""
+    ui.label("Historia").classes("hs-section-title")
+    with ui.column().classes("w-full gap-0").mark("card-history"):
+        events = list_product_events(ctx.engine, product.id)
+        if not events:
+            ui.label("Brak zdarzeń.").classes("hs-muted")
+        for event in events:
+            ui.label(format_stock_event(event, unit)).classes("text-sm").mark("card-event")
+
+
 def _use_row(ctx: Context, product: Product) -> None:
     with ui.row().classes("w-full items-start no-wrap"):
         quantity = ui.input("Ilość", value="1").classes("w-24").mark("card-use-quantity")
@@ -114,17 +129,12 @@ def _use_row(ctx: Context, product: Product) -> None:
         engine = ctx.engine
         try:
             count = parse_count(quantity.value) or 0
-            touched = use_units(engine, product.id, count)
+            used = use_units(engine, product.id, count, ctx.today())
         except (ValueError, StockError) as problem:
             show_error(error, str(problem))
             return
-
-        def restore() -> None:
-            for batch in touched:
-                restore_batch(engine, batch)
-
         ctx.changed()
-        ctx.undo(f"Zużyto {count} × {product.name}", restore)
+        ctx.undo(f"Zużyto {count} × {product.name}", lambda: undo_use(engine, used))
 
 
 def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:

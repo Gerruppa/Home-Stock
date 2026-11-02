@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from home_stock.domain.history import StockEvent, StockEventKind
 from home_stock.domain.stock import (
     MAX_USUAL_SHELF_LIFE_DAYS,
     MEASURES,
@@ -109,6 +110,15 @@ def format_quantity(quantity: int, unit: Unit, pack_size: PackSize | None) -> st
     if pack_size is None:
         return text
     return f"{text} ({format_pack_size(PackSize(pack_size.amount * quantity, pack_size.measure))})"
+
+
+_EVENT_KINDS = {StockEventKind.USE: "Zużycie", StockEventKind.PURCHASE: "Zakup"}
+
+
+def format_stock_event(event: StockEvent, unit: Unit) -> str:
+    """ "02.11.2026 · Zużycie · −2 szt.": a line of the Stock History, the change signed."""
+    sign = "+" if event.change > 0 else "−"
+    return f"{format_date(event.on)} · {_EVENT_KINDS[event.kind]} · {sign}{abs(event.change)} {unit.short}"
 
 
 def format_purchase_amount(product: Product, unit: Unit) -> str:

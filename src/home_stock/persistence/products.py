@@ -1,10 +1,12 @@
 """Products and their Batches."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 
 from sqlalchemy import ColumnElement, Connection, Engine, delete, insert, select, update
 
+from home_stock.domain.history import StockEventKind
 from home_stock.domain.stock import (
     Batch,
     BatchDraft,
@@ -17,6 +19,7 @@ from home_stock.domain.stock import (
     use_order,
 )
 from home_stock.persistence.catalog import StockError
+from home_stock.persistence.history import record_event, remove_events
 from home_stock.persistence.models import BatchRow, ProductRow
 
 
@@ -115,31 +118,54 @@ def get_product(engine: Engine, product_id: int) -> Product:
         return product
 
 
-def purchase(engine: Engine, product_id: int, draft: BatchDraft) -> int:
-    """Add a new Batch to the Product; returns its id."""
-    with engine.begin() as connection:
-        batch_id: int = connection.execute(
-            insert(BatchRow)
-            .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
-            .returning(BatchRow.id)
-        ).scalar_one()
-    return batch_id
+@dataclass(frozen=True)
+class Purchased:
+    """What a Purchase or an Unpacking added, for undo_purchase: the new Batches and their Stock Events."""
+
+    batches: tuple[Batch, ...]
+    event_ids: tuple[int, ...]
 
 
-def purchase_many(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]]) -> list[Batch]:
-    """The Purchases of an Unpacking in one transaction: a new Batch for each (product id, draft), in order. Returns
-    the new Batches; discard_batches removes them again."""
+@dataclass(frozen=True)
+class Used:
+    """What a Use took, for undo_use: the Batches it touched as they were before, and its Stock Event."""
+
+    batches_before: tuple[Batch, ...]
+    event_ids: tuple[int, ...]
+
+
+def purchase(engine: Engine, product_id: int, draft: BatchDraft, on: date) -> Purchased:
+    """Add a new Batch to the Product, a Purchase dated ``on``."""
+    return purchase_many(engine, [(product_id, draft)], on)
+
+
+def purchase_many(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]], on: date) -> Purchased:
+    """The Purchases of an Unpacking in one transaction: a new Batch and a Purchase event for each (product id,
+    draft), in order."""
+    batches: list[Batch] = []
+    event_ids: list[int] = []
     with engine.begin() as connection:
-        return [
-            Batch(
-                *connection.execute(
-                    insert(BatchRow)
-                    .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
-                    .returning(BatchRow.id, BatchRow.product_id, BatchRow.quantity, BatchRow.expiry)
-                ).one()
+        for product_id, draft in purchases:
+            batches.append(
+                Batch(
+                    *connection.execute(
+                        insert(BatchRow)
+                        .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
+                        .returning(BatchRow.id, BatchRow.product_id, BatchRow.quantity, BatchRow.expiry)
+                    ).one()
+                )
             )
-            for product_id, draft in purchases
-        ]
+            event_ids.append(record_event(connection, product_id, StockEventKind.PURCHASE, draft.quantity, on))
+    return Purchased(tuple(batches), tuple(event_ids))
+
+
+def undo_purchase(engine: Engine, purchased: Purchased) -> None:
+    """Remove the Batches and Stock Events of a Purchase or an Unpacking, all or none: MissingBatchError, with nothing
+    removed, when a Batch is already gone."""
+    with engine.begin() as connection:
+        for batch in purchased.batches:
+            _discard_batch(connection, batch.id)
+        remove_events(connection, purchased.event_ids)
 
 
 def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None) -> None:
@@ -163,14 +189,6 @@ def discard_batch(engine: Engine, batch_id: int) -> Batch:
         return _discard_batch(connection, batch_id)
 
 
-def discard_batches(engine: Engine, batch_ids: Sequence[int]) -> None:
-    """Remove several Batches at once, all or none: the undo of an Unpacking. MissingBatchError, with nothing
-    removed, when one is already gone."""
-    with engine.begin() as connection:
-        for batch_id in batch_ids:
-            _discard_batch(connection, batch_id)
-
-
 def _discard_batch(connection: Connection, batch_id: int) -> Batch:
     row = connection.execute(delete(BatchRow).where(BatchRow.id == batch_id).returning(BatchRow)).first()
     if row is None:
@@ -185,9 +203,9 @@ class NotEnoughStockError(StockError):
         super().__init__(f"Na stanie jest tylko {quantity}.")
 
 
-def use_units(engine: Engine, product_id: int, count: int) -> list[Batch]:
-    """Take ``count`` Units off the Batches in the order Uses take them; a Batch that reaches 0 goes. Returns the
-    Batches it touched as they were before, for restore_batch to undo the Use; nothing changes when it refuses."""
+def use_units(engine: Engine, product_id: int, count: int, on: date) -> Used:
+    """Take ``count`` Units off the Batches in the order Uses take them, a Use dated ``on``; a Batch that reaches 0
+    goes. Nothing changes when it refuses."""
     if count < 1:
         raise StockError("Podaj co najmniej 1.")
     with engine.begin() as connection:
@@ -202,32 +220,43 @@ def use_units(engine: Engine, product_id: int, count: int) -> list[Batch]:
                 connection.execute(
                     update(BatchRow).where(BatchRow.id == batch.id).values(quantity=batch.quantity - units)
                 )
-        return [batch for batch, _ in taken]
+        event_id = record_event(connection, product_id, StockEventKind.USE, -count, on)
+        return Used(tuple(batch for batch, _ in taken), (event_id,))
 
 
-def use_one(engine: Engine, product_id: int) -> Batch | None:
-    """use_units of one Unit; returns the Batch it touched as it was, or None when the Product has no Units."""
+def use_one(engine: Engine, product_id: int, on: date) -> Used | None:
+    """use_units of one Unit, or None when the Product has no Units."""
     try:
-        [batch] = use_units(engine, product_id, 1)
+        return use_units(engine, product_id, 1, on)
     except NotEnoughStockError:
         return None
-    return batch
+
+
+def undo_use(engine: Engine, used: Used) -> None:
+    """Put back the Batches a Use touched and remove its Stock Event, in one transaction."""
+    with engine.begin() as connection:
+        for batch in used.batches_before:
+            _restore_batch(connection, batch)
+        remove_events(connection, used.event_ids)
 
 
 def restore_batch(engine: Engine, batch: Batch) -> None:
-    """Put ``batch`` back as given, whether it still exists or was removed: the undo of a Use or a Discard.
-
-    SQLite gives a new Batch the id of one just removed, so a row that now holds the id for another Product is left
-    alone and the Batch comes back under a new id."""
-    values = {"product_id": batch.product_id, "quantity": batch.quantity, "expiry": batch.expiry}
+    """Put ``batch`` back as given, whether it still exists or was removed: the undo of a Discard."""
     with engine.begin() as connection:
-        holder = connection.execute(select(BatchRow.product_id).where(BatchRow.id == batch.id)).scalar_one_or_none()
-        if holder == batch.product_id:
-            connection.execute(update(BatchRow).where(BatchRow.id == batch.id).values(**values))
-        elif holder is None:
-            connection.execute(insert(BatchRow).values(id=batch.id, **values))
-        else:
-            connection.execute(insert(BatchRow).values(**values))
+        _restore_batch(connection, batch)
+
+
+def _restore_batch(connection: Connection, batch: Batch) -> None:
+    # SQLite gives a new Batch the id of one just removed, so a row that now holds the id for another Product is left
+    # alone and the Batch comes back under a new id
+    values = {"product_id": batch.product_id, "quantity": batch.quantity, "expiry": batch.expiry}
+    holder = connection.execute(select(BatchRow.product_id).where(BatchRow.id == batch.id)).scalar_one_or_none()
+    if holder == batch.product_id:
+        connection.execute(update(BatchRow).where(BatchRow.id == batch.id).values(**values))
+    elif holder is None:
+        connection.execute(insert(BatchRow).values(id=batch.id, **values))
+    else:
+        connection.execute(insert(BatchRow).values(**values))
 
 
 def _load_products(connection: Connection, condition: ColumnElement[bool]) -> list[Product]:
