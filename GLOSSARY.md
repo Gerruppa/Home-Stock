@@ -52,6 +52,10 @@ _Avoid_: Delete, waste, write off
 Adding a new Batch to a Product, typically from the Shopping List.
 _Avoid_: Restock, buy, add stock
 
+**Unpacking** ("Rozpakowanie zakupów"):
+Recording the whole Shopping List as Purchases in one go, after a shop: one dialog with a row per Product, of which the ticked ones become Batches.
+_Avoid_: Bulk purchase, check-in
+
 **Archived Product**:
 A Product the user no longer keeps, hidden from every list with its Batches but restorable with its settings.
 _Avoid_: Deleted product, inactive, hidden

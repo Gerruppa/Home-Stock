@@ -6,11 +6,11 @@ from nicegui import ui
 from sqlalchemy import Engine
 
 from home_stock.domain.formatting import format_purchase_amount, format_quantity, format_shopping_list
-from home_stock.domain.stock import is_running_low
 from home_stock.persistence.catalog import list_categories, list_units
-from home_stock.persistence.products import list_products
+from home_stock.persistence.products import list_running_low
 from home_stock.ui.context import Context
 from home_stock.ui.purchase_dialog import open_purchase_dialog
+from home_stock.ui.unpacking_dialog import open_unpacking_dialog
 
 # Where "Drukuj" opens the printable list (served by print_list.py)
 PRINT_PATH = "/drukuj"
@@ -18,9 +18,8 @@ PRINT_PATH = "/drukuj"
 
 def shopping_list_text(engine: Engine) -> str:
     """The Shopping List as plain text, what "Kopiuj listę" copies and the printable page shows."""
-    products = [p for p in list_products(engine) if is_running_low(p)]
     units = {unit.id: unit for unit in list_units(engine)}
-    return format_shopping_list(list_categories(engine), units, products)
+    return format_shopping_list(list_categories(engine), units, list_running_low(engine))
 
 
 class ShoppingTab:
@@ -36,23 +35,27 @@ class ShoppingTab:
 
     def refresh(self) -> None:
         engine = self.ctx.engine
-        products = [p for p in list_products(engine) if is_running_low(p)]
+        products = list_running_low(engine)
         units = {unit.id: unit for unit in list_units(engine)}
+        categories = list_categories(engine)
         self.content.clear()
         with self.content:
+            with ui.row().classes("gap-2"):
+                ui.button(
+                    "Rozpakuj zakupy", icon="inventory_2", on_click=lambda: open_unpacking_dialog(self.ctx)
+                ).props("dense outline").mark("unpack")
+                if products:
+                    text = format_shopping_list(categories, units, products)
+                    ui.button("Kopiuj listę", icon="content_copy", on_click=lambda: self._copy_list(text)).props(
+                        "dense outline"
+                    ).mark("copy-list")
+                    # A new window, so the list stays on screen; the native window hands it to the default browser
+                    ui.button("Drukuj", icon="print", on_click=lambda: ui.navigate.to(PRINT_PATH, new_tab=True)).props(
+                        "dense outline"
+                    ).mark("print-list")
             if not products:
                 ui.label("Nic nie trzeba kupować.")
                 return
-            categories = list_categories(engine)
-            text = format_shopping_list(categories, units, products)
-            with ui.row().classes("gap-2"):
-                ui.button("Kopiuj listę", icon="content_copy", on_click=lambda: self._copy_list(text)).props(
-                    "dense outline"
-                ).mark("copy-list")
-                # A new window, so the list stays on screen; the native window hands it to the default browser
-                ui.button("Drukuj", icon="print", on_click=lambda: ui.navigate.to(PRINT_PATH, new_tab=True)).props(
-                    "dense outline"
-                ).mark("print-list")
             for category in categories:
                 shown = [p for p in products if p.category_id == category.id]
                 if not shown:

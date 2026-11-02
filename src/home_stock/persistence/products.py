@@ -1,5 +1,6 @@
 """Products and their Batches."""
 
+from collections.abc import Sequence
 from datetime import date
 
 from sqlalchemy import ColumnElement, Connection, Engine, delete, insert, select, update
@@ -10,6 +11,7 @@ from home_stock.domain.stock import (
     PackSize,
     Product,
     ProductDraft,
+    is_running_low,
     name_key,
     units_to_use,
     use_order,
@@ -101,6 +103,11 @@ def list_products(engine: Engine, *, archived: bool = False) -> list[Product]:
         return _load_products(connection, ProductRow.archived == archived)
 
 
+def list_running_low(engine: Engine) -> list[Product]:
+    """The Shopping List: the active Products that are Running Low, by name."""
+    return [product for product in list_products(engine) if is_running_low(product)]
+
+
 def get_product(engine: Engine, product_id: int) -> Product:
     """One Product, active or Archived, with its Batches in the order Uses take them."""
     with engine.connect() as connection:
@@ -117,6 +124,22 @@ def purchase(engine: Engine, product_id: int, draft: BatchDraft) -> int:
             .returning(BatchRow.id)
         ).scalar_one()
     return batch_id
+
+
+def purchase_many(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]]) -> list[Batch]:
+    """The Purchases of an Unpacking in one transaction: a new Batch for each (product id, draft), in order. Returns
+    the new Batches; discard_batch removes them again."""
+    with engine.begin() as connection:
+        return [
+            Batch(
+                *connection.execute(
+                    insert(BatchRow)
+                    .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
+                    .returning(BatchRow.id, BatchRow.product_id, BatchRow.quantity, BatchRow.expiry)
+                ).one()
+            )
+            for product_id, draft in purchases
+        ]
 
 
 def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None) -> None:
