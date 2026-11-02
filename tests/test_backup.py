@@ -20,7 +20,7 @@ def test_backup_holds_the_products_and_batches(tmp_path: Path) -> None:
     engine = init_db(db_path)
     draft = ProductDraft("Mleko 2%", list_categories(engine)[0].id, list_units(engine)[0].id)
     product_id = add_product(engine, draft, BatchDraft(3, date(2026, 11, 5)))
-    purchase(engine, product_id, BatchDraft(2))
+    purchase(engine, product_id, BatchDraft(2), date(2026, 11, 2))
     engine.dispose()
 
     backup = backup_database(db_path, tmp_path / "backups")

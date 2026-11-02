@@ -11,6 +11,7 @@
 - W „Rozpakuj zakupy” można dopisać po nazwie produkt spoza listy zakupów, kupiony przy okazji; zapisuje się i cofa razem z resztą.
 - Kliknięcie pozycji na ekranie Start otwiera kartę produktu, skąd można wyrzucić przeterminowaną partię albo dodać zakup.
 - Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
+- Karta produktu pokazuje historię: ostatnie zużycia i zakupy z datami. Historia zaczyna się od tej wersji, a „Cofnij” usuwa też jej wpis.
 
 ## 0.2.1 — 2026-11-01
 

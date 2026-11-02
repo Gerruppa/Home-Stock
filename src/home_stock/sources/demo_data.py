@@ -47,7 +47,7 @@ def seed_demo_data(engine: Engine, today: date) -> None:
         product_id = add_product(engine, draft)
         for quantity, days_to_expiry in demo.batches:
             expiry = None if days_to_expiry is None else today + timedelta(days=days_to_expiry)
-            purchase(engine, product_id, BatchDraft(quantity, expiry))
+            purchase(engine, product_id, BatchDraft(quantity, expiry), today)
         return product_id
 
     for demo in PRODUCTS:

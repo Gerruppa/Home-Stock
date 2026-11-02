@@ -3,7 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Numeric, String
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Numeric, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -51,6 +51,18 @@ class BatchRow(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"))
     quantity: Mapped[int]
     expiry: Mapped[date | None] = mapped_column(Date)
+
+
+class StockEventRow(Base):
+    __tablename__ = "stock_events"
+    __table_args__ = (Index("ix_stock_events_product_on", "product_id", "on"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String)
+    change: Mapped[int]
+    on: Mapped[date] = mapped_column(Date)
+    expired: Mapped[bool] = mapped_column(default=False)
 
 
 class SettingRow(Base):

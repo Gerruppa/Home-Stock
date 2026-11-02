@@ -11,6 +11,7 @@ from sqlalchemy import Engine
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import add_product, archive_product, list_products
+from home_stock.ui import shell
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, CHEMIA = 1, 3
@@ -157,7 +158,8 @@ async def test_a_new_action_replaces_the_bar_and_undo_takes_back_only_the_last(e
 
 
 async def test_the_bar_disappears_on_its_own(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("home_stock.ui.shell.UNDO_SECONDS", 0.1)
+    # The module itself, not its dotted path: the path failed now and then under xdist
+    monkeypatch.setattr(shell, "UNDO_SECONDS", 0.1)
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
 
     async with user_simulation(lambda: build_shell(engine)) as user:

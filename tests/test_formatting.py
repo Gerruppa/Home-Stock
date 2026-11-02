@@ -10,11 +10,13 @@ from home_stock.domain.formatting import (
     format_pack_size,
     format_quantity,
     format_shopping_list,
+    format_stock_event,
     parse_count,
     parse_date,
     parse_pack_size,
     parse_usual_shelf_life,
 )
+from home_stock.domain.history import StockEvent, StockEventKind
 from home_stock.domain.stock import Category, PackSize, Product, Unit
 
 
@@ -92,3 +94,12 @@ def test_a_cleared_field_reads_as_blank() -> None:
     assert parse_pack_size(None) is None
     with pytest.raises(ValueError, match="liczbę całkowitą"):
         parse_count(None)
+
+
+def test_format_stock_event() -> None:
+    szt = Unit(1, "sztuka", "szt.")
+    use = StockEvent(1, 1, StockEventKind.USE, -2, date(2026, 11, 2))
+    purchase = StockEvent(2, 1, StockEventKind.PURCHASE, 3, date(2026, 10, 27))
+
+    assert format_stock_event(use, szt) == "02.11.2026 · Zużycie · −2 szt."
+    assert format_stock_event(purchase, szt) == "27.10.2026 · Zakup · +3 szt."

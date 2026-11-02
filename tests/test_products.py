@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -15,7 +16,6 @@ from home_stock.persistence.products import (
     add_product,
     archive_product,
     discard_batch,
-    discard_batches,
     edit_batch,
     get_product,
     list_products,
@@ -24,6 +24,8 @@ from home_stock.persistence.products import (
     purchase_many,
     restore_batch,
     restore_product,
+    undo_purchase,
+    undo_use,
     update_product,
     use_one,
     use_units,
@@ -31,6 +33,7 @@ from home_stock.persistence.products import (
 
 SPOZYWCZE, CHEMIA = 1, 3
 SZTUKA, OPAKOWANIE = 1, 2
+TODAY = date(2026, 11, 2)
 
 
 @pytest.fixture
@@ -125,16 +128,16 @@ def test_products_are_listed_by_name(engine: Engine) -> None:
 def test_use_takes_one_unit_and_returns_the_batch_as_it_was(engine: Engine) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(2))
 
-    before = use_one(engine, cukier)
+    used = use_one(engine, cukier, TODAY)
 
-    assert before is not None and before.quantity == 2
+    assert used is not None and [batch.quantity for batch in used.batches_before] == [2]
     assert get_product(engine, cukier).quantity == 1
 
 
 def test_using_the_last_unit_removes_the_batch_and_keeps_the_product(engine: Engine) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
 
-    use_one(engine, cukier)
+    use_one(engine, cukier, TODAY)
 
     [product] = list_products(engine)
     assert (product.name, product.quantity, product.batches) == ("Cukier", 0, ())
@@ -143,29 +146,29 @@ def test_using_the_last_unit_removes_the_batch_and_keeps_the_product(engine: Eng
 def test_use_on_a_product_at_zero_does_nothing(engine: Engine) -> None:
     pieprz = add_product(engine, ProductDraft("Pieprz", SPOZYWCZE, SZTUKA))
 
-    assert use_one(engine, pieprz) is None
+    assert use_one(engine, pieprz, TODAY) is None
     assert get_product(engine, pieprz).quantity == 0
 
 
-def test_restoring_undoes_a_use_exactly(engine: Engine) -> None:
+def test_undo_use_undoes_a_use_exactly(engine: Engine) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
     original = get_product(engine, cukier)
 
-    before = use_one(engine, cukier)
-    assert before is not None
-    restore_batch(engine, before)
+    used = use_one(engine, cukier, TODAY)
+    assert used is not None
+    undo_use(engine, used)
 
     assert get_product(engine, cukier) == original
 
 
-def test_restoring_never_overwrites_a_batch_that_reused_the_id(engine: Engine) -> None:
+def test_undo_use_never_overwrites_a_batch_that_reused_the_id(engine: Engine) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
-    before = use_one(engine, cukier)
-    assert before is not None
+    used = use_one(engine, cukier, TODAY)
+    assert used is not None
     # SQLite gives the next Batch the id of the one the Use removed
     maka = add_product(engine, ProductDraft("Mąka", SPOZYWCZE, OPAKOWANIE), BatchDraft(5))
 
-    restore_batch(engine, before)
+    undo_use(engine, used)
 
     assert get_product(engine, maka).quantity == 5
     assert get_product(engine, cukier).quantity == 1
@@ -173,21 +176,22 @@ def test_restoring_never_overwrites_a_batch_that_reused_the_id(engine: Engine) -
 
 def test_uses_take_the_nearest_expiry_first(engine: Engine) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(3, date(2026, 11, 12)))
-    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)), TODAY)
 
-    use_one(engine, mleko)
-    second = use_one(engine, mleko)
+    use_one(engine, mleko, TODAY)
+    second = use_one(engine, mleko, TODAY)
 
-    assert second is not None and (second.quantity, second.expiry) == (1, date(2026, 10, 30))
+    assert second is not None
+    assert [(b.quantity, b.expiry) for b in second.batches_before] == [(1, date(2026, 10, 30))]
     [batch] = get_product(engine, mleko).batches
     assert (batch.quantity, batch.expiry) == (3, date(2026, 11, 12))
 
 
 def test_using_several_units_empties_the_nearest_expiry_first(engine: Engine) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(5, date(2026, 11, 12)))
-    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)), TODAY)
 
-    use_units(engine, mleko, 3)
+    use_units(engine, mleko, 3, TODAY)
 
     [batch] = get_product(engine, mleko).batches
     assert (batch.quantity, batch.expiry) == (4, date(2026, 11, 12))
@@ -195,9 +199,9 @@ def test_using_several_units_empties_the_nearest_expiry_first(engine: Engine) ->
 
 def test_using_several_units_takes_undated_batches_last(engine: Engine) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
-    purchase(engine, mleko, BatchDraft(2, date(2026, 11, 12)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 11, 12)), TODAY)
 
-    use_units(engine, mleko, 3)
+    use_units(engine, mleko, 3, TODAY)
 
     [batch] = get_product(engine, mleko).batches
     assert (batch.quantity, batch.expiry) == (1, None)
@@ -208,22 +212,20 @@ def test_using_more_than_the_quantity_or_none_is_refused_and_changes_nothing(
     engine: Engine, count: int, message: str
 ) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(5, date(2026, 11, 12)))
-    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)), TODAY)
     original = get_product(engine, mleko)
 
     with pytest.raises(StockError, match=message):
-        use_units(engine, mleko, count)
+        use_units(engine, mleko, count, TODAY)
     assert get_product(engine, mleko) == original
 
 
-def test_restoring_every_batch_a_use_touched_undoes_it_exactly(engine: Engine) -> None:
+def test_undo_use_puts_back_every_batch_a_use_touched(engine: Engine) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(5, date(2026, 11, 12)))
-    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)))
+    purchase(engine, mleko, BatchDraft(2, date(2026, 10, 30)), TODAY)
     original = get_product(engine, mleko)
 
-    before = use_units(engine, mleko, 3)
-    for batch in before:
-        restore_batch(engine, batch)
+    undo_use(engine, use_units(engine, mleko, 3, TODAY))
 
     assert get_product(engine, mleko) == original
 
@@ -232,7 +234,7 @@ def test_purchase_many_adds_a_batch_per_purchase_and_returns_them(engine: Engine
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
     ocet = add_product(engine, ProductDraft("Ocet", CHEMIA, SZTUKA))
 
-    batches = purchase_many(engine, [(cukier, BatchDraft(2, date(2026, 12, 1))), (ocet, BatchDraft(3))])
+    batches = purchase_many(engine, [(cukier, BatchDraft(2, date(2026, 12, 1))), (ocet, BatchDraft(3))], TODAY).batches
 
     assert [(b.product_id, b.quantity, b.expiry) for b in batches] == [
         (cukier, 2, date(2026, 12, 1)),
@@ -240,21 +242,22 @@ def test_purchase_many_adds_a_batch_per_purchase_and_returns_them(engine: Engine
     ]
     assert get_product(engine, cukier).quantity == 3
     assert get_product(engine, ocet).batches == (batches[1],)
-    assert purchase_many(engine, []) == []
+    assert purchase_many(engine, [], TODAY).batches == ()
 
 
-def test_discard_batches_removes_all_or_none(engine: Engine) -> None:
+def test_undo_purchase_removes_all_or_none(engine: Engine) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE))
-    first, second, third = purchase_many(
-        engine, [(cukier, BatchDraft(1)), (cukier, BatchDraft(2)), (cukier, BatchDraft(3))]
+    purchased = purchase_many(
+        engine, [(cukier, BatchDraft(1)), (cukier, BatchDraft(2)), (cukier, BatchDraft(3))], TODAY
     )
+    first, second, third = purchased.batches
     discard_batch(engine, second.id)
 
     with pytest.raises(MissingBatchError):
-        discard_batches(engine, [first.id, second.id, third.id])
+        undo_purchase(engine, purchased)
     assert get_product(engine, cukier).quantity == 4
 
-    discard_batches(engine, [first.id, third.id])
+    undo_purchase(engine, replace(purchased, batches=(first, third)))
     assert get_product(engine, cukier).batches == ()
 
 
@@ -269,7 +272,7 @@ def test_list_running_low_holds_the_products_the_shopping_list_shows(engine: Eng
 def test_purchase_adds_a_batch(engine: Engine) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
 
-    purchase(engine, cukier, BatchDraft(2, date(2027, 3, 1)))
+    purchase(engine, cukier, BatchDraft(2, date(2027, 3, 1)), TODAY)
 
     product = get_product(engine, cukier)
     assert product.quantity == 3
@@ -307,7 +310,7 @@ def test_editing_a_batch_to_a_negative_quantity_is_refused(engine: Engine) -> No
 
 def test_restoring_undoes_a_discard_exactly(engine: Engine) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
-    purchase(engine, mleko, BatchDraft(3, date(2026, 11, 12)))
+    purchase(engine, mleko, BatchDraft(3, date(2026, 11, 12)), TODAY)
     original = get_product(engine, mleko)
 
     discarded = discard_batch(engine, original.batches[0].id)

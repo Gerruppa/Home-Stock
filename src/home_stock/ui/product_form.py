@@ -133,7 +133,7 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
                     # Dated by the existing Product's Usual Shelf Life, as its Purchase dialog would, not by this form's
                     existing = get_product(ctx.engine, duplicate.product_id)
                     expiry = default_expiry(existing.usual_shelf_life_days, ctx.today())
-                    purchase(ctx.engine, duplicate.product_id, BatchDraft(first_batch.quantity, expiry))
+                    purchase(ctx.engine, duplicate.product_id, BatchDraft(first_batch.quantity, expiry), ctx.today())
 
             def restore_existing() -> None:
                 restore_product(ctx.engine, duplicate.product_id)
