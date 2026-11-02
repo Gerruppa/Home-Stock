@@ -12,6 +12,7 @@
       "name": "home-stock-demo",
       "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["main.py", "--demo", "--port", "8766"],
+      "env": { "PYTHONPATH": "src" },
       "port": 8766
     }
   ]
