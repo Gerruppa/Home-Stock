@@ -17,6 +17,7 @@ MAX_USUAL_SHELF_LIFE_DAYS = 3650
 USUAL_SHELF_LIFE_ERROR = f"Podaj liczbę dni od 1 do {MAX_USUAL_SHELF_LIFE_DAYS}, np. 7."
 # How many days ahead the Shopping List looks for Products Running Out, until Ustawienia sets another
 DEFAULT_BUFFER_DAYS = 7
+BUFFER_ERROR = "Podaj liczbę dni większą od zera, np. 7."
 
 
 @dataclass(frozen=True)
@@ -164,6 +165,13 @@ class ShoppingListEntry:
     product: Product
     # Set when the Product is on the list for Running Out rather than Running Low
     days_left: int | None = None
+
+
+def check_buffer_days(days: int) -> int:
+    """The Buffer if it is a whole number of days above zero; ValueError with the Polish message otherwise."""
+    if days < 1:
+        raise ValueError(BUFFER_ERROR)
+    return days
 
 
 def is_running_out(product: Product, rate: Fraction | None, buffer_days: int) -> bool:

@@ -3,7 +3,7 @@
 from sqlalchemy import Engine, select
 from sqlalchemy.dialects.sqlite import insert
 
-from home_stock.domain.stock import DEFAULT_BUFFER_DAYS
+from home_stock.domain.stock import DEFAULT_BUFFER_DAYS, check_buffer_days
 from home_stock.persistence.models import SettingRow
 
 # The last app version whose start was recorded, so the first start of a newer one opens its "Co nowego" once
@@ -33,4 +33,4 @@ def load_buffer_days(engine: Engine) -> int:
 
 
 def save_buffer_days(engine: Engine, days: int) -> None:
-    save_setting(engine, BUFFER_DAYS, str(days))
+    save_setting(engine, BUFFER_DAYS, str(check_buffer_days(days)))

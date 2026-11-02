@@ -1,4 +1,5 @@
-"""Lista zakupów: every Product Running Low under its Category, each bought through the Purchase dialog."""
+"""Lista zakupów: every Product Running Low or Running Out under its Category, with why it is there, each bought
+through the Purchase dialog."""
 
 import json
 from datetime import date

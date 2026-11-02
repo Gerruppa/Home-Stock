@@ -66,3 +66,10 @@ def test_the_buffer_is_seven_days_until_saved(engine: Engine) -> None:
     save_buffer_days(engine, 14)
 
     assert load_buffer_days(engine) == 14
+
+
+def test_a_buffer_below_one_day_is_refused(engine: Engine) -> None:
+    with pytest.raises(ValueError, match="Podaj liczbę dni większą od zera"):
+        save_buffer_days(engine, 0)
+
+    assert load_buffer_days(engine) == 7
