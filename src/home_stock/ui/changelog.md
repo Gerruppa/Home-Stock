@@ -13,6 +13,7 @@
 - Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
 - Karta produktu pokazuje historię: ostatnie zużycia, zakupy, wyrzucenia (z oznaczeniem przeterminowanych) i ręczne korekty ilości, z datami. Historia zaczyna się od tej wersji, a „Cofnij” usuwa też jej wpis.
 - Nowa zakładka Historia pokazuje 200 ostatnich zdarzeń wszystkich produktów, od najnowszych; wpisanie części nazwy zostawia tylko zdarzenia pasujących produktów.
+- Historia pokazuje też marnowanie: ile sztuk każdego produktu wyrzucono w ostatnich 30 i 90 dniach, od największej liczby, i ile z nich było przeterminowanych.
 - Produkty i karta produktu podają, na ile dni wystarczy zapas („wystarczy na ok. 12 dni”), liczone z zużyć z ostatnich 90 dni; prognoza pojawia się po co najmniej 3 zużyciach i 14 dniach historii.
 - Na liście zakupów pojawia się też produkt, któremu zostało zapasu na tyle dni lub mniej, ile ustawisz w Ustawieniach jako „Zapas dni” (domyślnie 7), a każda pozycja mówi, dlaczego tam jest: „poniżej minimum” albo „wystarczy na ok. N dni”.
 - Dla produktu z prognozą lista zakupów, „Kupione” i „Rozpakuj zakupy” proponują tyle sztuk, by ponad stan minimalny starczyło na „Zapas dni”, a karta produktu podpowiada stan minimalny dopasowany do zużycia („Sugerowany stan minimalny: 3”), który „Zastosuj” ustawia jednym kliknięciem, a „Cofnij” przywraca poprzedni.

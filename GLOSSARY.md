@@ -80,6 +80,10 @@ _Avoid_: Usage, burn rate, average consumption
 How many days a Product's Quantity lasts at its Consumption Rate, rounded down; none without a rate.
 _Avoid_: Forecast, runway, coverage
 
+**Waste** ("Marnowanie"):
+The Units of each Product Discarded in a period (the last 30 or 90 days), most first, with how many were in Expired Batches; Uses, Purchases and Corrections never count.
+_Avoid_: Loss, spoilage, write-off
+
 **Archived Product**:
 A Product the user no longer keeps, hidden from every list with its Batches but restorable with its settings.
 _Avoid_: Deleted product, inactive, hidden

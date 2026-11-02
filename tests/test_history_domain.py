@@ -1,11 +1,11 @@
-"""Consumption Rate and Days Left, worked out from a Product's Stock Events."""
+"""Consumption Rate, Days Left and Waste, worked out from Stock Events."""
 
 from datetime import date, timedelta
 from fractions import Fraction
 
 import pytest
 
-from home_stock.domain.history import StockEvent, StockEventKind, consumption_rate, days_left
+from home_stock.domain.history import StockEvent, StockEventKind, WasteLine, consumption_rate, days_left, waste
 
 TODAY = date(2026, 11, 2)
 
@@ -70,3 +70,33 @@ def test_days_left_is_the_quantity_over_the_rate_rounded_down(quantity: int, exp
 
 def test_days_left_rounds_down() -> None:
     assert days_left(10, Fraction(3, 1)) == 3
+
+
+def _discard(product_id: int, units: int, days_ago: int, *, expired: bool = False) -> StockEvent:
+    return StockEvent(0, product_id, StockEventKind.DISCARD, -units, _ago(days_ago), expired)
+
+
+def test_waste_sums_each_products_discarded_units_most_first_with_the_expired_ones() -> None:
+    events = [
+        _discard(1, 2, 3, expired=True),
+        _discard(2, 5, 10),
+        _discard(1, 1, 20),
+        _discard(1, 4, 25, expired=True),
+    ]
+
+    assert waste(events, TODAY, 30) == [WasteLine(1, 7, 6), WasteLine(2, 5, 0)]
+
+
+def test_waste_counts_only_discards_within_the_period() -> None:
+    # A Discard exactly 30 days ago is outside: the 30 days counted end today
+    events = [
+        _discard(1, 3, 29),
+        _discard(1, 9, 30),
+        _event(StockEventKind.USE, -4, 5),
+        _event(StockEventKind.PURCHASE, 6, 5),
+        _event(StockEventKind.CORRECTION, -2, 5),
+    ]
+
+    assert waste(events, TODAY, 30) == [WasteLine(1, 3, 0)]
+    assert waste(events, TODAY, 90) == [WasteLine(1, 12, 0)]
+    assert waste([], TODAY, 30) == []

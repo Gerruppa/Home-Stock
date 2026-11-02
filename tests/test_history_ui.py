@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, purchase, use_one
+from home_stock.persistence.products import add_product, discard_batch, purchase, use_one
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE = 1
@@ -102,3 +102,63 @@ async def test_a_purchase_on_the_shopping_list_shows_up_in_the_history(engine: E
 
         with user.scope(marker="history-list"):
             await user.should_see("Zakup")
+
+
+def _discarded(engine: Engine, product_id: int, draft: BatchDraft, bought: date, thrown: date) -> None:
+    [batch] = purchase(engine, product_id, draft, bought).batches
+    discard_batch(engine, batch.id, thrown)
+
+
+async def test_waste_lists_each_products_discarded_units_most_first_for_30_and_90_days(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    chleb = add_product(engine, ProductDraft("Chleb", SPOZYWCZE, SZTUKA))
+    # 8 days ago, 12 days past its date: Expired
+    _discarded(engine, mleko, BatchDraft(3, date(2026, 10, 13)), date(2026, 10, 1), date(2026, 10, 25))
+    # 74 days ago: in the 90 days only
+    _discarded(engine, mleko, BatchDraft(3), date(2026, 8, 1), date(2026, 8, 20))
+    _discarded(engine, chleb, BatchDraft(5), date(2026, 10, 30), date(2026, 10, 31))
+    # A Use is no Waste
+    purchase(engine, chleb, BatchDraft(4), date(2026, 10, 30))
+    use_one(engine, chleb, date(2026, 11, 1))
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: MONDAY)) as user:
+        await _open_history(user)
+        with user.scope(marker="history-waste-30"):
+            await user.should_see("Chleb")
+        assert _texts_in_order(user, "history-waste-30-line") == [
+            "Chleb 5 szt. (przeterminowane: 0)",
+            "Mleko 3 szt. (przeterminowane: 3)",
+        ]
+        assert _texts_in_order(user, "history-waste-90-line") == [
+            "Mleko 6 szt. (przeterminowane: 3)",
+            "Chleb 5 szt. (przeterminowane: 0)",
+        ]
+
+
+async def test_with_no_discards_in_a_period_waste_says_nothing_was_thrown_away(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    _discarded(engine, mleko, BatchDraft(2), date(2026, 8, 1), date(2026, 8, 20))
+    chleb = add_product(engine, ProductDraft("Chleb", SPOZYWCZE, SZTUKA), BatchDraft(1))
+    use_one(engine, chleb, MONDAY)
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: MONDAY)) as user:
+        await _open_history(user)
+        with user.scope(marker="history-waste-30"):
+            await user.should_see("Nic nie wyrzucono.")
+        with user.scope(marker="history-waste-90"):
+            await user.should_see("Mleko")
+            await user.should_not_see("Nic nie wyrzucono.")
+
+
+async def test_the_name_filter_leaves_waste_as_it_is(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+    _discarded(engine, mleko, BatchDraft(2), date(2026, 10, 20), date(2026, 10, 25))
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: MONDAY)) as user:
+        await _open_history(user)
+        user.find(marker="history-search").type("Chleb")
+
+        with user.scope(marker="history-list"):
+            await user.should_see("Brak zdarzeń pasujących produktów.")
+        with user.scope(marker="history-waste-30"):
+            await user.should_see("Mleko")

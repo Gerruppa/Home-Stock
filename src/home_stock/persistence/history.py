@@ -7,7 +7,15 @@ from fractions import Fraction
 
 from sqlalchemy import ColumnElement, Connection, Engine, delete, func, insert, select, true
 
-from home_stock.domain.history import RATE_WINDOW_DAYS, StockEvent, StockEventKind, consumption_rate
+from home_stock.domain.history import (
+    RATE_WINDOW_DAYS,
+    WASTE_PERIODS_DAYS,
+    StockEvent,
+    StockEventKind,
+    WasteLine,
+    consumption_rate,
+    waste,
+)
 from home_stock.persistence.models import StockEventRow
 
 
@@ -56,6 +64,12 @@ def _latest_events(engine: Engine, where: ColumnElement[bool], limit: int | None
 def list_events_since(engine: Engine, since: date) -> list[StockEvent]:
     """The Stock Events of all Products from ``since`` on, newest first."""
     return _latest_events(engine, StockEventRow.on >= since, None)
+
+
+def waste_by_period(engine: Engine, today: date) -> dict[int, list[WasteLine]]:
+    """Waste over each of WASTE_PERIODS_DAYS, by its number of days."""
+    events = list_events_since(engine, today - timedelta(days=max(WASTE_PERIODS_DAYS)))
+    return {days: waste(events, today, days) for days in WASTE_PERIODS_DAYS}
 
 
 def consumption_rates(engine: Engine, today: date) -> dict[int, Fraction]:
