@@ -7,7 +7,7 @@ from nicegui import ui
 from home_stock.domain.formatting import format_date
 from home_stock.domain.stock import Product, default_expiry, suggested_purchase
 from home_stock.persistence.catalog import list_categories
-from home_stock.persistence.products import discard_batches, list_running_low, purchase_many
+from home_stock.persistence.products import discard_batches, list_products, list_running_low, purchase_many
 from home_stock.ui.context import Context
 from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label
@@ -29,14 +29,40 @@ def open_unpacking_dialog(ctx: Context) -> None:
     rows: list[_Row] = []
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96").mark("unpacking-dialog") as card:
         ui.label("Rozpakuj zakupy").classes("hs-dialog-title")
-        if not products:
-            ui.label("Nie ma nic do rozpakowania.")
+        nothing = ui.label("Nie ma nic do rozpakowania.")
+        nothing.set_visibility(not products)
         for category in list_categories(ctx.engine):
             shown = [p for p in products if p.category_id == category.id]
             if shown:
                 ui.label(category.name).classes("hs-section-title q-mt-sm")
             for product in shown:
                 rows.append(_add_row(ctx, product))
+        # Impulse buys: any active Product, picked by name, gets a row like the Shopping List's below the list
+        active = {product.id: product for product in list_products(ctx.engine)}
+        added = ui.column().classes("w-full gap-0")
+        with added:
+            # Under its own heading, not the last Category's
+            ui.label("Spoza listy").classes("hs-section-title q-mt-sm")
+        added.set_visibility(False)
+        name = ui.select({p.id: p.name for p in active.values()}, label="Dodaj produkt spoza listy", with_input=True)
+        name.classes("w-full").mark("unpack-add")
+
+        def add_by_name() -> None:
+            product = active.get(name.value)
+            if product is None:
+                return
+            # Empty again, typed text too, for the next impulse buy
+            name.set_value(None)
+            name.run_method("updateInputValue", "")
+            if any(row.product.id == product.id for row in rows):
+                return
+            with added:
+                rows.append(_add_row(ctx, product))
+            added.set_visibility(True)
+            nothing.set_visibility(False)
+            save_button.set_visibility(True)
+
+        name.on_value_change(add_by_name)
 
         def save() -> None:
             # Every ticked row is read, so each shows its own error; nothing is saved while one has one
@@ -64,9 +90,10 @@ def open_unpacking_dialog(ctx: Context) -> None:
 
         with ui.row().classes("w-full justify-end"):
             ui.button("Anuluj", on_click=dialog.close).props("flat")
-            if products:
-                ui.button("Zapisz", on_click=save).mark("unpack-save")
-    wire_dialog_keys(dialog, card, save if products else None)
+            save_button = ui.button("Zapisz", on_click=save).mark("unpack-save")
+            save_button.set_visibility(bool(products))
+    # With no rows yet, Enter only closes the dialog: save() of nothing ticked saves nothing
+    wire_dialog_keys(dialog, card, save)
     dialog.open()
 
 
