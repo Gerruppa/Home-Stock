@@ -6,6 +6,7 @@ import pytest
 from home_stock.domain.formatting import (
     format_date,
     format_days,
+    format_days_left,
     format_decimal,
     format_event_change,
     format_event_kind,
@@ -63,6 +64,11 @@ def test_usual_shelf_life_days() -> None:
         with pytest.raises(ValueError, match="liczbę dni od 1 do 3650"):
             parse_usual_shelf_life(bad)
     assert (format_days(1), format_days(2), format_days(14)) == ("1 dzień", "2 dni", "14 dni")
+
+
+def test_format_days_left() -> None:
+    assert format_days_left(1) == "wystarczy na ok. 1 dzień"
+    assert format_days_left(55) == "wystarczy na ok. 55 dni"
 
 
 def test_pack_sizes() -> None:

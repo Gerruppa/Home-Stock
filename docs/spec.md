@@ -29,6 +29,8 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - A "Cofnij" removes exactly the Stock Events of the action it takes back.
 - The history starts empty on the update that brings it; no past is made up. An Archived Product keeps its events.
 - The Product card lists its latest Stock Events, newest first ("02.11.2026 · Zużycie · −2 szt.").
+- **Consumption Rate** ("Tempo zużycia"): the Units Used in the last 90 days divided by the days from the later of (the Product's first Stock Event, 90 days ago) to today. No rate below 3 Uses in that window or below 14 days of history. Purchases, Discards and Corrections never count.
+- **Days Left**: Quantity ÷ Consumption Rate, rounded down. Produkty and the Product card show "wystarczy na ok. N dni" for a Product with a rate, and nothing extra without one; a Product at 0 shows 0 days.
 
 ## Adding a Product
 
@@ -37,7 +39,7 @@ A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled 
 ## Tabs
 
 1. **Start**: Przeterminowane, Kończy się termin, Do kupienia; clicking a line opens that Product's card.
-2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit and a "−1" button; clicking opens the Product's card with its Batches.
+2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit, Days Left when there is a Consumption Rate and a "−1" button; clicking opens the Product's card with its Batches.
 3. **Lista zakupów**: the Shopping List, derived from Minimum Stock; ticking a Product records a Purchase.
 4. **Historia**: the latest 200 Stock Events of all Products, newest first, with a name filter.
 5. **Ustawienia**: Categories with their Warning Windows, Units, the archive.

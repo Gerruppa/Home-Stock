@@ -1,8 +1,12 @@
-"""The Stock History: what happened to a Product's stock, one Stock Event per change."""
+"""The Stock History: what happened to a Product's stock, one Stock Event per change, and the Consumption Rate and
+Days Left worked out from it."""
 
+import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
+from fractions import Fraction
 
 
 class StockEventKind(StrEnum):
@@ -25,3 +29,27 @@ class StockEvent:
     on: date
     # Whether the Discarded Batch was Expired; False for every other kind
     expired: bool = False
+
+
+# The Consumption Rate looks only this far back, so a change in habits shows within a season
+RATE_WINDOW_DAYS = 90
+# Below these there is no Consumption Rate: too few Uses, or too short a history, to forecast from
+MIN_RATE_USES = 3
+MIN_RATE_HISTORY_DAYS = 14
+
+
+def consumption_rate(events: Sequence[StockEvent], first_event_on: date, today: date) -> Fraction | None:
+    """Units Used per day: the Uses of the last 90 days over the days since the later of the Product's first Stock
+    Event (``first_event_on``) and 90 days ago. Purchases, Discards and Corrections never count. None without enough
+    Uses or history."""
+    window_start = today - timedelta(days=RATE_WINDOW_DAYS)
+    uses = [event for event in events if event.kind is StockEventKind.USE and event.on >= window_start]
+    history_days = (today - max(first_event_on, window_start)).days
+    if len(uses) < MIN_RATE_USES or history_days < MIN_RATE_HISTORY_DAYS:
+        return None
+    return Fraction(-sum(event.change for event in uses), history_days)
+
+
+def days_left(quantity: int, rate: Fraction) -> int:
+    """How many days the Quantity lasts at the Consumption Rate, rounded down."""
+    return math.floor(quantity / rate)

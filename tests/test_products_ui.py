@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -10,7 +10,7 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, archive_product, list_products
+from home_stock.persistence.products import add_product, archive_product, list_products, purchase, use_units
 from home_stock.ui import shell
 from home_stock.ui.shell import build_shell
 
@@ -341,3 +341,38 @@ async def test_adding_an_archived_name_offers_restoring_it(user: User, engine: E
         await user.should_see("3 szt.")
     [product] = list_products(engine)
     assert (product.id, product.name, product.quantity) == (mleko, "Mleko", 3)
+
+
+async def test_a_product_with_a_consumption_rate_shows_its_days_left(engine: Engine) -> None:
+    today = date(2026, 11, 2)
+    # 6 Units Used over 30 days, a fifth of a Unit a day: the 11 left last 55 days
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(16))
+    purchase(engine, cukier, BatchDraft(1), today - timedelta(days=30))
+    for days_ago in (20, 10, 1):
+        use_units(engine, cukier, 2, today - timedelta(days=days_ago))
+    # Only 2 Uses: no forecast
+    sol = add_product(engine, ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE), BatchDraft(5))
+    purchase(engine, sol, BatchDraft(1), today - timedelta(days=30))
+    for days_ago in (20, 10):
+        use_units(engine, sol, 1, today - timedelta(days=days_ago))
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: today)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        with user.scope(marker=f"product-{cukier}"):
+            await user.should_see("wystarczy na ok. 55 dni")
+        await user.should_not_see(marker=f"days-left-{sol}")
+
+
+async def test_a_product_at_zero_with_a_rate_shows_zero_days(engine: Engine) -> None:
+    today = date(2026, 11, 2)
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(5))
+    purchase(engine, cukier, BatchDraft(1), today - timedelta(days=30))
+    for days_ago in (20, 10, 1):
+        use_units(engine, cukier, 2, today - timedelta(days=days_ago))
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: today)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        with user.scope(marker=f"product-{cukier}"):
+            await user.should_see("wystarczy na ok. 0 dni")

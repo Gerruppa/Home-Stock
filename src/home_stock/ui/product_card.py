@@ -9,15 +9,17 @@ from nicegui import ui
 from home_stock.domain.formatting import (
     format_date,
     format_days,
+    format_days_left,
     format_pack_size,
     format_quantity,
     format_stock_event,
     parse_count,
     parse_date,
 )
+from home_stock.domain.history import days_left
 from home_stock.domain.stock import Batch, Product, Unit
 from home_stock.persistence.catalog import StockError, list_categories, list_units
-from home_stock.persistence.history import list_product_events
+from home_stock.persistence.history import consumption_rates, list_product_events
 from home_stock.persistence.products import (
     archive_product,
     discard_batch,
@@ -74,6 +76,9 @@ def open_product_card(ctx: Context, product_id: int) -> None:
             if product.usual_shelf_life_days is not None:
                 ui.label(f"Po zakupie: zwykle ważne {format_days(product.usual_shelf_life_days)}").classes("hs-muted")
             ui.label(f"Razem: {format_quantity(product.quantity, unit, product.pack_size)}").classes("hs-qty")
+            rate = consumption_rates(ctx.engine, ctx.today()).get(product.id)
+            if rate is not None:
+                ui.label(format_days_left(days_left(product.quantity, rate))).classes("hs-muted").mark("card-days-left")
             _use_row(card_ctx, product)
             ui.label("Partie").classes("hs-section-title hs-section-title-green")
             if not product.batches:

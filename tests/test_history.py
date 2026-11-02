@@ -1,6 +1,7 @@
 """The Stock History: each action that changes Batches records its Stock Events, and its undo removes them."""
 
-from datetime import date
+from datetime import date, timedelta
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,7 @@ from sqlalchemy import Engine
 from home_stock.domain.history import StockEventKind
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.history import list_latest_events, list_product_events
+from home_stock.persistence.history import consumption_rates, list_events_since, list_latest_events, list_product_events
 from home_stock.persistence.products import (
     MissingBatchError,
     add_product,
@@ -212,3 +213,33 @@ def test_the_latest_events_can_be_kept_to_some_products(engine: Engine) -> None:
     # The limit counts only the chosen Products' events, so newer events of others never crowd them out
     assert [event.product_id for event in list_latest_events(engine, limit=1, product_ids=[maka])] == [maka]
     assert list_latest_events(engine, product_ids=[]) == []
+
+
+def test_events_since_a_date_are_those_of_all_products_from_that_date_on(engine: Engine) -> None:
+    cukier, maka = _product(engine), _product(engine, "Mąka")
+    use_one(engine, cukier, date(2026, 11, 1))
+    use_one(engine, cukier, MONDAY)
+    use_one(engine, maka, TUESDAY)
+
+    events = list_events_since(engine, MONDAY)
+
+    assert sorted((event.product_id, event.on) for event in events) == [(cukier, MONDAY), (maka, TUESDAY)]
+
+
+def test_consumption_rates_are_worked_out_for_products_with_enough_uses(engine: Engine) -> None:
+    cukier, maka = _product(engine, quantity=20), _product(engine, "Mąka")
+    purchase(engine, cukier, BatchDraft(1), MONDAY - timedelta(days=30))
+    for days_ago in (20, 10, 1):
+        use_units(engine, cukier, 2, MONDAY - timedelta(days=days_ago))
+    use_one(engine, maka, MONDAY)
+
+    assert consumption_rates(engine, MONDAY) == {cukier: Fraction(6, 30)}
+
+
+def test_an_event_older_than_the_window_makes_the_rate_span_ninety_days(engine: Engine) -> None:
+    cukier = _product(engine, quantity=20)
+    purchase(engine, cukier, BatchDraft(1), MONDAY - timedelta(days=200))
+    for days_ago in (20, 10, 1):
+        use_units(engine, cukier, 3, MONDAY - timedelta(days=days_ago))
+
+    assert consumption_rates(engine, MONDAY) == {cukier: Fraction(9, 90)}

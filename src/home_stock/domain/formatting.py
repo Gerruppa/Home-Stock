@@ -77,6 +77,11 @@ def format_days(days: int) -> str:
     return f"{days} {'dzień' if days == 1 else 'dni'}"
 
 
+def format_days_left(days: int) -> str:
+    """ "wystarczy na ok. 12 dni": a Product's Days Left."""
+    return f"wystarczy na ok. {format_days(days)}"
+
+
 def parse_pack_size(text: str | None) -> PackSize | None:
     """ "1 kg", "0,5 l", "500g": an amount above zero and one of MEASURES; None for a blank field."""
     text = _field_text(text).lower()

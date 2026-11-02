@@ -13,6 +13,7 @@
 - Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
 - Karta produktu pokazuje historię: ostatnie zużycia, zakupy, wyrzucenia (z oznaczeniem przeterminowanych) i ręczne korekty ilości, z datami. Historia zaczyna się od tej wersji, a „Cofnij” usuwa też jej wpis.
 - Nowa zakładka Historia pokazuje 200 ostatnich zdarzeń wszystkich produktów, od najnowszych; wpisanie części nazwy zostawia tylko zdarzenia pasujących produktów.
+- Produkty i karta produktu podają, na ile dni wystarczy zapas („wystarczy na ok. 12 dni”), liczone z zużyć z ostatnich 90 dni; prognoza pojawia się po co najmniej 3 zużyciach i 14 dniach historii.
 
 ## 0.2.1 — 2026-11-01
 

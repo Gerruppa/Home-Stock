@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -17,6 +17,7 @@ from home_stock.persistence.products import (
     list_products,
     purchase,
     update_product,
+    use_units,
 )
 from home_stock.ui.shell import build_shell
 
@@ -423,3 +424,28 @@ async def test_a_discard_and_a_correction_are_listed_and_cofnij_takes_the_discar
     with user.scope(marker="card-history"):
         await user.should_not_see("Wyrzucenie")
         await user.should_see("Korekta")
+
+
+async def test_the_card_shows_days_left_once_there_is_a_consumption_rate(tmp_path: Path) -> None:
+    engine = init_db(tmp_path / "rate.sqlite3")
+    today = date(2026, 11, 2)
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(16))
+    purchase(engine, cukier, BatchDraft(1), today - timedelta(days=30))
+    for days_ago in (20, 10, 1):
+        use_units(engine, cukier, 2, today - timedelta(days=days_ago))
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: today)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{cukier}").click()
+        await user.should_see(marker="card-days-left")
+        [label] = user.find(marker="card-days-left").elements
+        assert label.text == "wystarczy na ok. 55 dni"  # type: ignore[attr-defined]
+
+
+async def test_the_card_shows_no_forecast_without_a_rate(user: User, mleko: int) -> None:
+    user.find(marker=f"open-{mleko}").click()
+
+    with user.scope(marker="card-history"):
+        await user.should_see("Zakup")
+    await user.should_not_see(marker="card-days-left")
