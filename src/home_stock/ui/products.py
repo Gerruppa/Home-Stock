@@ -3,9 +3,11 @@
 from nicegui import ui
 from nicegui.events import ValueChangeEventArguments
 
-from home_stock.domain.formatting import format_quantity
+from home_stock.domain.formatting import format_days_left, format_quantity
+from home_stock.domain.history import days_left
 from home_stock.domain.stock import Product, is_running_low, name_key
 from home_stock.persistence.catalog import list_categories, list_units
+from home_stock.persistence.history import consumption_rates
 from home_stock.persistence.products import list_products, undo_use, use_one
 from home_stock.ui.context import Context
 from home_stock.ui.product_card import open_product_card
@@ -35,6 +37,7 @@ class ProductsTab:
         engine = self.ctx.engine
         products = list_products(engine)
         units = {unit.id: unit for unit in list_units(engine)}
+        rates = consumption_rates(engine, self.ctx.today())
         self.content.clear()
         with self.content:
             if not products:
@@ -53,6 +56,10 @@ class ProductsTab:
                             name.on("click", lambda p=product: open_product_card(self.ctx, p.id)).mark(
                                 f"open-{product.id}"
                             )
+                            if product.id in rates:
+                                ui.label(format_days_left(days_left(product.quantity, rates[product.id]))).classes(
+                                    "hs-muted text-sm"
+                                ).mark(f"days-left-{product.id}")
                             quantity = ui.label(
                                 format_quantity(product.quantity, units[product.unit_id], product.pack_size)
                             ).classes("hs-qty")

@@ -2,11 +2,12 @@
 transaction, and read here."""
 
 from collections.abc import Collection, Sequence
-from datetime import date
+from datetime import date, timedelta
+from fractions import Fraction
 
-from sqlalchemy import ColumnElement, Connection, Engine, delete, insert, select, true
+from sqlalchemy import ColumnElement, Connection, Engine, delete, func, insert, select, true
 
-from home_stock.domain.history import StockEvent, StockEventKind
+from home_stock.domain.history import RATE_WINDOW_DAYS, StockEvent, StockEventKind, consumption_rate
 from home_stock.persistence.models import StockEventRow
 
 
@@ -41,7 +42,7 @@ def list_latest_events(
     return _latest_events(engine, where, limit)
 
 
-def _latest_events(engine: Engine, where: ColumnElement[bool], limit: int) -> list[StockEvent]:
+def _latest_events(engine: Engine, where: ColumnElement[bool], limit: int | None) -> list[StockEvent]:
     with engine.connect() as connection:
         rows = connection.execute(
             select(StockEventRow).where(where).order_by(StockEventRow.on.desc(), StockEventRow.id.desc()).limit(limit)
@@ -50,3 +51,25 @@ def _latest_events(engine: Engine, where: ColumnElement[bool], limit: int) -> li
             StockEvent(row.id, row.product_id, StockEventKind(row.kind), row.change, row.on, row.expired)
             for row in rows
         ]
+
+
+def list_events_since(engine: Engine, since: date) -> list[StockEvent]:
+    """The Stock Events of all Products from ``since`` on, newest first."""
+    return _latest_events(engine, StockEventRow.on >= since, None)
+
+
+def consumption_rates(engine: Engine, today: date) -> dict[int, Fraction]:
+    """The Consumption Rate of each Product that has one, by Product id."""
+    events_by_product: dict[int, list[StockEvent]] = {}
+    for event in list_events_since(engine, today - timedelta(days=RATE_WINDOW_DAYS)):
+        events_by_product.setdefault(event.product_id, []).append(event)
+    with engine.connect() as connection:
+        first_events = connection.execute(
+            select(StockEventRow.product_id, func.min(StockEventRow.on)).group_by(StockEventRow.product_id)
+        ).all()
+    rates = {}
+    for product_id, first_event_on in first_events:
+        rate = consumption_rate(events_by_product.get(product_id, []), first_event_on, today)
+        if rate is not None:
+            rates[product_id] = rate
+    return rates

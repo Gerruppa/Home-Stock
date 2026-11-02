@@ -68,6 +68,14 @@ _Avoid_: Adjustment, fix, recount
 All the Stock Events recorded since the update that brought them, from which the Product card shows a Product's latest and the Historia tab the latest of all Products.
 _Avoid_: Log, audit trail, ledger
 
+**Consumption Rate** ("Tempo zużycia"):
+The Units of a Product Used per day: the Uses of the last 90 days over the days since the later of its first Stock Event and 90 days ago. A Product has none below 3 Uses or 14 days of history; Purchases, Discards and Corrections never count.
+_Avoid_: Usage, burn rate, average consumption
+
+**Days Left** ("wystarczy na ok. N dni"):
+How many days a Product's Quantity lasts at its Consumption Rate, rounded down; none without a rate.
+_Avoid_: Forecast, runway, coverage
+
 **Archived Product**:
 A Product the user no longer keeps, hidden from every list with its Batches but restorable with its settings.
 _Avoid_: Deleted product, inactive, hidden
