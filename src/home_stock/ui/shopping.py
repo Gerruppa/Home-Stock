@@ -78,12 +78,17 @@ class ShoppingTab:
                     ui.label(category.name).classes("hs-section-title q-mb-xs")
                     for entry in shown:
                         product = entry.product
-                        with ui.row().classes("w-full items-center no-wrap hs-line").mark(f"shopping-{product.id}"):
-                            ui.label(product.name).classes("grow")
-                            ui.label(format_shopping_reason(entry)).classes("hs-muted text-sm")
-                            unit = units[product.unit_id]
-                            ui.label(format_quantity(product.quantity, unit, product.pack_size)).classes("hs-qty")
-                            ui.label(format_purchase_amount(amounts[product.id], unit)).classes("hs-qty")
-                            ui.button(
-                                "Kupione", icon="check", on_click=lambda p=product: open_purchase_dialog(self.ctx, p)
-                            ).props("dense outline").mark(f"bought-{product.id}")
+                        # Two groups in one row, the second wrapping under the first where they don't fit (a phone)
+                        with ui.row().classes("w-full items-center hs-line").mark(f"shopping-{product.id}"):
+                            with ui.row().classes("items-center no-wrap hs-line-main"):
+                                ui.label(product.name).classes("grow")
+                                ui.label(format_shopping_reason(entry)).classes("hs-muted text-sm")
+                            with ui.row().classes("items-center no-wrap hs-line-end"):
+                                unit = units[product.unit_id]
+                                ui.label(format_quantity(product.quantity, unit, product.pack_size)).classes("hs-qty")
+                                ui.label(format_purchase_amount(amounts[product.id], unit)).classes("hs-qty")
+                                ui.button(
+                                    "Kupione",
+                                    icon="check",
+                                    on_click=lambda p=product: open_purchase_dialog(self.ctx, p),
+                                ).props("dense outline").mark(f"bought-{product.id}")

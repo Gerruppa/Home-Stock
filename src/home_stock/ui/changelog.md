@@ -19,6 +19,9 @@
 - Dla produktu z prognozą lista zakupów, „Kupione” i „Rozpakuj zakupy” proponują tyle sztuk, by ponad stan minimalny starczyło na „Zapas dni”, a karta produktu podpowiada stan minimalny dopasowany do zużycia („Sugerowany stan minimalny: 3”), który „Zastosuj” ustawia jednym kliknięciem, a „Cofnij” przywraca poprzedni.
 - Tryb demonstracyjny ma około dwóch miesięcy przykładowej historii, więc od razu widać prognozy, produkt na liście zakupów z powodu kończącego się zapasu i marnowanie w Historii.
 
+### Zmiany
+- Na wąskim ekranie (telefon) pozycja listy zakupów ma dwa wiersze: nazwę z powodem, a pod nimi ilość, „kup” i „Kupione”, który nie wychodzi już poza kartę.
+
 ## 0.2.1 — 2026-11-01
 
 ### Zmiany
