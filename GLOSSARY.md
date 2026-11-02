@@ -36,6 +36,10 @@ _Avoid_: Expiry period, durability, best-before days
 The Quantity of a Product below which it counts as Running Low.
 _Avoid_: Threshold, reorder point, alarm level
 
+**Suggested Minimum Stock** ("Sugerowany stan minimalny"):
+The Units a Product's Consumption Rate uses over the Buffer, rounded up and at least 1; offered on the card for one-click use, never applied by itself.
+_Avoid_: Recommended minimum, auto minimum
+
 **Running Low**:
 The state of a Product whose Quantity is at or below its Minimum Stock; a Product with no Minimum Stock is never Running Low.
 _Avoid_: Low stock, shortage, ending

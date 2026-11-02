@@ -16,6 +16,7 @@ from home_stock.domain.stock import (
     is_running_out,
     name_key,
     shopping_list,
+    suggested_minimum_stock,
     suggested_purchase,
     units_to_use,
     use_order,
@@ -68,10 +69,34 @@ def test_units_to_use_empties_each_batch_in_use_order_before_the_next() -> None:
     assert units_to_use([undated, late, soon], 9) == [(soon, 2), (late, 5), (undated, 2)]
 
 
-def test_suggested_purchase() -> None:
-    assert suggested_purchase(product(batches=(batch(1, 1),), minimum_stock=2)) == 2
-    assert suggested_purchase(product(batches=(batch(1, 5),), minimum_stock=2)) == 1
-    assert suggested_purchase(product(batches=(), minimum_stock=None)) == 1
+def test_without_a_rate_the_purchase_gets_one_above_minimum_stock() -> None:
+    assert suggested_purchase(product(batches=(batch(1, 1),), minimum_stock=2), None, 7) == 2
+    assert suggested_purchase(product(batches=(batch(1, 5),), minimum_stock=2), None, 7) == 1
+    assert suggested_purchase(product(batches=(), minimum_stock=None), None, 7) == 1
+
+
+def test_with_a_rate_the_purchase_covers_the_buffer_above_minimum_stock() -> None:
+    # Half a Unit a day over a Buffer of 7: 3.5, so 4 Units above the Minimum Stock of 2, 1 already there
+    assert suggested_purchase(product(batches=(batch(1, 1),), minimum_stock=2), Fraction(1, 2), 7) == 5
+    # No Minimum Stock: the Buffer alone, 2 Units for a fifth of a Unit a day
+    assert suggested_purchase(product(batches=(batch(1, 1),), minimum_stock=None), Fraction(1, 5), 7) == 1
+    assert suggested_purchase(product(batches=(batch(1, 20),), minimum_stock=2), Fraction(1, 2), 7) == 1
+
+
+@pytest.mark.parametrize(("rate", "minimum_stock"), [(Fraction(1), None), (Fraction(2), None), (Fraction(2), 1)])
+def test_buying_the_suggested_purchase_takes_the_product_off_the_shopping_list(
+    rate: Fraction, minimum_stock: int | None
+) -> None:
+    empty = _stocked(1, 0, minimum_stock=minimum_stock)
+    bought = _stocked(1, suggested_purchase(empty, rate, 7), minimum_stock=minimum_stock)
+
+    assert shopping_list([bought], {1: rate}, 7) == []
+
+
+def test_suggested_minimum_stock_is_the_rate_over_the_buffer_rounded_up() -> None:
+    assert suggested_minimum_stock(Fraction(1, 2), 7) == 4
+    assert suggested_minimum_stock(Fraction(2), 7) == 14
+    assert suggested_minimum_stock(Fraction(1, 100), 7) == 1
 
 
 def test_name_key_ignores_case_and_spaces() -> None:

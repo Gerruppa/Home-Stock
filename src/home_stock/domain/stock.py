@@ -1,6 +1,7 @@
 """Products, Batches and the rules on them: Running Low, Running Out, the Shopping List, Expiry Status and which
 Batches a Use takes (GLOSSARY.md)."""
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -97,6 +98,12 @@ class Product:
     def quantity(self) -> int:
         return sum(batch.quantity for batch in self.batches)
 
+    def draft(self) -> ProductDraft:
+        """Its fields as a draft, to save with one of them changed."""
+        return ProductDraft(
+            self.name, self.category_id, self.unit_id, self.pack_size, self.minimum_stock, self.usual_shelf_life_days
+        )
+
 
 class ExpiryStatus(Enum):
     FRESH = "fresh"
@@ -153,11 +160,24 @@ def default_expiry(usual_shelf_life_days: int | None, today: date) -> date | Non
     return today + timedelta(days=usual_shelf_life_days)
 
 
-def suggested_purchase(product: Product) -> int:
-    """How many Units a Purchase suggests: enough to get one above Minimum Stock, at least one."""
-    if product.minimum_stock is None:
+def suggested_minimum_stock(rate: Fraction, buffer_days: int) -> int:
+    """The Units Used over the Buffer at the Consumption Rate, rounded up, at least 1."""
+    return max(1, math.ceil(rate * buffer_days))
+
+
+def suggested_purchase(product: Product, rate: Fraction | None, buffer_days: int) -> int:
+    """How many Units a Purchase suggests, at least one: with a Consumption Rate, enough to cover the Buffer above
+    Minimum Stock and to last past the Buffer, so the Product leaves the Shopping List; without one, enough to get one
+    above Minimum Stock."""
+    if rate is not None:
+        covered = (product.minimum_stock or 0) + suggested_minimum_stock(rate, buffer_days)
+        # Days Left rounds down, so lasting past the Buffer takes a whole day more of Units
+        target = max(covered, math.ceil(rate * (buffer_days + 1)))
+    elif product.minimum_stock is not None:
+        target = product.minimum_stock + 1
+    else:
         return 1
-    return max(1, product.minimum_stock + 1 - product.quantity)
+    return max(1, target - product.quantity)
 
 
 @dataclass(frozen=True)
