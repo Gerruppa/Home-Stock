@@ -13,15 +13,17 @@ from home_stock.domain.stock import (
     PackSize,
     Product,
     ProductDraft,
+    ShoppingListEntry,
     is_expired,
-    is_running_low,
     name_key,
+    shopping_list,
     units_to_use,
     use_order,
 )
 from home_stock.persistence.catalog import StockError
-from home_stock.persistence.history import record_event, remove_events
+from home_stock.persistence.history import consumption_rates, record_event, remove_events
 from home_stock.persistence.models import BatchRow, ProductRow
+from home_stock.persistence.settings import load_buffer_days
 
 
 class DuplicateProductError(StockError):
@@ -107,9 +109,9 @@ def list_products(engine: Engine, *, archived: bool = False) -> list[Product]:
         return _load_products(connection, ProductRow.archived == archived)
 
 
-def list_running_low(engine: Engine) -> list[Product]:
-    """The Shopping List: the active Products that are Running Low, by name."""
-    return [product for product in list_products(engine) if is_running_low(product)]
+def list_shopping_list(engine: Engine, today: date) -> list[ShoppingListEntry]:
+    """The Shopping List: the active Products Running Low or Running Out within the Buffer, by name."""
+    return shopping_list(list_products(engine), consumption_rates(engine, today), load_buffer_days(engine))
 
 
 def get_product(engine: Engine, product_id: int) -> Product:

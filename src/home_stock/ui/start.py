@@ -5,10 +5,10 @@ from typing import NamedTuple
 
 from nicegui import ui
 
-from home_stock.domain.formatting import format_date, format_quantity
-from home_stock.domain.stock import Batch, ExpiryStatus, Product, Unit, expiry_status, is_running_low
+from home_stock.domain.formatting import format_date, format_days_left, format_quantity
+from home_stock.domain.stock import Batch, ExpiryStatus, Product, ShoppingListEntry, Unit, expiry_status
 from home_stock.persistence.catalog import list_categories, list_units
-from home_stock.persistence.products import list_products
+from home_stock.persistence.products import list_products, list_shopping_list
 from home_stock.ui.context import Context
 from home_stock.ui.product_card import open_product_card
 
@@ -44,7 +44,7 @@ class StartTab:
         sections = [
             ("expired", "Przeterminowane", _expiry_lines(expired, units)),
             ("expiring", "Kończy się termin", _expiry_lines(expiring, units)),
-            ("running-low", "Do kupienia", [_running_low_line(p, units) for p in products if is_running_low(p)]),
+            ("running-low", "Do kupienia", [_to_buy_line(e, units) for e in list_shopping_list(engine, today)]),
         ]
         self.content.clear()
         with self.content:
@@ -75,8 +75,13 @@ def _expiry_lines(dated: list[tuple[Product, Batch]], units: dict[int, Unit]) ->
     return lines
 
 
-def _running_low_line(product: Product, units: dict[int, Unit]) -> _StartLine:
+def _to_buy_line(entry: ShoppingListEntry, units: dict[int, Unit]) -> _StartLine:
+    """A Shopping List line, e.g. Cukier / "1 opak., minimum 2 opak." or "3 opak., wystarczy na ok. 5 dni"."""
+    product = entry.product
     unit = units[product.unit_id]
     quantity = format_quantity(product.quantity, unit, product.pack_size)
-    minimum = format_quantity(product.minimum_stock or 0, unit, None)
-    return _StartLine(f"start-low-{product.id}", product.id, product.name, f"{quantity}, minimum {minimum}")
+    if entry.days_left is None:
+        reason = f"minimum {format_quantity(product.minimum_stock or 0, unit, None)}"
+    else:
+        reason = format_days_left(entry.days_left)
+    return _StartLine(f"start-low-{product.id}", product.id, product.name, f"{quantity}, {reason}")

@@ -7,7 +7,7 @@ from nicegui import ui
 from home_stock.domain.formatting import format_date
 from home_stock.domain.stock import Product, default_expiry, suggested_purchase
 from home_stock.persistence.catalog import list_categories
-from home_stock.persistence.products import list_products, list_running_low, purchase_many, undo_purchase
+from home_stock.persistence.products import list_products, list_shopping_list, purchase_many, undo_purchase
 from home_stock.ui.context import Context
 from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label
@@ -25,7 +25,7 @@ class _Row:
 
 
 def open_unpacking_dialog(ctx: Context) -> None:
-    products = list_running_low(ctx.engine)
+    products = [entry.product for entry in list_shopping_list(ctx.engine, ctx.today())]
     rows: list[_Row] = []
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96").mark("unpacking-dialog") as card:
         ui.label("Rozpakuj zakupy").classes("hs-dialog-title")

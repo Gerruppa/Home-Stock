@@ -1,16 +1,23 @@
-"""Products, Batches and the rules on them: Running Low, Expiry Status and which Batches a Use takes (GLOSSARY.md)."""
+"""Products, Batches and the rules on them: Running Low, Running Out, the Shopping List, Expiry Status and which
+Batches a Use takes (GLOSSARY.md)."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
+from fractions import Fraction
+
+from home_stock.domain.history import days_left
 
 # What a Pack Size may be measured in; never what a Quantity is counted in (ADR-0001)
 MEASURES = ("g", "kg", "ml", "l")
 # Ten years: longer than anything at home keeps, and short enough for any date it gives
 MAX_USUAL_SHELF_LIFE_DAYS = 3650
 USUAL_SHELF_LIFE_ERROR = f"Podaj liczbę dni od 1 do {MAX_USUAL_SHELF_LIFE_DAYS}, np. 7."
+# How many days ahead the Shopping List looks for Products Running Out, until Ustawienia sets another
+DEFAULT_BUFFER_DAYS = 7
+BUFFER_ERROR = "Podaj liczbę dni większą od zera, np. 7."
 
 
 @dataclass(frozen=True)
@@ -151,3 +158,36 @@ def suggested_purchase(product: Product) -> int:
     if product.minimum_stock is None:
         return 1
     return max(1, product.minimum_stock + 1 - product.quantity)
+
+
+@dataclass(frozen=True)
+class ShoppingListEntry:
+    product: Product
+    # Set when the Product is on the list for Running Out rather than Running Low
+    days_left: int | None = None
+
+
+def check_buffer_days(days: int) -> int:
+    """The Buffer if it is a whole number of days above zero; ValueError with the Polish message otherwise."""
+    if days < 1:
+        raise ValueError(BUFFER_ERROR)
+    return days
+
+
+def is_running_out(product: Product, rate: Fraction | None, buffer_days: int) -> bool:
+    """Its Days Left is within the Buffer; a Product without a Consumption Rate never Runs Out."""
+    return rate is not None and days_left(product.quantity, rate) <= buffer_days
+
+
+def shopping_list(
+    products: Sequence[Product], rates: Mapping[int, Fraction], buffer_days: int
+) -> list[ShoppingListEntry]:
+    """The Products Running Low or Running Out, in the order given; one both Running Low and Out is Running Low."""
+    entries = []
+    for product in products:
+        rate = rates.get(product.id)
+        if is_running_low(product):
+            entries.append(ShoppingListEntry(product))
+        elif rate is not None and is_running_out(product, rate, buffer_days):
+            entries.append(ShoppingListEntry(product, days_left(product.quantity, rate)))
+    return entries

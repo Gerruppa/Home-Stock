@@ -1,4 +1,5 @@
 from datetime import date
+from fractions import Fraction
 
 import pytest
 
@@ -8,10 +9,13 @@ from home_stock.domain.stock import (
     ExpiryStatus,
     Product,
     ProductDraft,
+    ShoppingListEntry,
     default_expiry,
     expiry_status,
     is_running_low,
+    is_running_out,
     name_key,
+    shopping_list,
     suggested_purchase,
     units_to_use,
     use_order,
@@ -93,3 +97,31 @@ def test_a_usual_shelf_life_outside_one_day_to_ten_years_is_refused(days: int) -
 def test_default_expiry_is_today_plus_the_usual_shelf_life() -> None:
     assert default_expiry(7, date(2026, 10, 27)) == date(2026, 11, 3)
     assert default_expiry(None, date(2026, 10, 27)) is None
+
+
+def _stocked(product_id: int, quantity: int, minimum_stock: int | None = None) -> Product:
+    return Product(product_id, f"P{product_id}", 1, 1, None, minimum_stock, False, (batch(product_id, quantity),))
+
+
+def test_the_shopping_list_holds_products_running_low_or_running_out() -> None:
+    low = _stocked(1, 1, minimum_stock=2)
+    running_out = _stocked(2, 6, minimum_stock=2)  # 1 a day: 6 days left, within a Buffer of 7
+    lasting = _stocked(3, 8, minimum_stock=2)  # 8 days left
+    no_forecast = _stocked(4, 3)
+    rates = {2: Fraction(1), 3: Fraction(1)}
+
+    entries = shopping_list([low, running_out, lasting, no_forecast], rates, 7)
+
+    assert entries == [ShoppingListEntry(low), ShoppingListEntry(running_out, days_left=6)]
+
+
+def test_running_out_is_days_left_at_or_below_the_buffer() -> None:
+    assert is_running_out(_stocked(1, 7), Fraction(1), 7)
+    assert not is_running_out(_stocked(1, 8), Fraction(1), 7)
+    assert not is_running_out(_stocked(1, 0), None, 7)
+
+
+def test_a_product_both_running_low_and_out_is_listed_as_running_low() -> None:
+    low = _stocked(1, 1, minimum_stock=2)
+
+    assert shopping_list([low], {1: Fraction(1)}, 7) == [ShoppingListEntry(low)]

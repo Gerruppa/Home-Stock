@@ -6,7 +6,13 @@ from alembic.config import Config
 from sqlalchemy import Engine, text
 
 from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
-from home_stock.persistence.settings import LAST_ANNOUNCED_VERSION, load_setting, save_setting
+from home_stock.persistence.settings import (
+    LAST_ANNOUNCED_VERSION,
+    load_buffer_days,
+    load_setting,
+    save_buffer_days,
+    save_setting,
+)
 
 
 @pytest.fixture
@@ -52,3 +58,18 @@ def test_a_database_in_use_before_settings_existed_counts_as_having_announced_0_
         )
 
     assert load_setting(init_db(tmp_path / "db.sqlite3"), LAST_ANNOUNCED_VERSION) == "0.1.0"
+
+
+def test_the_buffer_is_seven_days_until_saved(engine: Engine) -> None:
+    assert load_buffer_days(engine) == 7
+
+    save_buffer_days(engine, 14)
+
+    assert load_buffer_days(engine) == 14
+
+
+def test_a_buffer_below_one_day_is_refused(engine: Engine) -> None:
+    with pytest.raises(ValueError, match="Podaj liczbę dni większą od zera"):
+        save_buffer_days(engine, 0)
+
+    assert load_buffer_days(engine) == 7

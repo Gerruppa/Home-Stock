@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -19,7 +19,7 @@ from home_stock.persistence.products import (
     edit_batch,
     get_product,
     list_products,
-    list_running_low,
+    list_shopping_list,
     purchase,
     purchase_many,
     restore_product,
@@ -30,6 +30,7 @@ from home_stock.persistence.products import (
     use_one,
     use_units,
 )
+from home_stock.persistence.settings import save_buffer_days
 
 SPOZYWCZE, CHEMIA = 1, 3
 SZTUKA, OPAKOWANIE = 1, 2
@@ -261,12 +262,21 @@ def test_undo_purchase_removes_all_or_none(engine: Engine) -> None:
     assert get_product(engine, cukier).batches == ()
 
 
-def test_list_running_low_holds_the_products_the_shopping_list_shows(engine: Engine) -> None:
+def test_the_shopping_list_holds_products_running_low_or_running_out_within_the_buffer(engine: Engine) -> None:
     low = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=2), BatchDraft(1))
     add_product(engine, ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE, minimum_stock=1), BatchDraft(5))
     add_product(engine, ProductDraft("Pieprz", SPOZYWCZE, SZTUKA))
+    # 3 Units Used over 30 days, a tenth of a Unit a day: the 1 left lasts 10 days, above the Buffer of 7
+    maka = add_product(engine, ProductDraft("Mąka", SPOZYWCZE, OPAKOWANIE), BatchDraft(3))
+    purchase(engine, maka, BatchDraft(1), TODAY - timedelta(days=30))
+    for days_ago in (20, 10, 1):
+        use_one(engine, maka, TODAY - timedelta(days=days_ago))
 
-    assert [p.id for p in list_running_low(engine)] == [low]
+    assert [(e.product.id, e.days_left) for e in list_shopping_list(engine, TODAY)] == [(low, None)]
+
+    save_buffer_days(engine, 10)
+
+    assert [(e.product.id, e.days_left) for e in list_shopping_list(engine, TODAY)] == [(low, None), (maka, 10)]
 
 
 def test_purchase_adds_a_batch(engine: Engine) -> None:

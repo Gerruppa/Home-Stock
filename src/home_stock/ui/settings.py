@@ -1,10 +1,11 @@
-"""Ustawienia: Categories with their Warning Windows, Units, and the archive, where Archived Products are restored."""
+"""Ustawienia: the Buffer, Categories with their Warning Windows, Units, and the archive, where Archived Products are
+restored."""
 
 from collections.abc import Callable
 
 from nicegui import ui
 
-from home_stock.domain.formatting import parse_count
+from home_stock.domain.formatting import parse_buffer_days, parse_count
 from home_stock.domain.stock import Category, Unit
 from home_stock.persistence.catalog import (
     StockError,
@@ -18,6 +19,7 @@ from home_stock.persistence.catalog import (
     update_unit,
 )
 from home_stock.persistence.products import list_products, restore_product
+from home_stock.persistence.settings import load_buffer_days, save_buffer_days
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
 
@@ -28,6 +30,7 @@ NEW_WARNING_DAYS = "7"
 class SettingsTab:
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
+        self.buffer_row, self.buffer_error = _section("buffer", "Zakupy", "buffer-error")
         self.category_list, self.category_error = _section("categories", "Kategorie", "category-error")
         self.unit_list, self.unit_error = _section("units", "Jednostki", "unit-error")
         with ui.column().classes("w-full gap-1 hs-section hs-category").mark("archive"):
@@ -36,9 +39,27 @@ class SettingsTab:
         self.refresh()
 
     def refresh(self) -> None:
+        self._refresh_buffer()
         self._refresh_categories()
         self._refresh_units()
         self._refresh_archive()
+
+    def _refresh_buffer(self) -> None:
+        engine, error = self.ctx.engine, self.buffer_error
+        show_error(error, None)
+        self.buffer_row.clear()
+        with self.buffer_row, ui.row().classes("w-full items-center no-wrap"):
+            days = ui.input("Zapas dni", value=str(load_buffer_days(engine))).classes("w-32").mark("buffer-days")
+            ui.label("Produkt, któremu wystarczy na tyle dni lub mniej, trafia na listę zakupów.").classes(
+                "grow hs-muted text-sm"
+            )
+            with ui.row().classes("hs-actions"):
+                ui.button(
+                    icon="save",
+                    on_click=lambda: self._change(
+                        error, lambda: save_buffer_days(engine, parse_buffer_days(days.value))
+                    ),
+                ).props("dense flat").tooltip("Zapisz").mark("buffer-save")
 
     def _refresh_categories(self) -> None:
         engine, error = self.ctx.engine, self.category_error

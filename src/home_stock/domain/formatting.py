@@ -7,13 +7,16 @@ from decimal import Decimal, InvalidOperation
 
 from home_stock.domain.history import StockEvent, StockEventKind
 from home_stock.domain.stock import (
+    BUFFER_ERROR,
     MAX_USUAL_SHELF_LIFE_DAYS,
     MEASURES,
     USUAL_SHELF_LIFE_ERROR,
     Category,
     PackSize,
     Product,
+    ShoppingListEntry,
     Unit,
+    check_buffer_days,
     suggested_purchase,
 )
 
@@ -158,3 +161,17 @@ def format_shopping_list(categories: Sequence[Category], units: Mapping[int, Uni
         if lines:
             sections.append("\n".join([category.name, *lines]))
     return "\n\n".join(sections)
+
+
+def format_shopping_reason(entry: ShoppingListEntry) -> str:
+    """ "poniżej minimum" or "wystarczy na ok. 3 dni": why the Product is on the Shopping List."""
+    return "poniżej minimum" if entry.days_left is None else format_days_left(entry.days_left)
+
+
+def parse_buffer_days(text: str | None) -> int:
+    """The Buffer: a whole number of days above zero."""
+    text = _field_text(text)
+    # isdigit alone takes "²", which int() refuses
+    if not (text.isascii() and text.isdigit()):
+        raise ValueError(BUFFER_ERROR)
+    return check_buffer_days(int(text))
