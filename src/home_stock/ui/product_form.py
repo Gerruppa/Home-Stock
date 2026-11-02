@@ -16,6 +16,7 @@ from home_stock.persistence.products import (
     update_product,
 )
 from home_stock.ui.context import Context
+from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label, show_error
 
 
@@ -23,7 +24,7 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
     """A new Product when ``product`` is None, else that Product's fields filled in for editing."""
     categories = list_categories(ctx.engine)
     units = list_units(ctx.engine)
-    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96"):
+    with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96").mark("product-form") as card:
         ui.label("Nowy produkt" if product is None else "Edytuj produkt").classes("hs-dialog-title")
         name = ui.input("Nazwa", value="" if product is None else product.name).classes("w-full").mark("name")
         name_error = error_label()
@@ -152,4 +153,5 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
         with ui.row().classes("w-full justify-end"):
             ui.button("Anuluj", on_click=dialog.close).props("flat")
             ui.button("Zapisz", on_click=save).mark("save")
+    wire_dialog_keys(dialog, card, save)
     dialog.open()

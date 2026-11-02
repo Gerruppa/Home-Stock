@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 
 from nicegui import ui
+from nicegui.events import KeyEventArguments
 from sqlalchemy import Engine
 
 from home_stock import __version__
@@ -95,13 +96,36 @@ def build_shell(
         ui.tab("products", "Produkty").mark("tab-products")
         ui.tab("shopping", "Lista zakupów").mark("tab-shopping")
         ui.tab("settings", "Ustawienia").mark("tab-settings")
-    with ui.tab_panels(tabs, value="start").classes("w-full"):
+    with ui.tab_panels(tabs, value="start").classes("w-full") as panels:
         with ui.tab_panel("start").classes("hs-page"):
             refreshers.append(StartTab(ctx).refresh)
         with ui.tab_panel("products").classes("hs-page"):
-            refreshers.append(ProductsTab(ctx).refresh)
+            products = ProductsTab(ctx)
+            refreshers.append(products.refresh)
         with ui.tab_panel("shopping").classes("hs-page"):
             refreshers.append(ShoppingTab(ctx).refresh)
         with ui.tab_panel("settings").classes("hs-page"):
             refreshers.append(SettingsTab(ctx).refresh)
+    _focus_search_keys(panels, products)
     announce_new_version(ctx.overlay, engine, version)
+
+
+def _focus_search_keys(panels: ui.tab_panels, products: ProductsTab) -> None:
+    """The Produkty search takes the cursor when the tab opens, and again on Ctrl+F while the tab is shown."""
+
+    def opened() -> None:
+        if panels.value == "products":
+            products.focus_search()
+
+    def pressed(event: KeyEventArguments) -> None:
+        if event.action.keydown and event.modifiers.ctrl and event.key == "f" and panels.value == "products":
+            products.focus_search()
+
+    panels.on_value_change(opened)
+    ui.keyboard(pressed, ignore=[])
+    # The keyboard event cannot stop the browser's own find box, so a script does, on Produkty only
+    ui.run_javascript(
+        "document.addEventListener('keydown', (e) => {"
+        " if (e.ctrlKey && e.key === 'f' && document.querySelector('.q-tab--active')?.textContent.includes('Produkty'))"
+        " e.preventDefault(); });"
+    )
