@@ -48,12 +48,12 @@ class SettingsTab:
         engine, error = self.ctx.engine, self.buffer_error
         show_error(error, None)
         self.buffer_row.clear()
-        with self.buffer_row, ui.row().classes("w-full items-center no-wrap"):
+        with self.buffer_row, ui.row().classes("w-full items-center"):
             days = ui.input("Zapas dni", value=str(load_buffer_days(engine))).classes("w-32").mark("buffer-days")
             ui.label("Produkt, któremu wystarczy na tyle dni lub mniej, trafia na listę zakupów.").classes(
-                "grow hs-muted text-sm"
+                "grow hs-muted text-sm hs-hint-below"
             )
-            with ui.row().classes("hs-actions"):
+            with ui.row().classes("hs-actions hs-line-end"):
                 ui.button(
                     icon="save",
                     on_click=lambda: self._change(
@@ -69,8 +69,10 @@ class SettingsTab:
             for category in list_categories(engine):
                 self._category_row(category)
             # Built anew on every redraw, so it is empty again after an add
-            with ui.row().classes("w-full items-center no-wrap"):
+            _, name_part, end = _row_parts()
+            with name_part:
                 new_name = ui.input("Nowa kategoria").classes("grow").mark("category-new-name")
+            with end:
                 new_days = ui.input("Dni ostrzeżenia", value=NEW_WARNING_DAYS).classes("w-32").mark("category-new-days")
                 self._add_button(
                     "category-add", error, lambda: add_category(engine, new_name.value, _days(new_days.value))
@@ -83,15 +85,20 @@ class SettingsTab:
         with self.unit_list:
             for unit in list_units(engine):
                 self._unit_row(unit)
-            with ui.row().classes("w-full items-center no-wrap"):
+            _, name_part, end = _row_parts()
+            with name_part:
                 new_name = ui.input("Nowa jednostka").classes("grow").mark("unit-new-name")
+            with end:
                 new_short = ui.input("Skrót", placeholder="np. opak.").classes("w-32").mark("unit-new-short")
                 self._add_button("unit-add", error, lambda: add_unit(engine, new_name.value, new_short.value))
 
     def _category_row(self, category: Category) -> None:
         engine = self.ctx.engine
-        with ui.row().classes("w-full items-center no-wrap").mark(f"category-row-{category.id}"):
+        row, name_part, end = _row_parts()
+        row.mark(f"category-row-{category.id}")
+        with name_part:
             name = ui.input("Nazwa", value=category.name).classes("grow").mark(f"category-name-{category.id}")
+        with end:
             days = ui.input("Dni ostrzeżenia", value=str(category.warning_days)).classes("w-32")
             days.mark(f"category-days-{category.id}")
             self._row_buttons(
@@ -104,8 +111,11 @@ class SettingsTab:
 
     def _unit_row(self, unit: Unit) -> None:
         engine = self.ctx.engine
-        with ui.row().classes("w-full items-center no-wrap").mark(f"unit-row-{unit.id}"):
+        row, name_part, end = _row_parts()
+        row.mark(f"unit-row-{unit.id}")
+        with name_part:
             name = ui.input("Nazwa", value=unit.name).classes("grow").mark(f"unit-name-{unit.id}")
+        with end:
             short = ui.input("Skrót", value=unit.short).classes("w-32").mark(f"unit-short-{unit.id}")
             self._row_buttons(
                 "unit",
@@ -157,6 +167,15 @@ class SettingsTab:
     def _restore(self, product_id: int) -> None:
         restore_product(self.ctx.engine, product_id)
         self.ctx.changed()
+
+
+def _row_parts() -> tuple[ui.row, ui.row, ui.row]:
+    """A Category or Unit row and its two empty parts: the Name, and the rest, which wraps under the Name where they
+    don't fit (a phone) so a long Name shows in full."""
+    with ui.row().classes("w-full items-center") as row:
+        name_part = ui.row().classes("items-center no-wrap hs-line-main")
+        end = ui.row().classes("items-center no-wrap hs-line-end")
+    return row, name_part, end
 
 
 def _section(marker: str, title: str, error_marker: str) -> tuple[ui.column, ui.label]:
