@@ -43,7 +43,7 @@ def consumption_rate(events: Sequence[StockEvent], first_event_on: date, today: 
     Event (``first_event_on``) and 90 days ago. Purchases, Discards and Corrections never count. None without enough
     Uses or history."""
     window_start = today - timedelta(days=RATE_WINDOW_DAYS)
-    uses = [event for event in events if event.kind is StockEventKind.USE and event.on >= window_start]
+    uses = [event for event in events if event.kind is StockEventKind.USE and event.on > window_start]
     history_days = (today - max(first_event_on, window_start)).days
     if len(uses) < MIN_RATE_USES or history_days < MIN_RATE_HISTORY_DAYS:
         return None

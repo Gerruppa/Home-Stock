@@ -40,7 +40,8 @@ def test_under_fourteen_days_of_history_give_no_rate(history_days: int, has_rate
 
 
 def test_uses_older_than_ninety_days_are_ignored_and_the_window_is_ninety_days() -> None:
-    uses = _uses((50, 120), (50, 91), (3, 60), (3, 30), (3, 0))
+    # A Use exactly 90 days ago is outside: the 90 days counted end today
+    uses = _uses((50, 120), (50, 90), (3, 60), (3, 30), (3, 0))
 
     assert consumption_rate(uses, _ago(200), TODAY) == Fraction(9, 90)
 

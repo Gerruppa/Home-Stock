@@ -54,8 +54,8 @@ def _latest_events(engine: Engine, where: ColumnElement[bool], limit: int | None
 
 
 def list_events_since(engine: Engine, since: date) -> list[StockEvent]:
-    """The Stock Events of all Products from ``since`` on, oldest first."""
-    return list(reversed(_latest_events(engine, StockEventRow.on >= since, None)))
+    """The Stock Events of all Products from ``since`` on, newest first."""
+    return _latest_events(engine, StockEventRow.on >= since, None)
 
 
 def consumption_rates(engine: Engine, today: date) -> dict[int, Fraction]:
