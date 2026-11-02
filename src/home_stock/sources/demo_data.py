@@ -21,6 +21,29 @@ class DemoDiscard(NamedTuple):
     discarded_days_ago: int
 
 
+class DemoUsualPurchase(NamedTuple):
+    """The household's usual Purchase of a Product with Uses: its Quantity, and its Usual Shelf Life (None for a
+    Product without dated stock)."""
+
+    quantity: int
+    shelf_life_days: int | None = None
+
+
+class DemoUse(NamedTuple):
+    """A Use in the Stock History."""
+
+    used_days_ago: int
+    quantity: int
+
+
+class DemoPurchase(NamedTuple):
+    """A Purchase in the Stock History; its Expiry Date ``shelf_life_days`` after it, or none."""
+
+    bought_days_ago: int
+    quantity: int
+    shelf_life_days: int | None
+
+
 class DemoProduct(NamedTuple):
     name: str
     category: str
@@ -29,38 +52,121 @@ class DemoProduct(NamedTuple):
     minimum_stock: int | None
     # The stock today: (Quantity, days from today to the Expiry Date, or None for no Expiry Date)
     batches: list[tuple[int, int | None]]
-    # A Use of one Unit every this many days over the Stock History, the latest this many days ago; the stock today is
-    # bought on that day, after it
+    # A Use of ``units_per_use`` every this many days over the Stock History, the latest this many days ago; the stock
+    # today is bought on that day, after it
     use_every: int | None = None
+    units_per_use: int = 1
+    usual_purchase: DemoUsualPurchase = DemoUsualPurchase(1)
     # Only for a Product without Uses, which would take the dated Batch first
     discards: tuple[DemoDiscard, ...] = ()
 
 
-# The Stock History starts this many days ago with a Purchase, and is restocked halfway, for the Units its Uses take
+# The Stock History starts this many days ago with a Purchase
 HISTORY_DAYS = 62
-RESTOCK_DAYS_AGO = 31
 # When the stock today was bought, for a Product without Uses
 BOUGHT_DAYS_AGO = 7
 
 PRODUCTS = [
     # Expiring Soon and Running Low
-    DemoProduct("Mleko 2%", "Spożywcze", "sztuka", PackSize(Decimal(1), "l"), 2, [(1, 2)], use_every=2),
+    DemoProduct(
+        "Mleko 2%",
+        "Spożywcze",
+        "sztuka",
+        PackSize(Decimal(1), "l"),
+        2,
+        [(1, 2)],
+        use_every=2,
+        usual_purchase=DemoUsualPurchase(4, 10),
+    ),
     # Expired today, and an Expired Discard in the Waste
     DemoProduct("Jogurt naturalny", "Spożywcze", "sztuka", None, 1, [(2, -2)], discards=(DemoDiscard(35, 3, -28, 25),)),
-    DemoProduct("Cukier", "Spożywcze", "opakowanie", PackSize(Decimal(1), "kg"), 1, [(2, None)], use_every=15),
+    DemoProduct(
+        "Cukier",
+        "Spożywcze",
+        "opakowanie",
+        PackSize(Decimal(1), "kg"),
+        1,
+        [(2, None)],
+        use_every=15,
+        usual_purchase=DemoUsualPurchase(2),
+    ),
     # Expiring Soon, and a Discard before its Expiry Date
     DemoProduct("Sok pomarańczowy", "Napoje", "butelka", None, 1, [(3, 5)], discards=(DemoDiscard(20, 1, 10, 12),)),
     # Running Out within the Buffer (5 days) while above its Minimum Stock
-    DemoProduct("Woda mineralna", "Napoje", "butelka", None, 4, [(5, 180)], use_every=1),
+    DemoProduct(
+        "Woda mineralna",
+        "Napoje",
+        "butelka",
+        None,
+        4,
+        [(5, 180)],
+        use_every=2,
+        units_per_use=2,
+        usual_purchase=DemoUsualPurchase(6, 365),
+    ),
     # Running Low, at 0; without Uses, which would show "wystarczy na ok. 0 dni"
     DemoProduct("Płyn do naczyń", "Chemia i środki czystości", "butelka", None, 1, []),
-    DemoProduct("Papier toaletowy", "Dom i inne", "rolka", None, 4, [(8, None)], use_every=3),
+    DemoProduct(
+        "Papier toaletowy",
+        "Dom i inne",
+        "rolka",
+        None,
+        4,
+        [(8, None)],
+        use_every=3,
+        usual_purchase=DemoUsualPurchase(8),
+    ),
     # Without Minimum Stock
-    DemoProduct("Pasta do zębów", "Higiena i kosmetyki", "tubka", None, None, [(2, 400)], use_every=20),
+    DemoProduct(
+        "Pasta do zębów",
+        "Higiena i kosmetyki",
+        "tubka",
+        None,
+        None,
+        [(2, 400)],
+        use_every=20,
+        usual_purchase=DemoUsualPurchase(2, 400),
+    ),
     DemoProduct("Paracetamol", "Apteczka", "opakowanie", None, 1, [(2, 200)], discards=(DemoDiscard(60, 1, -5, 3),)),
-    DemoProduct("Karma dla kota", "Zwierzęta", "puszka", None, 3, [(4, 60), (2, 20)], use_every=2),
+    DemoProduct(
+        "Karma dla kota",
+        "Zwierzęta",
+        "puszka",
+        None,
+        3,
+        [(4, 60), (2, 20)],
+        use_every=2,
+        usual_purchase=DemoUsualPurchase(6, 365),
+    ),
 ]
 ARCHIVED = DemoProduct("Kawa rozpuszczalna", "Spożywcze", "słoik", None, 1, [(1, 90)])
+
+
+def history_uses(demo: DemoProduct) -> list[DemoUse]:
+    """The Product's Uses in the Stock History, oldest first."""
+    if demo.use_every is None:
+        return []
+    return [DemoUse(days, demo.units_per_use) for days in reversed(range(demo.use_every, HISTORY_DAYS, demo.use_every))]
+
+
+def history_purchases(demo: DemoProduct) -> list[DemoPurchase]:
+    """The usual Purchases that stock the Product's Uses, oldest first: one on the day of the Use that would find too
+    little, the first when the Stock History starts. They add up to exactly the Units the Uses take, so every Use takes
+    only them and the stock today stays whole."""
+    uses = history_uses(demo)
+    usual = demo.usual_purchase
+    to_use = sum(use.quantity for use in uses)
+    on_hand = 0
+    purchases: list[DemoPurchase] = []
+    for use in uses:
+        if on_hand < use.quantity:
+            quantity = min(usual.quantity, to_use - on_hand)
+            bought = use.used_days_ago if purchases else HISTORY_DAYS
+            purchases.append(DemoPurchase(bought, quantity, usual.shelf_life_days))
+            on_hand += quantity
+        on_hand -= use.quantity
+        to_use -= use.quantity
+    return purchases
 
 
 def seed_demo_data(engine: Engine, today: date) -> None:
@@ -74,18 +180,16 @@ def seed_demo_data(engine: Engine, today: date) -> None:
     def add(demo: DemoProduct) -> int:
         draft = ProductDraft(demo.name, categories[demo.category], units[demo.unit], demo.pack_size, demo.minimum_stock)
         product_id = add_product(engine, draft)
-        if demo.use_every is not None:
-            use_days = range(demo.use_every, HISTORY_DAYS, demo.use_every)
-            # Exactly the Units the Uses take, all used up before the stock today is bought
-            before_restock = sum(days > RESTOCK_DAYS_AGO for days in use_days)
-            for bought, units_bought in (
-                (HISTORY_DAYS, before_restock),
-                (RESTOCK_DAYS_AGO, len(use_days) - before_restock),
-            ):
-                if units_bought:
-                    purchase(engine, product_id, BatchDraft(units_bought), days_ago(bought))
-            for days in reversed(use_days):
-                use_units(engine, product_id, 1, days_ago(days))
+        purchases = iter(history_purchases(demo))
+        bought = next(purchases, None)
+        for use in history_uses(demo):
+            # A Purchase comes before the Use of its day
+            while bought is not None and bought.bought_days_ago >= use.used_days_ago:
+                shelf_life = bought.shelf_life_days
+                expiry = None if shelf_life is None else days_ago(bought.bought_days_ago - shelf_life)
+                purchase(engine, product_id, BatchDraft(bought.quantity, expiry), days_ago(bought.bought_days_ago))
+                bought = next(purchases, None)
+            use_units(engine, product_id, use.quantity, days_ago(use.used_days_ago))
         for discard in demo.discards:
             thrown = BatchDraft(discard.quantity, days_ago(-discard.days_to_expiry))
             [batch] = purchase(engine, product_id, thrown, days_ago(discard.bought_days_ago)).batches
