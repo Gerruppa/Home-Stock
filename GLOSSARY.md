@@ -57,8 +57,12 @@ Recording the whole Shopping List as Purchases in one go, after a shop: one dial
 _Avoid_: Bulk purchase, check-in
 
 **Stock Event** ("Zdarzenie"):
-One recorded change to a Product's stock: a Use or a Purchase, with its date and the signed change in Units.
+One recorded change to a Product's stock: a Use, a Purchase, a Discard (marked when the Batch was Expired) or a Correction, with its date and the signed change in Units.
 _Avoid_: Transaction, log entry, movement
+
+**Correction** ("Korekta"):
+A hand edit of a Batch's Quantity, recorded as a Stock Event by the difference; setting it to 0 is a Correction, not a Discard.
+_Avoid_: Adjustment, fix, recount
 
 **Stock History** ("Historia stanu"):
 All the Stock Events recorded since the update that brought them, from which the Product card shows a Product's latest.

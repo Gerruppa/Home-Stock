@@ -15,10 +15,12 @@ from home_stock.persistence.products import (
     add_product,
     archive_product,
     discard_batch,
+    edit_batch,
     get_product,
     purchase,
     purchase_many,
     restore_product,
+    undo_discard,
     undo_purchase,
     undo_use,
     use_one,
@@ -108,7 +110,7 @@ def test_undoing_an_unpacking_removes_every_batch_and_event_or_none(engine: Engi
     cukier = _product(engine)
     maka = _product(engine, "Mąka")
     unpacked = purchase_many(engine, [(cukier, BatchDraft(2)), (maka, BatchDraft(3))], MONDAY)
-    discard_batch(engine, unpacked.batches[1].id)
+    discard_batch(engine, unpacked.batches[1].id, MONDAY)
 
     with pytest.raises(MissingBatchError):
         undo_purchase(engine, unpacked)
@@ -135,3 +137,55 @@ def test_the_latest_events_come_first_and_the_list_is_bounded(engine: Engine) ->
 
     assert len(events) == 20
     assert [event.id for event in events] == sorted((event.id for event in events), reverse=True)
+
+
+def _events_with_expired(engine: Engine, product_id: int) -> list[tuple[StockEventKind, int, bool]]:
+    return [(event.kind, event.change, event.expired) for event in list_product_events(engine, product_id)]
+
+
+def test_a_discard_records_the_batch_quantity_and_whether_it_was_expired(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, OPAKOWANIE), BatchDraft(2, date(2026, 11, 1)))
+    purchase(engine, mleko, BatchDraft(3, MONDAY), MONDAY)
+    gone_off, fresh = get_product(engine, mleko).batches
+
+    discard_batch(engine, gone_off.id, MONDAY)
+    # A Batch expiring today is not yet Expired
+    discard_batch(engine, fresh.id, MONDAY)
+
+    assert _events_with_expired(engine, mleko) == [
+        (StockEventKind.DISCARD, -3, False),
+        (StockEventKind.DISCARD, -2, True),
+        (StockEventKind.PURCHASE, 3, False),
+    ]
+
+
+def test_undoing_a_discard_puts_the_batch_back_and_removes_its_event(engine: Engine) -> None:
+    cukier = _product(engine)
+    before = get_product(engine, cukier)
+
+    undo_discard(engine, discard_batch(engine, before.batches[0].id, MONDAY))
+
+    assert get_product(engine, cukier) == before
+    assert _events(engine, cukier) == []
+
+
+@pytest.mark.parametrize(("quantity", "change"), [(8, 3), (2, -3), (0, -5)])
+def test_editing_a_quantity_records_a_correction_with_the_difference(
+    engine: Engine, quantity: int, change: int
+) -> None:
+    cukier = _product(engine)
+    [batch] = get_product(engine, cukier).batches
+
+    edit_batch(engine, batch.id, quantity, None, MONDAY)
+
+    assert _events(engine, cukier) == [(StockEventKind.CORRECTION, change, MONDAY)]
+    assert get_product(engine, cukier).quantity == quantity
+
+
+def test_editing_only_the_expiry_date_records_nothing(engine: Engine) -> None:
+    cukier = _product(engine)
+    [batch] = get_product(engine, cukier).batches
+
+    edit_batch(engine, batch.id, batch.quantity, date(2027, 1, 1), MONDAY)
+
+    assert _events(engine, cukier) == []

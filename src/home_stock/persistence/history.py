@@ -10,11 +10,13 @@ from home_stock.domain.history import StockEvent, StockEventKind
 from home_stock.persistence.models import StockEventRow
 
 
-def record_event(connection: Connection, product_id: int, kind: StockEventKind, change: int, on: date) -> int:
-    """Write one Stock Event inside the caller's transaction; returns its id."""
+def record_event(
+    connection: Connection, product_id: int, kind: StockEventKind, change: int, on: date, *, expired: bool = False
+) -> int:
+    """Write one Stock Event inside the caller's transaction; returns its id. ``expired`` only for a Discard."""
     event_id: int = connection.execute(
         insert(StockEventRow)
-        .values(product_id=product_id, kind=kind.value, change=change, on=on, expired=False)
+        .values(product_id=product_id, kind=kind.value, change=change, on=on, expired=expired)
         .returning(StockEventRow.id)
     ).scalar_one()
     return event_id

@@ -23,7 +23,9 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 ## Stock History
 
-- Every Use and Purchase (single or from Unpacking) records a **Stock Event** with the Product, its kind, the signed change in Units and the date, in the same transaction as the change. A Product's first Batch, entered with the Product, is its starting stock, not a Purchase.
+- Every Use, Purchase (single or from Unpacking), Discard and **Correction** records a **Stock Event** with the Product, its kind, the signed change in Units and the date, in the same transaction as the change. A Product's first Batch, entered with the Product, is its starting stock, not a Purchase.
+- A Discard records the Batch's Quantity and whether the Batch was Expired that day ("Wyrzucenie (przeterminowane)").
+- A hand edit of a Batch's Quantity is a Correction by the difference; setting it to 0 removes the Batch as a Correction, not a Discard. Changing only the Expiry Date records nothing.
 - A "Cofnij" removes exactly the Stock Events of the action it takes back.
 - The history starts empty on the update that brings it; no past is made up. An Archived Product keeps its events.
 - The Product card lists its latest Stock Events, newest first ("02.11.2026 · Zużycie · −2 szt.").

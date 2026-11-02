@@ -13,6 +13,7 @@ from home_stock.domain.stock import (
     PackSize,
     Product,
     ProductDraft,
+    is_expired,
     is_running_low,
     name_key,
     units_to_use,
@@ -168,25 +169,46 @@ def undo_purchase(engine: Engine, purchased: Purchased) -> None:
         remove_events(connection, purchased.event_ids)
 
 
-def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None) -> None:
-    """Set a Batch's Quantity and Expiry Date by hand; a Quantity of 0 removes the Batch, the Product stays."""
+def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None, on: date) -> None:
+    """Set a Batch's Quantity and Expiry Date by hand; a Quantity of 0 removes the Batch, the Product stays. A changed
+    Quantity is a Correction dated ``on``, by the difference; a Quantity of 0 too, not a Discard."""
     if quantity < 0:
         raise StockError("Ilość nie może być ujemna.")
-    if quantity == 0:
-        discard_batch(engine, batch_id)
-        return
     with engine.begin() as connection:
-        result = connection.execute(
-            update(BatchRow).where(BatchRow.id == batch_id).values(quantity=quantity, expiry=expiry)
-        )
-        if result.rowcount == 0:
+        before = connection.execute(select(BatchRow).where(BatchRow.id == batch_id)).first()
+        if before is None:
             raise MissingBatchError()
+        if quantity == 0:
+            connection.execute(delete(BatchRow).where(BatchRow.id == batch_id))
+        else:
+            connection.execute(update(BatchRow).where(BatchRow.id == batch_id).values(quantity=quantity, expiry=expiry))
+        if quantity != before.quantity:
+            record_event(connection, before.product_id, StockEventKind.CORRECTION, quantity - before.quantity, on)
 
 
-def discard_batch(engine: Engine, batch_id: int) -> Batch:
-    """Remove a whole Batch; returns it as it was, for restore_batch to undo the Discard."""
+@dataclass(frozen=True)
+class Discarded:
+    """What a Discard removed, for undo_discard: the Batch as it was, and its Stock Event."""
+
+    batch: Batch
+    event_ids: tuple[int, ...]
+
+
+def discard_batch(engine: Engine, batch_id: int, on: date) -> Discarded:
+    """Remove a whole Batch, a Discard dated ``on`` and marked Expired when the Batch was by then."""
     with engine.begin() as connection:
-        return _discard_batch(connection, batch_id)
+        batch = _discard_batch(connection, batch_id)
+        event_id = record_event(
+            connection, batch.product_id, StockEventKind.DISCARD, -batch.quantity, on, expired=is_expired(batch, on)
+        )
+    return Discarded(batch, (event_id,))
+
+
+def undo_discard(engine: Engine, discarded: Discarded) -> None:
+    """Put the Batch back as it was and remove the Discard's Stock Event, in one transaction."""
+    with engine.begin() as connection:
+        _restore_batch(connection, discarded.batch)
+        remove_events(connection, discarded.event_ids)
 
 
 def _discard_batch(connection: Connection, batch_id: int) -> Batch:
@@ -240,15 +262,9 @@ def undo_use(engine: Engine, used: Used) -> None:
         remove_events(connection, used.event_ids)
 
 
-def restore_batch(engine: Engine, batch: Batch) -> None:
-    """Put ``batch`` back as given, whether it still exists or was removed: the undo of a Discard."""
-    with engine.begin() as connection:
-        _restore_batch(connection, batch)
-
-
 def _restore_batch(connection: Connection, batch: Batch) -> None:
-    # SQLite gives a new Batch the id of one just removed, so a row that now holds the id for another Product is left
-    # alone and the Batch comes back under a new id
+    # Put ``batch`` back as given, whether it still exists or was removed. SQLite gives a new Batch the id of one just
+    # removed, so a row that now holds the id for another Product is left alone and the Batch comes back under a new id
     values = {"product_id": batch.product_id, "quantity": batch.quantity, "expiry": batch.expiry}
     holder = connection.execute(select(BatchRow.product_id).where(BatchRow.id == batch.id)).scalar_one_or_none()
     if holder == batch.product_id:

@@ -182,7 +182,7 @@ async def test_undoing_a_purchase_whose_batch_is_gone_says_so_and_changes_nothin
     await user.should_see("Zakupiono: Mleko")
     # Removed meanwhile, e.g. in a second window, which does not hide this one's undo bar
     [bought] = [b for b in get_product(engine, mleko).batches if b.expiry == date(2027, 3, 1)]
-    discard_batch(engine, bought.id)
+    discard_batch(engine, bought.id, date(2026, 10, 27))
     before = get_product(engine, mleko)
 
     user.find(marker="undo").click()
@@ -402,3 +402,24 @@ async def test_a_product_with_no_events_says_so(tmp_path: Path) -> None:
 
         with user.scope(marker="card-history"):
             await user.should_see("Brak zdarzeń.")
+
+
+async def test_a_discard_and_a_correction_are_listed_and_cofnij_takes_the_discard_back(
+    user: User, engine: Engine, mleko: int
+) -> None:
+    first, second = get_product(engine, mleko).batches
+    user.find(marker=f"open-{mleko}").click()
+
+    _fill(user, f"batch-quantity-{second.id}", "5")
+    user.find(marker=f"batch-save-{second.id}").click()
+    user.find(marker=f"discard-{first.id}").click()
+
+    with user.scope(marker="card-history"):
+        await user.should_see("27.10.2026 · Wyrzucenie · −2 szt.")
+        await user.should_see("27.10.2026 · Korekta · +2 szt.")
+
+    user.find(marker="undo").click()
+
+    with user.scope(marker="card-history"):
+        await user.should_not_see("Wyrzucenie")
+        await user.should_see("Korekta")

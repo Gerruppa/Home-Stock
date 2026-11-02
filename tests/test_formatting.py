@@ -103,3 +103,14 @@ def test_format_stock_event() -> None:
 
     assert format_stock_event(use, szt) == "02.11.2026 · Zużycie · −2 szt."
     assert format_stock_event(purchase, szt) == "27.10.2026 · Zakup · +3 szt."
+
+
+def test_format_discard_and_correction_events() -> None:
+    szt = Unit(1, "sztuka", "szt.")
+    gone_off = StockEvent(1, 1, StockEventKind.DISCARD, -2, date(2026, 11, 2), expired=True)
+    thrown = StockEvent(2, 1, StockEventKind.DISCARD, -1, date(2026, 11, 2))
+    fixed = StockEvent(3, 1, StockEventKind.CORRECTION, 3, date(2026, 11, 2))
+
+    assert format_stock_event(gone_off, szt) == "02.11.2026 · Wyrzucenie (przeterminowane) · −2 szt."
+    assert format_stock_event(thrown, szt) == "02.11.2026 · Wyrzucenie · −1 szt."
+    assert format_stock_event(fixed, szt) == "02.11.2026 · Korekta · +3 szt."

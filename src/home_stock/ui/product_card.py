@@ -23,8 +23,8 @@ from home_stock.persistence.products import (
     discard_batch,
     edit_batch,
     get_product,
-    restore_batch,
     restore_product,
+    undo_discard,
     undo_use,
     use_units,
 )
@@ -157,7 +157,7 @@ def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
             count = parse_count(quantity.value) or 0
             # A Quantity of 0 removes the Batch, so its date no longer matters
             when = parse_date(expiry.value) if count else None
-            edit_batch(ctx.engine, batch.id, count, when)
+            edit_batch(ctx.engine, batch.id, count, when, ctx.today())
         except (ValueError, StockError) as problem:
             show_error(error, str(problem))
             return
@@ -166,9 +166,9 @@ def _batch_row(ctx: Context, product: Product, batch: Batch) -> None:
     def discard() -> None:
         engine = ctx.engine
         try:
-            discarded = discard_batch(engine, batch.id)
+            discarded = discard_batch(engine, batch.id, ctx.today())
         except StockError as problem:
             show_error(error, str(problem))
             return
         ctx.changed()
-        ctx.undo(f"Wyrzucono partię: {product.name}", lambda: restore_batch(engine, discarded))
+        ctx.undo(f"Wyrzucono partię: {product.name}", lambda: undo_discard(engine, discarded))
