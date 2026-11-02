@@ -1,10 +1,10 @@
 """The Stock History: Stock Events are written by the functions in products.py that change Batches, in their own
 transaction, and read here."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import date
 
-from sqlalchemy import Connection, Engine, delete, insert, select
+from sqlalchemy import ColumnElement, Connection, Engine, delete, insert, select, true
 
 from home_stock.domain.history import StockEvent, StockEventKind
 from home_stock.persistence.models import StockEventRow
@@ -29,12 +29,22 @@ def remove_events(connection: Connection, event_ids: Sequence[int]) -> None:
 
 def list_product_events(engine: Engine, product_id: int, limit: int = 20) -> list[StockEvent]:
     """A Product's latest Stock Events, newest first."""
+    return _latest_events(engine, StockEventRow.product_id == product_id, limit)
+
+
+def list_latest_events(
+    engine: Engine, limit: int = 200, product_ids: Collection[int] | None = None
+) -> list[StockEvent]:
+    """The latest Stock Events of all Products (the Historia tab shows the default 200), or only of ``product_ids``,
+    newest first."""
+    where = true() if product_ids is None else StockEventRow.product_id.in_(product_ids)
+    return _latest_events(engine, where, limit)
+
+
+def _latest_events(engine: Engine, where: ColumnElement[bool], limit: int) -> list[StockEvent]:
     with engine.connect() as connection:
         rows = connection.execute(
-            select(StockEventRow)
-            .where(StockEventRow.product_id == product_id)
-            .order_by(StockEventRow.on.desc(), StockEventRow.id.desc())
-            .limit(limit)
+            select(StockEventRow).where(where).order_by(StockEventRow.on.desc(), StockEventRow.id.desc()).limit(limit)
         )
         return [
             StockEvent(row.id, row.product_id, StockEventKind(row.kind), row.change, row.on, row.expired)

@@ -7,6 +7,8 @@ from home_stock.domain.formatting import (
     format_date,
     format_days,
     format_decimal,
+    format_event_change,
+    format_event_kind,
     format_pack_size,
     format_quantity,
     format_shopping_list,
@@ -103,6 +105,14 @@ def test_format_stock_event() -> None:
 
     assert format_stock_event(use, szt) == "02.11.2026 · Zużycie · −2 szt."
     assert format_stock_event(purchase, szt) == "27.10.2026 · Zakup · +3 szt."
+
+
+def test_format_a_stock_events_kind_and_change_apart() -> None:
+    szt = Unit(1, "sztuka", "szt.")
+    gone_off = StockEvent(1, 1, StockEventKind.DISCARD, -2, date(2026, 11, 2), expired=True)
+
+    assert format_event_kind(gone_off) == "Wyrzucenie (przeterminowane)"
+    assert format_event_change(gone_off, szt) == "−2 szt."
 
 
 def test_format_discard_and_correction_events() -> None:

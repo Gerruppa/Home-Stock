@@ -9,7 +9,7 @@ from sqlalchemy import Engine
 from home_stock.domain.history import StockEventKind
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.history import list_product_events
+from home_stock.persistence.history import list_latest_events, list_product_events
 from home_stock.persistence.products import (
     MissingBatchError,
     add_product,
@@ -189,3 +189,26 @@ def test_editing_only_the_expiry_date_records_nothing(engine: Engine) -> None:
     edit_batch(engine, batch.id, batch.quantity, date(2027, 1, 1), MONDAY)
 
     assert _events(engine, cukier) == []
+
+
+def test_the_latest_events_of_all_products_come_newest_first_bounded(engine: Engine) -> None:
+    cukier, maka = _product(engine), _product(engine, "Mąka")
+    use_one(engine, cukier, TUESDAY)
+    use_one(engine, maka, MONDAY)
+    use_one(engine, cukier, MONDAY)
+
+    events = list_latest_events(engine)
+
+    assert [(event.product_id, event.on) for event in events] == [(cukier, TUESDAY), (cukier, MONDAY), (maka, MONDAY)]
+    assert len(list_latest_events(engine, limit=2)) == 2
+
+
+def test_the_latest_events_can_be_kept_to_some_products(engine: Engine) -> None:
+    cukier, maka = _product(engine), _product(engine, "Mąka")
+    use_one(engine, maka, MONDAY)
+    for _ in range(3):
+        use_one(engine, cukier, TUESDAY)
+
+    # The limit counts only the chosen Products' events, so newer events of others never crowd them out
+    assert [event.product_id for event in list_latest_events(engine, limit=1, product_ids=[maka])] == [maka]
+    assert list_latest_events(engine, product_ids=[]) == []
