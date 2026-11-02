@@ -13,7 +13,9 @@ from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
 from home_stock.persistence.products import (
     DuplicateProductError,
     MissingBatchError,
+    ProductsInUseError,
     add_product,
+    add_products,
     archive_product,
     discard_batch,
     edit_batch,
@@ -22,6 +24,7 @@ from home_stock.persistence.products import (
     list_shopping_list,
     purchase,
     purchase_many,
+    remove_new_products,
     restore_product,
     undo_discard,
     undo_purchase,
@@ -366,3 +369,48 @@ def test_an_archived_name_is_still_taken(engine: Engine) -> None:
     with pytest.raises(DuplicateProductError) as raised:
         add_product(engine, ProductDraft("mleko", SPOZYWCZE, SZTUKA))
     assert (raised.value.product_id, raised.value.archived) == (mleko, True)
+
+
+def test_add_products_saves_them_without_batches_in_order(engine: Engine) -> None:
+    ids = add_products(
+        engine, [ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE), ProductDraft("Płyn do naczyń", CHEMIA, SZTUKA)]
+    )
+
+    assert [get_product(engine, product_id).name for product_id in ids] == ["Sól", "Płyn do naczyń"]
+    assert all(product.batches == () for product in list_products(engine))
+
+
+def test_add_products_with_a_taken_name_saves_none(engine: Engine) -> None:
+    archive_product(engine, add_product(engine, ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE)))
+
+    with pytest.raises(DuplicateProductError):
+        add_products(engine, [ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), ProductDraft(" sól", SPOZYWCZE, SZTUKA)])
+
+    assert list_products(engine) == []
+
+
+def test_remove_new_products_takes_back_add_products(engine: Engine) -> None:
+    kept = add_product(engine, ProductDraft("Mąka", SPOZYWCZE, OPAKOWANIE))
+    ids = add_products(engine, [ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE), ProductDraft("Cukier", SPOZYWCZE, SZTUKA)])
+
+    remove_new_products(engine, ids)
+
+    assert [product.id for product in list_products(engine)] == [kept]
+
+
+def test_remove_new_products_refuses_all_once_one_has_a_batch_or_a_stock_event_or_is_gone(engine: Engine) -> None:
+    sol, cukier = add_products(
+        engine, [ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE), ProductDraft("Cukier", SPOZYWCZE, SZTUKA)]
+    )
+    purchase(engine, cukier, BatchDraft(1), TODAY)
+    with pytest.raises(ProductsInUseError):
+        remove_new_products(engine, (sol, cukier))
+
+    # Its Stock Event stays after the Batch is used up
+    use_units(engine, cukier, 1, TODAY)
+    with pytest.raises(ProductsInUseError):
+        remove_new_products(engine, (sol, cukier))
+
+    with pytest.raises(ProductsInUseError):
+        remove_new_products(engine, (sol, cukier + 100))
+    assert len(list_products(engine)) == 2
