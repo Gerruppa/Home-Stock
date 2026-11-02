@@ -35,7 +35,8 @@ def list_product_events(engine: Engine, product_id: int, limit: int = 20) -> lis
 def list_latest_events(
     engine: Engine, limit: int = 200, product_ids: Collection[int] | None = None
 ) -> list[StockEvent]:
-    """The latest Stock Events of all Products, or only of ``product_ids``, newest first."""
+    """The latest Stock Events of all Products (the Historia tab shows the default 200), or only of ``product_ids``,
+    newest first."""
     where = true() if product_ids is None else StockEventRow.product_id.in_(product_ids)
     return _latest_events(engine, where, limit)
 

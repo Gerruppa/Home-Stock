@@ -65,7 +65,7 @@ A hand edit of a Batch's Quantity, recorded as a Stock Event by the difference; 
 _Avoid_: Adjustment, fix, recount
 
 **Stock History** ("Historia stanu"):
-All the Stock Events recorded since the update that brought them, from which the Product card shows a Product's latest.
+All the Stock Events recorded since the update that brought them, from which the Product card shows a Product's latest and the Historia tab the latest of all Products.
 _Avoid_: Log, audit trail, ledger
 
 **Archived Product**:

@@ -89,3 +89,16 @@ async def test_a_use_elsewhere_and_its_cofnij_show_up_in_the_history(engine: Eng
         with user.scope(marker="history-list"):
             await user.should_not_see("Zużycie")
             await user.should_see("Historia jest pusta.")
+
+
+async def test_a_purchase_on_the_shopping_list_shows_up_in_the_history(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=1))
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: TUESDAY)) as user:
+        await _open_history(user)
+        user.find(marker="tab-shopping").click()
+        user.find(marker=f"bought-{cukier}").click()
+        user.find(marker="purchase-save").click()
+
+        with user.scope(marker="history-list"):
+            await user.should_see("Zakup")

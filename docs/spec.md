@@ -39,7 +39,8 @@ A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled 
 1. **Start**: Przeterminowane, Kończy się termin, Do kupienia; clicking a line opens that Product's card.
 2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit and a "−1" button; clicking opens the Product's card with its Batches.
 3. **Lista zakupów**: the Shopping List, derived from Minimum Stock; ticking a Product records a Purchase.
-4. **Ustawienia**: Categories with their Warning Windows, Units, the archive.
+4. **Historia**: the latest 200 Stock Events of all Products, newest first, with a name filter.
+5. **Ustawienia**: Categories with their Warning Windows, Units, the archive.
 
 Reminders appear only in the app (ADR-0002).
 

@@ -12,7 +12,7 @@
 - Kliknięcie pozycji na ekranie Start otwiera kartę produktu, skąd można wyrzucić przeterminowaną partię albo dodać zakup.
 - Klawiatura: wyszukiwarka w Produktach od razu przyjmuje tekst i wraca pod Ctrl+F, a w oknach Enter zapisuje, Esc zamyka bez zapisu.
 - Karta produktu pokazuje historię: ostatnie zużycia, zakupy, wyrzucenia (z oznaczeniem przeterminowanych) i ręczne korekty ilości, z datami. Historia zaczyna się od tej wersji, a „Cofnij” usuwa też jej wpis.
-- Nowa zakładka Historia pokazuje 200 ostatnich zdarzeń wszystkich produktów, od najnowszych; wpisanie części nazwy zostawia zdarzenia jednego produktu.
+- Nowa zakładka Historia pokazuje 200 ostatnich zdarzeń wszystkich produktów, od najnowszych; wpisanie części nazwy zostawia tylko zdarzenia pasujących produktów.
 
 ## 0.2.1 — 2026-11-01
 
