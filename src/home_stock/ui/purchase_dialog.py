@@ -3,8 +3,8 @@
 from nicegui import ui
 
 from home_stock.domain.formatting import format_date, parse_count, parse_date
-from home_stock.domain.stock import BatchDraft, Product, default_expiry, suggested_purchase
-from home_stock.persistence.products import purchase, undo_purchase
+from home_stock.domain.stock import BatchDraft, Product, default_expiry
+from home_stock.persistence.products import purchase, suggested_purchases, undo_purchase
 from home_stock.ui.context import Context
 from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label, show_error
@@ -38,7 +38,8 @@ def read_batch_draft(
 def open_purchase_dialog(ctx: Context, product: Product) -> None:
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-80").mark("purchase-dialog") as card:
         ui.label(f"Zakup: {product.name}").classes("hs-dialog-title")
-        quantity = ui.input("Ilość", value=str(suggested_purchase(product))).classes("w-full").mark("purchase-quantity")
+        suggested = suggested_purchases(ctx.engine, [product], ctx.today())[product.id]
+        quantity = ui.input("Ilość", value=str(suggested)).classes("w-full").mark("purchase-quantity")
         quantity_error = error_label()
         default = default_expiry(product.usual_shelf_life_days, ctx.today())
         expiry = ui.input(

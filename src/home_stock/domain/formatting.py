@@ -17,7 +17,6 @@ from home_stock.domain.stock import (
     ShoppingListEntry,
     Unit,
     check_buffer_days,
-    suggested_purchase,
 )
 
 DATE_ERROR = "Podaj datę w formacie DD.MM.RRRR."
@@ -144,17 +143,23 @@ def format_event_change(event: StockEvent, unit: Unit) -> str:
     return f"{sign}{abs(event.change)} {unit.short}"
 
 
-def format_purchase_amount(product: Product, unit: Unit) -> str:
+def format_purchase_amount(count: int, unit: Unit) -> str:
     """ "kup 3 opak.": how much of the Product the Shopping List says to buy."""
-    return f"kup {suggested_purchase(product)} {unit.short}"
+    return f"kup {count} {unit.short}"
 
 
-def format_shopping_list(categories: Sequence[Category], units: Mapping[int, Unit], products: Sequence[Product]) -> str:
-    """The Shopping List as plain text: a heading per Category that has Products to buy, in the order given."""
+def format_shopping_list(
+    categories: Sequence[Category],
+    units: Mapping[int, Unit],
+    products: Sequence[Product],
+    amounts: Mapping[int, int],
+) -> str:
+    """The Shopping List as plain text: a heading per Category that has Products to buy, in the order given, each
+    with its suggested Purchase from ``amounts`` by Product id."""
     sections = []
     for category in categories:
         lines = [
-            f"{product.name} — {format_purchase_amount(product, units[product.unit_id])}"
+            f"{product.name} — {format_purchase_amount(amounts[product.id], units[product.unit_id])}"
             for product in products
             if product.category_id == category.id
         ]

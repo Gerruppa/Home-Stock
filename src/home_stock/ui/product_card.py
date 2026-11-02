@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import replace
 
 from nicegui import ui
+from sqlalchemy import Engine
 
 from home_stock.domain.formatting import (
     format_date,
@@ -17,7 +18,7 @@ from home_stock.domain.formatting import (
     parse_date,
 )
 from home_stock.domain.history import days_left
-from home_stock.domain.stock import Batch, Product, Unit
+from home_stock.domain.stock import Batch, Product, Unit, suggested_minimum_stock
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.history import consumption_rates, list_product_events
 from home_stock.persistence.products import (
@@ -28,8 +29,10 @@ from home_stock.persistence.products import (
     restore_product,
     undo_discard,
     undo_use,
+    update_product,
     use_units,
 )
+from home_stock.persistence.settings import load_buffer_days
 from home_stock.ui.context import Context
 from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label, show_error
@@ -79,6 +82,9 @@ def open_product_card(ctx: Context, product_id: int) -> None:
             rate = consumption_rates(ctx.engine, ctx.today()).get(product.id)
             if rate is not None:
                 ui.label(format_days_left(days_left(product.quantity, rate))).classes("hs-muted").mark("card-days-left")
+                suggested = suggested_minimum_stock(rate, load_buffer_days(ctx.engine))
+                if suggested != product.minimum_stock:
+                    _suggested_minimum_row(card_ctx, product, suggested)
             _use_row(card_ctx, product)
             ui.label("Partie").classes("hs-section-title hs-section-title-green")
             if not product.batches:
@@ -120,6 +126,25 @@ def _history(ctx: Context, product: Product, unit: Unit) -> None:
             ui.label("Brak zdarzeń.").classes("hs-muted")
         for event in events:
             ui.label(format_stock_event(event, unit)).classes("text-sm").mark("card-event")
+
+
+def _suggested_minimum_row(ctx: Context, product: Product, suggested: int) -> None:
+    """The Suggested Minimum Stock, applied in one click."""
+    with ui.row().classes("w-full items-center no-wrap").mark("card-suggested-minimum"):
+        ui.label(f"Sugerowany stan minimalny: {suggested}").classes("hs-muted")
+        ui.button("Zastosuj", on_click=lambda: apply()).props("dense flat").mark("card-apply-minimum")
+
+    def apply() -> None:
+        engine, old = ctx.engine, product.minimum_stock
+        _save_minimum_stock(engine, product.id, suggested)
+        ctx.changed()
+        ctx.undo(f"Zmieniono stan minimalny: {product.name}", lambda: _save_minimum_stock(engine, product.id, old))
+
+
+def _save_minimum_stock(engine: Engine, product_id: int, minimum_stock: int | None) -> None:
+    """Only the Minimum Stock changes: the other fields are read afresh, so an edit made meanwhile stays."""
+    draft = replace(get_product(engine, product_id).draft(), minimum_stock=minimum_stock)
+    update_product(engine, product_id, draft)
 
 
 def _use_row(ctx: Context, product: Product) -> None:

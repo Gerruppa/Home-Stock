@@ -5,9 +5,15 @@ from dataclasses import dataclass
 from nicegui import ui
 
 from home_stock.domain.formatting import format_date
-from home_stock.domain.stock import Product, default_expiry, suggested_purchase
+from home_stock.domain.stock import Product, default_expiry
 from home_stock.persistence.catalog import list_categories
-from home_stock.persistence.products import list_products, list_shopping_list, purchase_many, undo_purchase
+from home_stock.persistence.products import (
+    list_products,
+    list_shopping_list,
+    purchase_many,
+    suggested_purchases,
+    undo_purchase,
+)
 from home_stock.ui.context import Context
 from home_stock.ui.dialog_keys import wire_dialog_keys
 from home_stock.ui.fields import error_label
@@ -26,6 +32,9 @@ class _Row:
 
 def open_unpacking_dialog(ctx: Context) -> None:
     products = [entry.product for entry in list_shopping_list(ctx.engine, ctx.today())]
+    # Impulse buys: any active Product, picked by name, gets a row like the Shopping List's below the list
+    active = {product.id: product for product in list_products(ctx.engine)}
+    amounts = suggested_purchases(ctx.engine, list(active.values()), ctx.today())
     rows: list[_Row] = []
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-96").mark("unpacking-dialog") as card:
         ui.label("Rozpakuj zakupy").classes("hs-dialog-title")
@@ -36,9 +45,7 @@ def open_unpacking_dialog(ctx: Context) -> None:
             if shown:
                 ui.label(category.name).classes("hs-section-title q-mt-sm")
             for product in shown:
-                rows.append(_add_row(ctx, product))
-        # Impulse buys: any active Product, picked by name, gets a row like the Shopping List's below the list
-        active = {product.id: product for product in list_products(ctx.engine)}
+                rows.append(_add_row(ctx, product, amounts[product.id]))
         added = ui.column().classes("w-full gap-0")
         with added:
             # Under its own heading, not the last Category's
@@ -57,7 +64,7 @@ def open_unpacking_dialog(ctx: Context) -> None:
             if any(row.product.id == product.id for row in rows):
                 return
             with added:
-                rows.append(_add_row(ctx, product))
+                rows.append(_add_row(ctx, product, amounts[product.id]))
             added.set_visibility(True)
             nothing.set_visibility(False)
             save_button.set_visibility(True)
@@ -93,12 +100,12 @@ def open_unpacking_dialog(ctx: Context) -> None:
     dialog.open()
 
 
-def _add_row(ctx: Context, product: Product) -> _Row:
+def _add_row(ctx: Context, product: Product, suggested: int) -> _Row:
     default = default_expiry(product.usual_shelf_life_days, ctx.today())
     with ui.column().classes("w-full gap-0").mark(f"unpack-row-{product.id}"):
         with ui.row().classes("w-full items-center no-wrap"):
             tick = ui.checkbox(product.name, value=True).classes("grow").mark(f"unpack-tick-{product.id}")
-            quantity = ui.input(value=str(suggested_purchase(product))).props("dense").classes("w-16")
+            quantity = ui.input(value=str(suggested)).props("dense").classes("w-16")
             quantity.mark(f"unpack-quantity-{product.id}")
             expiry = ui.input(value="" if default is None else format_date(default), placeholder="DD.MM.RRRR")
             expiry.props("dense").classes("w-32").mark(f"unpack-expiry-{product.id}")

@@ -16,7 +16,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 ## Actions
 
 - **Use** ("−1"): takes one Unit off the Batch with the nearest Expiry Date, Batches without one last. A Batch at 0 disappears; the Product stays at 0. The Product card's "Zużyj" Uses several Units at once in the same order, refusing more than the Product's Quantity; one "Cofnij" restores every Batch it touched.
-- **Purchase**: a new Batch. From the Shopping List a dialog asks for the Quantity (suggested: Minimum Stock + 1 − current Quantity) and an optional Expiry Date.
+- **Purchase**: a new Batch. From the Shopping List a dialog asks for the Quantity and an optional Expiry Date. The suggested Quantity, the same on the Shopping List, in this dialog and in Unpacking, is at least 1: for a Product with a Consumption Rate, Minimum Stock (0 without one) + the Suggested Minimum Stock − current Quantity, so the Buffer is covered above Minimum Stock, and more if needed for Days Left to pass the Buffer, so buying it takes the Product off the Shopping List; without a rate, Minimum Stock + 1 − current Quantity.
 - **Unpacking** ("Rozpakuj zakupy" on Lista zakupów): one dialog lists every Product on the Shopping List in its order, each with a tick, a Quantity (the suggested Purchase) and an Expiry Date (from the Usual Shelf Life, else blank). "Zapisz" validates every ticked row first, showing each error under its row and saving nothing while one remains; then it records a Purchase for every ticked row in one transaction. Unticked rows are ignored. One "Cofnij" removes exactly the Batches it created, all or none: when one is already gone, nothing changes and the toast says so. With an empty Shopping List the dialog says there is nothing to Unpack.
 - **Discard**: removes a whole Batch.
 - Editing a Batch's Quantity or Expiry Date by hand, on the Product's card.
@@ -33,6 +33,7 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - The Product card lists its latest Stock Events, newest first ("02.11.2026 · Zużycie · −2 szt.").
 - **Consumption Rate** ("Tempo zużycia"): the Units Used in the last 90 days divided by the days from the later of (the Product's first Stock Event, 90 days ago) to today. No rate below 3 Uses in that window or below 14 days of history. Purchases, Discards and Corrections never count.
 - **Days Left**: Quantity ÷ Consumption Rate, rounded down. Produkty and the Product card show "wystarczy na ok. N dni" for a Product with a rate, and nothing extra without one; a Product at 0 shows 0 days.
+- **Suggested Minimum Stock**: Consumption Rate × Buffer, rounded up, at least 1. The Product card shows "Sugerowany stan minimalny: N" only when it differs from the current Minimum Stock; "Zastosuj" sets it in one click, and "Cofnij" puts the old Minimum Stock back.
 
 ## Adding a Product
 

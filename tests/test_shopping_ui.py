@@ -8,7 +8,7 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, get_product, purchase, use_units
+from home_stock.persistence.products import add_product, get_product, purchase, update_product, use_units
 from home_stock.persistence.settings import save_buffer_days
 from home_stock.ui.shell import build_shell
 from home_stock.ui.shopping import shopping_list_text
@@ -154,6 +154,29 @@ async def test_a_product_running_out_is_on_start_unpacking_and_the_copied_list(e
         user.find(marker="tab-shopping").click()
         user.find(marker="unpack").click()
         await user.should_see(marker=f"unpack-row-{cukier}")
+
+
+async def test_with_a_rate_the_list_kupione_and_unpacking_suggest_enough_to_cover_the_buffer(engine: Engine) -> None:
+    cukier = _running_out(engine)
+    update_product(engine, cukier, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=1))
+    # A fifth of a Unit a day over a Buffer of 7 is 2 Units above the Minimum Stock of 1; 1 is there: buy 2
+
+    assert shopping_list_text(engine, TODAY) == "Spożywcze\nCukier — kup 2 opak."
+    async with user_simulation(lambda: build_shell(engine, today=lambda: TODAY)) as user:
+        await _open_shopping(user)
+        with user.scope(marker=f"shopping-{cukier}"):
+            await user.should_see("kup 2 opak.")
+        user.find(marker=f"bought-{cukier}").click()
+        [quantity] = user.find(marker="purchase-quantity", kind=ui.input).elements
+        assert quantity.value == "2"
+        user.find(marker="purchase-save").click()
+        await user.should_see("Nic nie trzeba kupować.")
+
+        user.find(marker="undo").click()
+        await user.should_see(marker=f"shopping-{cukier}")
+        user.find(marker="unpack").click()
+        [unpack_quantity] = user.find(marker=f"unpack-quantity-{cukier}", kind=ui.input).elements
+        assert unpack_quantity.value == "2"
 
 
 async def test_a_product_lasting_beyond_a_smaller_buffer_is_not_listed(engine: Engine) -> None:

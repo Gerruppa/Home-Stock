@@ -449,3 +449,55 @@ async def test_the_card_shows_no_forecast_without_a_rate(user: User, mleko: int)
     with user.scope(marker="card-history"):
         await user.should_see("Zakup")
     await user.should_not_see(marker="card-days-left")
+    await user.should_not_see(marker="card-suggested-minimum")
+
+
+def _used_a_fifth_a_day(engine: Engine, today: date, minimum_stock: int | None = None) -> int:
+    """Cukier with 6 Units Used over 30 days: a fifth of a Unit a day, 2 Units over the Buffer of 7."""
+    cukier = add_product(
+        engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=minimum_stock), BatchDraft(16)
+    )
+    purchase(engine, cukier, BatchDraft(1), today - timedelta(days=30))
+    for days_ago in (20, 10, 1):
+        use_units(engine, cukier, 2, today - timedelta(days=days_ago))
+    return cukier
+
+
+async def test_the_suggested_minimum_stock_is_applied_in_one_click_and_cofnij_puts_the_old_one_back(
+    tmp_path: Path,
+) -> None:
+    engine = init_db(tmp_path / "rate.sqlite3")
+    today = date(2026, 11, 2)
+    cukier = _used_a_fifth_a_day(engine, today, minimum_stock=5)
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: today)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{cukier}").click()
+        with user.scope(marker="card-suggested-minimum"):
+            await user.should_see("Sugerowany stan minimalny: 2")
+        user.find(marker="card-apply-minimum").click()
+
+        with user.scope(marker="product-card"):
+            await user.should_see("Stan minimalny: 2")
+        await user.should_not_see(marker="card-suggested-minimum")
+        assert get_product(engine, cukier).minimum_stock == 2
+
+        user.find(marker="undo").click()
+        with user.scope(marker="product-card"):
+            await user.should_see("Stan minimalny: 5")
+        await user.should_see(marker="card-suggested-minimum")
+        assert get_product(engine, cukier).minimum_stock == 5
+
+
+async def test_no_suggested_minimum_stock_when_it_matches_the_current_one(tmp_path: Path) -> None:
+    engine = init_db(tmp_path / "rate.sqlite3")
+    today = date(2026, 11, 2)
+    cukier = _used_a_fifth_a_day(engine, today, minimum_stock=2)
+
+    async with user_simulation(lambda: build_shell(engine, today=lambda: today)) as user:
+        await user.open("/")
+        user.find(marker="tab-products").click()
+        user.find(marker=f"open-{cukier}").click()
+        await user.should_see(marker="card-days-left")
+        await user.should_not_see(marker="card-suggested-minimum")

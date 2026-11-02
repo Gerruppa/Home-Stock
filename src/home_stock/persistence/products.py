@@ -17,6 +17,7 @@ from home_stock.domain.stock import (
     is_expired,
     name_key,
     shopping_list,
+    suggested_purchase,
     units_to_use,
     use_order,
 )
@@ -112,6 +113,13 @@ def list_products(engine: Engine, *, archived: bool = False) -> list[Product]:
 def list_shopping_list(engine: Engine, today: date) -> list[ShoppingListEntry]:
     """The Shopping List: the active Products Running Low or Running Out within the Buffer, by name."""
     return shopping_list(list_products(engine), consumption_rates(engine, today), load_buffer_days(engine))
+
+
+def suggested_purchases(engine: Engine, products: Sequence[Product], today: date) -> dict[int, int]:
+    """How many Units a Purchase of each of ``products`` suggests, by id: the one source of the amount the Shopping
+    List, the Purchase dialog and Unpacking show."""
+    rates, buffer_days = consumption_rates(engine, today), load_buffer_days(engine)
+    return {product.id: suggested_purchase(product, rates.get(product.id), buffer_days) for product in products}
 
 
 def get_product(engine: Engine, product_id: int) -> Product:

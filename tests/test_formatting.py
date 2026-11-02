@@ -33,10 +33,12 @@ def test_format_shopping_list() -> None:
     papier = Product(2, "Papier toaletowy", 4, 3, None, 4, False, ())
     mleko = Product(3, "Mleko", 1, 2, None, None, False, ())
 
-    text = format_shopping_list([higiena, spozywcze, chemia], units, [cukier, papier, mleko])
+    amounts = {cukier.id: 4, papier.id: 5, mleko.id: 1}
+
+    text = format_shopping_list([higiena, spozywcze, chemia], units, [cukier, papier, mleko], amounts)
 
     assert text == "Higiena\nPapier toaletowy — kup 5 rol.\n\nSpożywcze\nCukier — kup 4 opak.\nMleko — kup 1 opak."
-    assert format_shopping_list([spozywcze], units, []) == ""
+    assert format_shopping_list([spozywcze], units, [], {}) == ""
 
 
 def test_dates() -> None:
