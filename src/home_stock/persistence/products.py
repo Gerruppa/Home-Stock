@@ -128,7 +128,7 @@ def purchase(engine: Engine, product_id: int, draft: BatchDraft) -> int:
 
 def purchase_many(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]]) -> list[Batch]:
     """The Purchases of an Unpacking in one transaction: a new Batch for each (product id, draft), in order. Returns
-    the new Batches; discard_batch removes them again."""
+    the new Batches; discard_batches removes them again."""
     with engine.begin() as connection:
         return [
             Batch(
@@ -160,10 +160,22 @@ def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None
 def discard_batch(engine: Engine, batch_id: int) -> Batch:
     """Remove a whole Batch; returns it as it was, for restore_batch to undo the Discard."""
     with engine.begin() as connection:
-        row = connection.execute(delete(BatchRow).where(BatchRow.id == batch_id).returning(BatchRow)).first()
-        if row is None:
-            raise MissingBatchError()
-        return Batch(row.id, row.product_id, row.quantity, row.expiry)
+        return _discard_batch(connection, batch_id)
+
+
+def discard_batches(engine: Engine, batch_ids: Sequence[int]) -> None:
+    """Remove several Batches at once, all or none: the undo of an Unpacking. MissingBatchError, with nothing
+    removed, when one is already gone."""
+    with engine.begin() as connection:
+        for batch_id in batch_ids:
+            _discard_batch(connection, batch_id)
+
+
+def _discard_batch(connection: Connection, batch_id: int) -> Batch:
+    row = connection.execute(delete(BatchRow).where(BatchRow.id == batch_id).returning(BatchRow)).first()
+    if row is None:
+        raise MissingBatchError()
+    return Batch(row.id, row.product_id, row.quantity, row.expiry)
 
 
 class NotEnoughStockError(StockError):

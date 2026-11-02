@@ -11,9 +11,11 @@ from home_stock.persistence.catalog import StockError
 from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
 from home_stock.persistence.products import (
     DuplicateProductError,
+    MissingBatchError,
     add_product,
     archive_product,
     discard_batch,
+    discard_batches,
     edit_batch,
     get_product,
     list_products,
@@ -239,6 +241,21 @@ def test_purchase_many_adds_a_batch_per_purchase_and_returns_them(engine: Engine
     assert get_product(engine, cukier).quantity == 3
     assert get_product(engine, ocet).batches == (batches[1],)
     assert purchase_many(engine, []) == []
+
+
+def test_discard_batches_removes_all_or_none(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE))
+    first, second, third = purchase_many(
+        engine, [(cukier, BatchDraft(1)), (cukier, BatchDraft(2)), (cukier, BatchDraft(3))]
+    )
+    discard_batch(engine, second.id)
+
+    with pytest.raises(MissingBatchError):
+        discard_batches(engine, [first.id, second.id, third.id])
+    assert get_product(engine, cukier).quantity == 4
+
+    discard_batches(engine, [first.id, third.id])
+    assert get_product(engine, cukier).batches == ()
 
 
 def test_list_running_low_holds_the_products_the_shopping_list_shows(engine: Engine) -> None:

@@ -7,7 +7,7 @@ from nicegui import ui
 from home_stock.domain.formatting import format_date
 from home_stock.domain.stock import Product, default_expiry, suggested_purchase
 from home_stock.persistence.catalog import list_categories
-from home_stock.persistence.products import MissingBatchError, discard_batch, list_running_low, purchase_many
+from home_stock.persistence.products import discard_batches, list_running_low, purchase_many
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label
 from home_stock.ui.purchase_dialog import read_batch_draft
@@ -56,15 +56,8 @@ def open_unpacking_dialog(ctx: Context) -> None:
             ctx.changed()
 
             def undo() -> None:
-                gone = False
-                for batch in batches:
-                    try:
-                        discard_batch(engine, batch.id)
-                    except MissingBatchError:
-                        gone = True
-                if gone:
-                    # The rest are removed; say that some were already gone
-                    raise MissingBatchError()
+                # All or nothing: MissingBatchError leaves every Batch in place when one is already gone
+                discard_batches(engine, [batch.id for batch in batches])
 
             ctx.undo(f"Rozpakowano zakupy: {len(batches)}", undo)
 

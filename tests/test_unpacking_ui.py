@@ -58,6 +58,22 @@ async def test_lists_every_product_with_its_suggested_quantity_and_shelf_life_da
             await user.should_not_see("Sól")
 
 
+async def test_rows_follow_the_shopping_list_order(engine: Engine) -> None:
+    papier = _low(engine, "Papier toaletowy", HIGIENA, ROLKA)
+    maka = _low(engine, "Mąka")
+    cukier = _low(engine, "Cukier")
+
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_unpacking(user)
+
+        rows = {
+            product: next(iter(user.find(marker=f"unpack-row-{product}").elements))
+            for product in (papier, maka, cukier)
+        }
+        siblings = rows[papier].parent_slot.children  # type: ignore[union-attr]
+        assert sorted(rows, key=lambda product: siblings.index(rows[product])) == [cukier, maka, papier]
+
+
 async def test_zapisz_records_the_ticked_rows_only(engine: Engine) -> None:
     cukier = _low(engine, "Cukier")
     papier = _low(engine, "Papier toaletowy", HIGIENA, ROLKA)
