@@ -9,6 +9,31 @@ from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
 
 
+def read_batch_draft(
+    quantity: ui.input, expiry: ui.input, quantity_error: ui.label, expiry_error: ui.label
+) -> BatchDraft | None:
+    """The Purchase typed into the two fields, or None with each problem shown under its field."""
+    count_problem = date_problem = None
+    count = when = None
+    try:
+        count = parse_count(quantity.value)
+    except ValueError as error:
+        count_problem = str(error)
+    try:
+        when = parse_date(expiry.value)
+    except ValueError as error:
+        date_problem = str(error)
+    draft = None
+    if count is not None and date_problem is None:
+        try:
+            draft = BatchDraft(count, when)
+        except ValueError as error:
+            count_problem = str(error)
+    show_error(quantity_error, count_problem)
+    show_error(expiry_error, date_problem)
+    return draft
+
+
 def open_purchase_dialog(ctx: Context, product: Product) -> None:
     with ctx.overlay, ui.dialog() as dialog, ui.card().classes("w-80").mark("purchase-dialog"):
         ui.label(f"Zakup: {product.name}").classes("hs-dialog-title")
@@ -24,24 +49,8 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
         expiry_error = error_label()
 
         def save() -> None:
-            count = when = None
-            try:
-                count = parse_count(quantity.value)
-                show_error(quantity_error, None)
-            except ValueError as error:
-                show_error(quantity_error, str(error))
-            try:
-                when = parse_date(expiry.value)
-                show_error(expiry_error, None)
-            except ValueError as error:
-                show_error(expiry_error, str(error))
-                return
-            if count is None:
-                return
-            try:
-                draft = BatchDraft(count, when)
-            except ValueError as error:
-                show_error(quantity_error, str(error))
+            draft = read_batch_draft(quantity, expiry, quantity_error, expiry_error)
+            if draft is None:
                 return
             engine = ctx.engine
             batch_id = purchase(engine, product.id, draft)

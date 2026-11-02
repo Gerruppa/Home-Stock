@@ -11,13 +11,17 @@ from home_stock.persistence.catalog import StockError
 from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
 from home_stock.persistence.products import (
     DuplicateProductError,
+    MissingBatchError,
     add_product,
     archive_product,
     discard_batch,
+    discard_batches,
     edit_batch,
     get_product,
     list_products,
+    list_running_low,
     purchase,
+    purchase_many,
     restore_batch,
     restore_product,
     update_product,
@@ -222,6 +226,44 @@ def test_restoring_every_batch_a_use_touched_undoes_it_exactly(engine: Engine) -
         restore_batch(engine, batch)
 
     assert get_product(engine, mleko) == original
+
+
+def test_purchase_many_adds_a_batch_per_purchase_and_returns_them(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
+    ocet = add_product(engine, ProductDraft("Ocet", CHEMIA, SZTUKA))
+
+    batches = purchase_many(engine, [(cukier, BatchDraft(2, date(2026, 12, 1))), (ocet, BatchDraft(3))])
+
+    assert [(b.product_id, b.quantity, b.expiry) for b in batches] == [
+        (cukier, 2, date(2026, 12, 1)),
+        (ocet, 3, None),
+    ]
+    assert get_product(engine, cukier).quantity == 3
+    assert get_product(engine, ocet).batches == (batches[1],)
+    assert purchase_many(engine, []) == []
+
+
+def test_discard_batches_removes_all_or_none(engine: Engine) -> None:
+    cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE))
+    first, second, third = purchase_many(
+        engine, [(cukier, BatchDraft(1)), (cukier, BatchDraft(2)), (cukier, BatchDraft(3))]
+    )
+    discard_batch(engine, second.id)
+
+    with pytest.raises(MissingBatchError):
+        discard_batches(engine, [first.id, second.id, third.id])
+    assert get_product(engine, cukier).quantity == 4
+
+    discard_batches(engine, [first.id, third.id])
+    assert get_product(engine, cukier).batches == ()
+
+
+def test_list_running_low_holds_the_products_the_shopping_list_shows(engine: Engine) -> None:
+    low = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=2), BatchDraft(1))
+    add_product(engine, ProductDraft("Sól", SPOZYWCZE, OPAKOWANIE, minimum_stock=1), BatchDraft(5))
+    add_product(engine, ProductDraft("Pieprz", SPOZYWCZE, SZTUKA))
+
+    assert [p.id for p in list_running_low(engine)] == [low]
 
 
 def test_purchase_adds_a_batch(engine: Engine) -> None:
