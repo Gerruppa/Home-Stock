@@ -10,6 +10,7 @@ from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import add_product, archive_product, get_product, list_products
+from home_stock.persistence.settings import load_buffer_days
 from home_stock.ui.shell import build_shell
 
 SPOZYWCZE, NAPOJE = 1, 2
@@ -121,3 +122,27 @@ async def test_a_new_unit_is_offered_in_the_product_form(engine: Engine) -> None
         unit = user.find(marker="unit", kind=ui.select).elements.pop()
         assert "worek" in unit.options.values()  # type: ignore[union-attr]
     assert list_units(engine)[-1].short == "wor."
+
+
+async def test_the_buffer_starts_at_seven_and_saves_a_new_value(engine: Engine) -> None:
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_settings(user)
+        [field] = user.find(marker="buffer-days", kind=ui.input).elements
+        assert field.value == "7"
+
+        user.find(marker="buffer-days").clear().type("14")
+        user.find(marker="buffer-save").click()
+
+        await user.should_not_see(marker="buffer-error")
+    assert load_buffer_days(engine) == 14
+
+
+async def test_an_invalid_buffer_is_refused_with_a_polish_message(engine: Engine) -> None:
+    async with user_simulation(lambda: _shell(engine)) as user:
+        await _open_settings(user)
+        user.find(marker="buffer-days").clear().type("0")
+        user.find(marker="buffer-save").click()
+
+        with user.scope(marker="buffer"):
+            await user.should_see("Podaj liczbę dni większą od zera, np. 7.")
+    assert load_buffer_days(engine) == 7

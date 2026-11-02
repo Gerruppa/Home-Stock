@@ -13,14 +13,16 @@ from home_stock.domain.formatting import (
     format_pack_size,
     format_quantity,
     format_shopping_list,
+    format_shopping_reason,
     format_stock_event,
+    parse_buffer_days,
     parse_count,
     parse_date,
     parse_pack_size,
     parse_usual_shelf_life,
 )
 from home_stock.domain.history import StockEvent, StockEventKind
-from home_stock.domain.stock import Category, PackSize, Product, Unit
+from home_stock.domain.stock import Category, PackSize, Product, ShoppingListEntry, Unit
 
 
 def test_format_shopping_list() -> None:
@@ -130,3 +132,17 @@ def test_format_discard_and_correction_events() -> None:
     assert format_stock_event(gone_off, szt) == "02.11.2026 · Wyrzucenie (przeterminowane) · −2 szt."
     assert format_stock_event(thrown, szt) == "02.11.2026 · Wyrzucenie · −1 szt."
     assert format_stock_event(fixed, szt) == "02.11.2026 · Korekta · +3 szt."
+
+
+def test_format_shopping_reason() -> None:
+    cukier = Product(1, "Cukier", 1, 1, None, 2, False, ())
+
+    assert format_shopping_reason(ShoppingListEntry(cukier)) == "poniżej minimum"
+    assert format_shopping_reason(ShoppingListEntry(cukier, days_left=3)) == "wystarczy na ok. 3 dni"
+
+
+def test_parse_buffer_days() -> None:
+    assert parse_buffer_days(" 14 ") == 14
+    for bad in ("", "0", "-1", "1,5", "tydzień", "²"):
+        with pytest.raises(ValueError, match="Podaj liczbę dni większą od zera"):
+            parse_buffer_days(bad)

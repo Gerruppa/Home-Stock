@@ -9,6 +9,8 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - **Pack Size** (e.g. 1 kg of sugar per opakowanie) is shown next to the Quantity ("2 opak. (2 kg)") but never counted: Quantity and Minimum Stock stay in Units (ADR-0001).
 - A Product holds **Batches**: a whole-number Quantity and an optional Expiry Date each (ADR-0001). The Product's Quantity is their sum.
 - **Running Low**: Quantity at or below Minimum Stock. No Minimum Stock means never Running Low (Expiry reminders still apply).
+- **Running Out**: Days Left at or below the **Buffer** ("Zapas dni"), a whole number of days above zero set in Ustawienia, 7 by default. A Product without a Consumption Rate never Runs Out.
+- The **Shopping List** holds the active Products Running Low or Running Out, by Category and name; each line says why: "poniżej minimum" or "wystarczy na ok. N dni" (a Product both Running Low and Out reads "poniżej minimum"). Start's "Do kupienia", "Kopiuj listę", "Drukuj" and Unpacking list the same Products.
 - **Expiring Soon**: a Batch's Expiry Date is within its Category's Warning Window; **Expired**: the date has passed.
 
 ## Actions
@@ -40,9 +42,9 @@ A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled 
 
 1. **Start**: Przeterminowane, Kończy się termin, Do kupienia; clicking a line opens that Product's card.
 2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit, Days Left when there is a Consumption Rate and a "−1" button; clicking opens the Product's card with its Batches.
-3. **Lista zakupów**: the Shopping List, derived from Minimum Stock; ticking a Product records a Purchase.
+3. **Lista zakupów**: the Shopping List, each line with its reason; ticking a Product records a Purchase.
 4. **Historia**: the latest 200 Stock Events of all Products, newest first, with a name filter.
-5. **Ustawienia**: Categories with their Warning Windows, Units, the archive.
+5. **Ustawienia**: the Buffer, Categories with their Warning Windows, Units, the archive.
 
 Reminders appear only in the app (ADR-0002).
 

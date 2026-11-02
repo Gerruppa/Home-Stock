@@ -13,6 +13,7 @@ from home_stock.domain.stock import (
     Category,
     PackSize,
     Product,
+    ShoppingListEntry,
     Unit,
     suggested_purchase,
 )
@@ -20,6 +21,7 @@ from home_stock.domain.stock import (
 DATE_ERROR = "Podaj datę w formacie DD.MM.RRRR."
 COUNT_ERROR = "Podaj liczbę całkowitą, np. 2."
 PACK_SIZE_ERROR = "Podaj rozmiar opakowania, np. 1 kg albo 500 ml."
+BUFFER_ERROR = "Podaj liczbę dni większą od zera, np. 7."
 
 _DATE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
 _PACK_SIZE = re.compile(r"(\d+(?:[.,]\d+)?)\s*([a-z]+)")
@@ -158,3 +160,17 @@ def format_shopping_list(categories: Sequence[Category], units: Mapping[int, Uni
         if lines:
             sections.append("\n".join([category.name, *lines]))
     return "\n\n".join(sections)
+
+
+def format_shopping_reason(entry: ShoppingListEntry) -> str:
+    """ "poniżej minimum" or "wystarczy na ok. 3 dni": why the Product is on the Shopping List."""
+    return "poniżej minimum" if entry.days_left is None else format_days_left(entry.days_left)
+
+
+def parse_buffer_days(text: str | None) -> int:
+    """The Buffer: a whole number of days above zero."""
+    text = _field_text(text)
+    # isdigit alone takes "²", which int() refuses
+    if not (text.isascii() and text.isdigit()) or int(text) < 1:
+        raise ValueError(BUFFER_ERROR)
+    return int(text)

@@ -99,8 +99,16 @@ The state of a Batch whose Expiry Date has passed.
 _Avoid_: Out of date, spoiled
 
 **Shopping List**:
-The Products currently Running Low, derived from Minimum Stock rather than kept by hand.
+The Products currently Running Low or Running Out, derived from Minimum Stock and the Consumption Rate rather than kept by hand; each line says why it is there.
 _Avoid_: To-buy list, cart, order
+
+**Buffer** ("Zapas dni"):
+How many days ahead the Shopping List looks: a whole number of days set in Ustawienia, 7 until changed.
+_Avoid_: Lead time, horizon, safety stock
+
+**Running Out**:
+The state of a Product whose Days Left is at or below the Buffer; a Product without a Consumption Rate never Runs Out.
+_Avoid_: Running short, depleting
 
 ## Data
 

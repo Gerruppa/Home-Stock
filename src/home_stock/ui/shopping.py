@@ -1,13 +1,19 @@
 """Lista zakupów: every Product Running Low under its Category, each bought through the Purchase dialog."""
 
 import json
+from datetime import date
 
 from nicegui import ui
 from sqlalchemy import Engine
 
-from home_stock.domain.formatting import format_purchase_amount, format_quantity, format_shopping_list
+from home_stock.domain.formatting import (
+    format_purchase_amount,
+    format_quantity,
+    format_shopping_list,
+    format_shopping_reason,
+)
 from home_stock.persistence.catalog import list_categories, list_units
-from home_stock.persistence.products import list_running_low
+from home_stock.persistence.products import list_shopping_list
 from home_stock.ui.context import Context
 from home_stock.ui.purchase_dialog import open_purchase_dialog
 from home_stock.ui.unpacking_dialog import open_unpacking_dialog
@@ -16,10 +22,11 @@ from home_stock.ui.unpacking_dialog import open_unpacking_dialog
 PRINT_PATH = "/drukuj"
 
 
-def shopping_list_text(engine: Engine) -> str:
+def shopping_list_text(engine: Engine, today: date) -> str:
     """The Shopping List as plain text, what "Kopiuj listę" copies and the printable page shows."""
     units = {unit.id: unit for unit in list_units(engine)}
-    return format_shopping_list(list_categories(engine), units, list_running_low(engine))
+    products = [entry.product for entry in list_shopping_list(engine, today)]
+    return format_shopping_list(list_categories(engine), units, products)
 
 
 class ShoppingTab:
@@ -35,7 +42,8 @@ class ShoppingTab:
 
     def refresh(self) -> None:
         engine = self.ctx.engine
-        products = list_running_low(engine)
+        entries = list_shopping_list(engine, self.ctx.today())
+        products = [entry.product for entry in entries]
         units = {unit.id: unit for unit in list_units(engine)}
         categories = list_categories(engine)
         self.content.clear()
@@ -57,7 +65,7 @@ class ShoppingTab:
                 ui.label("Nic nie trzeba kupować.")
                 return
             for category in categories:
-                shown = [p for p in products if p.category_id == category.id]
+                shown = [e for e in entries if e.product.category_id == category.id]
                 if not shown:
                     continue
                 with (
@@ -66,9 +74,11 @@ class ShoppingTab:
                     .mark(f"shopping-category-{category.id}")
                 ):
                     ui.label(category.name).classes("hs-section-title q-mb-xs")
-                    for product in shown:
+                    for entry in shown:
+                        product = entry.product
                         with ui.row().classes("w-full items-center no-wrap hs-line").mark(f"shopping-{product.id}"):
                             ui.label(product.name).classes("grow")
+                            ui.label(format_shopping_reason(entry)).classes("hs-muted text-sm")
                             unit = units[product.unit_id]
                             ui.label(format_quantity(product.quantity, unit, product.pack_size)).classes("hs-qty")
                             ui.label(format_purchase_amount(product, unit)).classes("hs-qty")
