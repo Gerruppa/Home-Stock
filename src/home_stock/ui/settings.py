@@ -1,5 +1,5 @@
-"""Ustawienia: the Buffer, Categories with their Warning Windows, Units, and the archive, where Archived Products are
-restored."""
+"""Ustawienia: the Buffer, Categories with their Warning Windows, Units, the Starter Catalog, and the archive, where
+Archived Products are restored."""
 
 from collections.abc import Callable
 
@@ -22,6 +22,7 @@ from home_stock.persistence.products import list_products, restore_product
 from home_stock.persistence.settings import load_buffer_days, save_buffer_days
 from home_stock.ui.context import Context
 from home_stock.ui.fields import error_label, show_error
+from home_stock.ui.starter_dialog import open_starter_dialog
 
 # What a new Category's Warning Window starts at
 NEW_WARNING_DAYS = "7"
@@ -33,6 +34,15 @@ class SettingsTab:
         self.buffer_row, self.buffer_error = _section("buffer", "Zakupy", "buffer-error")
         self.category_list, self.category_error = _section("categories", "Kategorie", "category-error")
         self.unit_list, self.unit_error = _section("units", "Jednostki", "unit-error")
+        with ui.column().classes("w-full gap-1 hs-section hs-category").mark("starter"):
+            ui.label("Typowe produkty").classes("hs-section-title")
+            with ui.row().classes("w-full items-center"):
+                ui.label("Produkty, które ma zwykle każdy dom, do dodania jednym kliknięciem.").classes(
+                    "grow hs-muted text-sm"
+                )
+                ui.button(
+                    "Dodaj typowe produkty", icon="playlist_add", on_click=lambda: open_starter_dialog(ctx)
+                ).props("outline").mark("starter-open")
         with ui.column().classes("w-full gap-1 hs-section hs-category").mark("archive"):
             ui.label("Archiwum").classes("hs-section-title")
             self.archive_list = ui.column().classes("w-full gap-1")

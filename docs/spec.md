@@ -40,13 +40,15 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 
 A form with name, Category, Unit, optional Pack Size, Minimum Stock (pre-filled with 1; clearing it leaves the Product without one), optional Usual Shelf Life and, optionally, a first Batch. A name that already exists offers to add a Batch to that Product instead; if it is archived, to restore it.
 
+The **Starter Catalog** ("Dodaj typowe produkty" in Ustawienia, and in Produkty while it is empty) adds many Products at once: a dialog lists about a hundred a small household keeps, by Category, each ticked, with its Unit, Pack Size and Usual Shelf Life where it has them; a Category's own tick ticks or unticks all its Products. A name already taken (active or Archived) is left out, and so is a Product whose Category or Unit, matched by name, no longer exists. "Zapisz" adds the ticked ones in one transaction without Minimum Stock or Batches, so none lands on the Shopping List. One "Cofnij" removes them all, or none when one has a Batch or a Stock Event by then.
+
 ## Tabs
 
 1. **Start**: Przeterminowane, Kończy się termin, Do kupienia; clicking a line opens that Product's card.
 2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit, Days Left when there is a Consumption Rate and a "−1" button; clicking opens the Product's card with its Batches.
 3. **Lista zakupów**: the Shopping List, each line with its reason; ticking a Product records a Purchase.
 4. **Historia**: Waste over the last 30 and 90 days, then the latest 200 Stock Events of all Products, newest first, with a name filter (which leaves Waste as it is).
-5. **Ustawienia**: the Buffer, Categories with their Warning Windows, Units, the archive.
+5. **Ustawienia**: the Buffer, Categories with their Warning Windows, Units, the Starter Catalog, the archive.
 
 Reminders appear only in the app (ADR-0002).
 

@@ -23,7 +23,7 @@ from home_stock.domain.stock import (
 )
 from home_stock.persistence.catalog import StockError
 from home_stock.persistence.history import consumption_rates, record_event, remove_events
-from home_stock.persistence.models import BatchRow, ProductRow
+from home_stock.persistence.models import BatchRow, ProductRow, StockEventRow
 from home_stock.persistence.settings import load_buffer_days
 
 
@@ -55,6 +55,43 @@ def add_product(engine: Engine, draft: ProductDraft, first_batch: BatchDraft | N
                 insert(BatchRow).values(product_id=product_id, quantity=first_batch.quantity, expiry=first_batch.expiry)
             )
     return product_id
+
+
+def add_products(engine: Engine, drafts: Sequence[ProductDraft]) -> tuple[int, ...]:
+    """Save new Products without Batches in one transaction, the Starter Catalog's; returns their ids in order. A name
+    already taken saves none."""
+    with engine.begin() as connection:
+        product_ids = []
+        for draft in drafts:
+            _refuse_duplicate(connection, draft.name)
+            product_ids.append(
+                connection.execute(
+                    insert(ProductRow).values(**_product_values(draft), archived=False).returning(ProductRow.id)
+                ).scalar_one()
+            )
+    return tuple(product_ids)
+
+
+class ProductsInUseError(StockError):
+    """The undo of add_products when a Product it added is gone or has a Batch or a Stock Event by then."""
+
+    def __init__(self) -> None:
+        super().__init__("Nie można cofnąć: część tych produktów ma już partie albo historię.")
+
+
+def remove_new_products(engine: Engine, product_ids: Sequence[int]) -> None:
+    """Remove Products add_products saved, all or none: ProductsInUseError, with nothing removed, when one is gone or
+    has a Batch or a Stock Event."""
+    with engine.begin() as connection:
+        existing = connection.execute(select(ProductRow.id).where(ProductRow.id.in_(product_ids))).scalars().all()
+        used = connection.execute(
+            select(BatchRow.id)
+            .where(BatchRow.product_id.in_(product_ids))
+            .union_all(select(StockEventRow.id).where(StockEventRow.product_id.in_(product_ids)))
+        ).first()
+        if len(existing) < len(set(product_ids)) or used is not None:
+            raise ProductsInUseError()
+        connection.execute(delete(ProductRow).where(ProductRow.id.in_(product_ids)))
 
 
 def update_product(engine: Engine, product_id: int, draft: ProductDraft) -> None:

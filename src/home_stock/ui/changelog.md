@@ -1,5 +1,10 @@
 # Historia zmian
 
+## Nieopublikowane
+
+### Nowe funkcje
+- „Dodaj typowe produkty” w Ustawieniach (i na pustej zakładce Produkty) dodaje naraz zaznaczone spośród ok. stu produktów, które ma zwykle każdy dom, z kategorią, jednostką i zwykłym terminem ważności, bez stanu minimalnego; jedno „Cofnij” usuwa je wszystkie.
+
 ## 0.3.0 — 2026-11-02
 
 ### Nowe funkcje

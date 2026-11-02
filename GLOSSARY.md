@@ -88,6 +88,10 @@ _Avoid_: Loss, spoilage, write-off
 A Product the user no longer keeps, hidden from every list with its Batches but restorable with its settings.
 _Avoid_: Deleted product, inactive, hidden
 
+**Starter Catalog** ("Typowe produkty"):
+The Products a small household usually keeps, shipped with the app, of which the user adds the ticked ones in one go, without Minimum Stock or Batches.
+_Avoid_: Template, preset, default products
+
 **Category**:
 A user-editable group of Products, such as Spożywcze or Chemia i środki czystości; every Product is in exactly one.
 _Avoid_: Type, tag, group
