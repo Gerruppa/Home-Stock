@@ -39,7 +39,7 @@ Try an installer in the scratchpad: `Home-Stock-<X.Y.Z>-setup.exe /DIR="<scratch
 
 ## Environment
 
-- Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`.
+- Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`. A worktree's `.venv` is the main checkout's, whose editable install imports the main checkout's `src/`: pytest, mypy and both previews set `src` themselves; give anything else run from a worktree (`main.py`, a `python -c` probe) `PYTHONPATH=src`.
 - Windows host. Use the venv interpreter directly, without relying on activation:
   - Run the app: `.venv/Scripts/python.exe main.py` (`--browser` serves on http://127.0.0.1:8080; `--demo` serves there too, on a fresh database of made-up Products in `%TEMP%/Home-Stock-demo`, recreated on every start). To look at a change, start the preview `home-stock` from `.claude/launch.json` (port 8765, scratch database in `.preview-data/`), or `home-stock-demo` (port 8766) for a page already full of data.
   - Tests: `.venv/Scripts/python.exe -m pytest -n auto`. No CI: pre-commit runs them with ruff and mypy whenever a commit touches Python files.
