@@ -21,6 +21,7 @@
 
 ### Zmiany
 - Na wąskim ekranie (telefon) pozycja listy zakupów ma dwa wiersze: nazwę z powodem, a pod nimi ilość, „kup” i „Kupione”, który nie wychodzi już poza kartę.
+- Na wąskim ekranie karta produktu pokazuje cały termin ważności partii, a „Zapisz” i „Wyrzuć” są pod jej polami.
 
 ## 0.2.1 — 2026-11-01
 
