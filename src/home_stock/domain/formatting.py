@@ -112,13 +112,19 @@ def format_quantity(quantity: int, unit: Unit, pack_size: PackSize | None) -> st
     return f"{text} ({format_pack_size(PackSize(pack_size.amount * quantity, pack_size.measure))})"
 
 
-_EVENT_KINDS = {StockEventKind.USE: "Zużycie", StockEventKind.PURCHASE: "Zakup"}
+_EVENT_KINDS = {
+    StockEventKind.USE: "Zużycie",
+    StockEventKind.PURCHASE: "Zakup",
+    StockEventKind.DISCARD: "Wyrzucenie",
+    StockEventKind.CORRECTION: "Korekta",
+}
 
 
 def format_stock_event(event: StockEvent, unit: Unit) -> str:
     """ "02.11.2026 · Zużycie · −2 szt.": a line of the Stock History, the change signed."""
     sign = "+" if event.change > 0 else "−"
-    return f"{format_date(event.on)} · {_EVENT_KINDS[event.kind]} · {sign}{abs(event.change)} {unit.short}"
+    kind = _EVENT_KINDS[event.kind] + (" (przeterminowane)" if event.expired else "")
+    return f"{format_date(event.on)} · {kind} · {sign}{abs(event.change)} {unit.short}"
 
 
 def format_purchase_amount(product: Product, unit: Unit) -> str:

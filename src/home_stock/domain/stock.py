@@ -106,11 +106,16 @@ def is_running_low(product: Product) -> bool:
     return product.minimum_stock is not None and product.quantity <= product.minimum_stock
 
 
+def is_expired(batch: Batch, today: date) -> bool:
+    """Its Expiry Date has passed; a Batch expiring today is not yet Expired."""
+    return batch.expiry is not None and batch.expiry < today
+
+
 def expiry_status(batch: Batch, today: date, warning_days: int) -> ExpiryStatus | None:
     """None for a Batch without an Expiry Date; a Batch expiring today is still Expiring Soon, not Expired."""
     if batch.expiry is None:
         return None
-    if batch.expiry < today:
+    if is_expired(batch, today):
         return ExpiryStatus.EXPIRED
     if batch.expiry <= today + timedelta(days=warning_days):
         return ExpiryStatus.EXPIRING_SOON

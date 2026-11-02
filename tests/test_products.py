@@ -22,8 +22,8 @@ from home_stock.persistence.products import (
     list_running_low,
     purchase,
     purchase_many,
-    restore_batch,
     restore_product,
+    undo_discard,
     undo_purchase,
     undo_use,
     update_product,
@@ -251,7 +251,7 @@ def test_undo_purchase_removes_all_or_none(engine: Engine) -> None:
         engine, [(cukier, BatchDraft(1)), (cukier, BatchDraft(2)), (cukier, BatchDraft(3))], TODAY
     )
     first, second, third = purchased.batches
-    discard_batch(engine, second.id)
+    discard_batch(engine, second.id, TODAY)
 
     with pytest.raises(MissingBatchError):
         undo_purchase(engine, purchased)
@@ -283,7 +283,7 @@ def test_editing_a_batch_changes_its_quantity_and_expiry(engine: Engine) -> None
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
     [batch] = get_product(engine, mleko).batches
 
-    edit_batch(engine, batch.id, 4, None)
+    edit_batch(engine, batch.id, 4, None, TODAY)
 
     [edited] = get_product(engine, mleko).batches
     assert (edited.id, edited.quantity, edited.expiry) == (batch.id, 4, None)
@@ -293,7 +293,7 @@ def test_editing_a_batch_to_zero_removes_it_and_keeps_the_product(engine: Engine
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2, date(2026, 10, 30)))
     [batch] = get_product(engine, mleko).batches
 
-    edit_batch(engine, batch.id, 0, batch.expiry)
+    edit_batch(engine, batch.id, 0, batch.expiry, TODAY)
 
     [product] = list_products(engine)
     assert (product.name, product.quantity, product.batches) == ("Mleko", 0, ())
@@ -304,7 +304,7 @@ def test_editing_a_batch_to_a_negative_quantity_is_refused(engine: Engine) -> No
     [batch] = get_product(engine, mleko).batches
 
     with pytest.raises(StockError, match="Ilość nie może być ujemna."):
-        edit_batch(engine, batch.id, -1, None)
+        edit_batch(engine, batch.id, -1, None, TODAY)
     assert get_product(engine, mleko).quantity == 2
 
 
@@ -313,9 +313,9 @@ def test_restoring_undoes_a_discard_exactly(engine: Engine) -> None:
     purchase(engine, mleko, BatchDraft(3, date(2026, 11, 12)), TODAY)
     original = get_product(engine, mleko)
 
-    discarded = discard_batch(engine, original.batches[0].id)
+    discarded = discard_batch(engine, original.batches[0].id, TODAY)
     assert get_product(engine, mleko).quantity == 3
-    restore_batch(engine, discarded)
+    undo_discard(engine, discarded)
 
     assert get_product(engine, mleko) == original
 
@@ -323,12 +323,12 @@ def test_restoring_undoes_a_discard_exactly(engine: Engine) -> None:
 def test_a_batch_already_gone_cannot_be_edited_or_discarded(engine: Engine) -> None:
     mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
     [batch] = get_product(engine, mleko).batches
-    discard_batch(engine, batch.id)
+    discard_batch(engine, batch.id, TODAY)
 
     with pytest.raises(StockError, match="Tej partii już nie ma."):
-        discard_batch(engine, batch.id)
+        discard_batch(engine, batch.id, TODAY)
     with pytest.raises(StockError, match="Tej partii już nie ma."):
-        edit_batch(engine, batch.id, 3, None)
+        edit_batch(engine, batch.id, 3, None, TODAY)
 
 
 def test_archiving_hides_a_product_and_restoring_brings_it_back_with_its_settings(engine: Engine) -> None:
