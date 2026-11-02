@@ -40,6 +40,10 @@ body {{ background: {PAPER}; color: {INK}; }}
 .hs-qty-low {{ color: {TO_BUY}; }}
 .hs-line {{ font-size: 1rem; line-height: 1.5; padding: 0.3rem 0; border-top: 1px solid #e8ece5; }}
 .hs-line:first-of-type {{ border-top: 0; }}
+/* A line in two groups: the end one wraps under the main one where they don't fit (a phone), against the right */
+.hs-line-main {{ flex: 1 1 14rem; min-width: 0; }}
+.hs-line-main > * {{ min-width: 0; overflow-wrap: anywhere; }}
+.hs-line-end {{ margin-left: auto; }}
 .hs-empty {{ color: #6b7a70; }}
 """
 
