@@ -24,6 +24,7 @@ from home_stock.mobile.context import Context
 from home_stock.mobile.fields import date_field, show_error, text_field
 from home_stock.mobile.product_form import open_product_form
 from home_stock.mobile.purchase_dialog import open_purchase_dialog
+from home_stock.mobile.theme import EXPIRED, EXPIRING
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.history import consumption_rates, list_product_events
 from home_stock.persistence.products import (
@@ -41,8 +42,8 @@ from home_stock.persistence.settings import load_buffer_days
 
 # The colours of the Start sections Przeterminowane and Kończy się termin
 _STATUS_MARKS = {
-    ExpiryStatus.EXPIRED: ("przeterminowana", "#b3261e"),
-    ExpiryStatus.EXPIRING_SOON: ("kończy się termin", "#a85d00"),
+    ExpiryStatus.EXPIRED: ("przeterminowana", EXPIRED),
+    ExpiryStatus.EXPIRING_SOON: ("kończy się termin", EXPIRING),
 }
 
 

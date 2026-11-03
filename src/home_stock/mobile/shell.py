@@ -13,6 +13,7 @@ from sqlalchemy import Engine
 from home_stock.mobile.context import Context
 from home_stock.mobile.products import ProductsTab
 from home_stock.mobile.shopping import ShoppingTab
+from home_stock.mobile.start import StartTab
 from home_stock.persistence.catalog import StockError
 
 APP_TITLE = "Home Stock"
@@ -116,7 +117,7 @@ class Shell:
             close_full_screen=self.close_full_screen,
         )
         self.tabs: list[tuple[ft.IconData, str, Tab]] = [
-            (ft.Icons.HOME_OUTLINED, "Start", ComingSoonTab()),
+            (ft.Icons.HOME_OUTLINED, "Start", StartTab(self.ctx)),
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
             (ft.Icons.CHECKLIST, "Zakupy", ShoppingTab(self.ctx)),
             (ft.Icons.HISTORY, "Historia", ComingSoonTab()),

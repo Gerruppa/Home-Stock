@@ -42,7 +42,7 @@ def test_five_tabs_open_on_start(shell: Shell) -> None:
     assert labels == ["Start", "Produkty", "Zakupy", "Historia", "Ustawienia"]
     assert shell.navigation_bar.selected_index == 0
     assert shell.body.content is shell.tabs[0][2].control
-    assert texts(shell.body) == ["Wkrótce"]
+    assert texts(shell.body) == ["Wszystko w porządku."]
 
 
 def test_a_tap_on_a_destination_shows_its_tab(shell: Shell, screen: Screen) -> None:
