@@ -11,6 +11,7 @@ import flet as ft
 from sqlalchemy import Engine
 
 from home_stock.mobile.context import Context
+from home_stock.mobile.products import ProductsTab
 from home_stock.persistence.catalog import StockError
 
 APP_TITLE = "Home Stock"
@@ -93,10 +94,10 @@ class Shell:
     ) -> None:
         self.update = update
         self.undo_bar = UndoBar(self.changed, present, update)
-        self.ctx = Context(engine, today, self.changed, self.undo_bar.show)
+        self.ctx = Context(engine, today, update, self.changed, self.undo_bar.show)
         self.tabs: list[tuple[ft.IconData, str, Tab]] = [
             (ft.Icons.HOME_OUTLINED, "Start", ComingSoonTab()),
-            (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ComingSoonTab()),
+            (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
             (ft.Icons.CHECKLIST, "Zakupy", ComingSoonTab()),
             (ft.Icons.HISTORY, "Historia", ComingSoonTab()),
             (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", ComingSoonTab()),

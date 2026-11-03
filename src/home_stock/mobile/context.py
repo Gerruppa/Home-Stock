@@ -11,6 +11,8 @@ from sqlalchemy import Engine
 class Context:
     engine: Engine
     today: Callable[[], date]
+    # Sends controls a tab changed by itself (e.g. after a search) to the screen
+    update: Callable[[], None]
     # Redraws every tab after a change, and withdraws the Cofnij offered for an earlier one
     changed: Callable[[], None]
     # Shows what was just done with "Cofnij" in a snackbar; Cofnij runs the action given, then redraws every tab. A
