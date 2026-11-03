@@ -9,16 +9,16 @@ from home_stock.mobile.fields import date_field, show_error, text_field
 from home_stock.persistence.products import purchase, suggested_purchases, undo_purchase
 
 
-def read_batch_draft(quantity: ft.TextField, expiry: ft.TextField) -> BatchDraft | None:
-    """The Purchase typed into the two fields, or None with each problem shown on its field."""
+def parse_batch_draft(quantity: str, expiry: str) -> tuple[BatchDraft | None, str | None, str | None]:
+    """The Purchase typed as a Quantity and an Expiry Date: the draft, or None with the problem of each."""
     count_problem = date_problem = None
     count = when = None
     try:
-        count = parse_count(quantity.value or "")
+        count = parse_count(quantity)
     except ValueError as error:
         count_problem = str(error)
     try:
-        when = parse_date(expiry.value or "")
+        when = parse_date(expiry)
     except ValueError as error:
         date_problem = str(error)
     draft = None
@@ -27,6 +27,12 @@ def read_batch_draft(quantity: ft.TextField, expiry: ft.TextField) -> BatchDraft
             draft = BatchDraft(count, when)
         except ValueError as error:
             count_problem = str(error)
+    return draft, count_problem, date_problem
+
+
+def read_batch_draft(quantity: ft.TextField, expiry: ft.TextField) -> BatchDraft | None:
+    """The Purchase typed into the two fields, or None with each problem shown on its field."""
+    draft, count_problem, date_problem = parse_batch_draft(quantity.value or "", expiry.value or "")
     show_error(quantity, count_problem)
     show_error(expiry, date_problem)
     return draft
