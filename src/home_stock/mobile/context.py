@@ -20,6 +20,6 @@ class Context:
     # StockError from the action (changed meanwhile) shows its message in the snackbar instead. Call it after
     # changed(), which hides the snackbar
     undo: Callable[[str, Callable[[], None]], None]
-    # Covers the tabs and the navigation bar with a form, the phone's dialog, until close_full_screen()
+    # Shows a form, the phone's dialog, as a view over the tabs until close_full_screen() or Android's Back
     show_full_screen: Callable[[ft.Control], None]
     close_full_screen: Callable[[], None]

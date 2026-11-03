@@ -59,10 +59,17 @@ def select(bar: ft.NavigationBar, index: int) -> None:
 
 @dataclass
 class Screen:
-    """Stands in for the page: records the snackbars shown and how often controls were sent to the screen."""
+    """Stands in for the page: records the snackbars shown and how often controls were sent to the screen, and holds
+    the page's stack of views, the tabs' first."""
 
     presented: list[ft.SnackBar] = field(default_factory=list)
     updates: int = 0
+    views: list[ft.View] = field(default_factory=lambda: [ft.View()])
+
+    @property
+    def top(self) -> ft.View:
+        """The view the user sees."""
+        return self.views[-1]
 
     def present(self, snackbar: ft.SnackBar) -> None:
         # Page.show_dialog opens it

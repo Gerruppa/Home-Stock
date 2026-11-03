@@ -29,7 +29,7 @@ def screen() -> Screen:
 
 def _open(engine: Engine, screen: Screen) -> ft.Control:
     """The Produkty tab of a fresh shell, as the user sees it after tapping its destination."""
-    shell = Shell(engine, screen.present, screen.update, today=lambda: TODAY)
+    shell = Shell(engine, screen.present, screen.update, screen.views, today=lambda: TODAY)
     select(shell.navigation_bar, PRODUCTS_TAB)
     return shell.body
 

@@ -1,7 +1,7 @@
 """The screen: the five tabs behind a bottom navigation bar, which all redraw after any change, and the undo snackbar.
 
-The shell never touches the Flet page itself: it is handed how to show a snackbar and how to send changes to the
-screen, so the tests drive it without a page."""
+The shell never touches the Flet page itself: it is handed how to show a snackbar, how to send changes to the screen
+and the stack of views a full-screen form goes on, so the tests drive it without a page."""
 
 from collections.abc import Callable
 from datetime import date
@@ -17,6 +17,7 @@ from home_stock.persistence.catalog import StockError
 APP_TITLE = "Home Stock"
 # How long the undo snackbar offers Cofnij
 UNDO_MILLISECONDS = 8000
+FULL_SCREEN_ROUTE = "/full-screen"
 
 
 class Tab(Protocol):
@@ -82,17 +83,20 @@ class UndoBar:
 
 
 class Shell:
-    """The five tabs on ``engine``, Start first. ``present`` shows a snackbar (Page.show_dialog) and ``update`` sends
-    changed controls to the screen (Page.update)."""
+    """The five tabs on ``engine``, Start first. ``present`` shows a snackbar (Page.show_dialog), ``update`` sends
+    changed controls to the screen (Page.update), and ``views`` is the page's stack of views (Page.views), whose first
+    the shell fills with the tabs and the navigation bar."""
 
     def __init__(
         self,
         engine: Engine,
         present: Callable[[ft.SnackBar], None],
         update: Callable[[], None],
+        views: list[ft.View],
         today: Callable[[], date] = date.today,
     ) -> None:
         self.update = update
+        self.views = views
         self.undo_bar = UndoBar(self.changed, present, update)
         self.ctx = Context(
             engine, today, update, self.changed, self.undo_bar.show, self.show_full_screen, self.close_full_screen
@@ -113,6 +117,10 @@ class Shell:
             on_change=self._selected,
         )
         self.body = ft.Container(self.tabs[0][2].control, expand=True, key="tab-body")
+        tabs_view = views[0]
+        tabs_view.controls = [ft.SafeArea(self.body, expand=True)]
+        tabs_view.navigation_bar = self.navigation_bar
+        tabs_view.padding = 0
 
     def changed(self) -> None:
         self.undo_bar.hide()
@@ -127,13 +135,23 @@ class Shell:
         self.update()
 
     def show_full_screen(self, control: ft.Control) -> None:
-        self.navigation_bar.visible = False
-        self.body.content = control
+        """Push ``control`` as a view over the tabs, so Android's Back pops it."""
+        # A route of its own, so the page never takes it for the tabs' view ("/")
+        self.views.append(
+            ft.View(
+                route=FULL_SCREEN_ROUTE,
+                controls=[ft.SafeArea(control, expand=True)],
+                padding=0,
+                fullscreen_dialog=True,
+            )
+        )
         self.update()
 
     def close_full_screen(self) -> None:
-        self.navigation_bar.visible = True
-        self.select(self.navigation_bar.selected_index)
+        """Back to the tabs, from Anuluj, a save or Android's Back (Page.on_view_pop); never pops the tabs' view."""
+        if len(self.views) > 1:
+            self.views.pop()
+            self.update()
 
     def _selected(self, event: ft.Event[ft.NavigationBar]) -> None:
         self.select(event.control.selected_index)
