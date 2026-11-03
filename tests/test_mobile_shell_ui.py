@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import Engine
 
 from home_stock.mobile import app
-from home_stock.mobile.shell import Shell
+from home_stock.mobile.shell import UNDO_MILLISECONDS, Shell
 from home_stock.persistence.catalog import StockError
 from home_stock.persistence.db import init_db
 from home_stock.persistence.paths import DATA_DIR_ENV
@@ -83,6 +83,15 @@ def test_undo_offers_cofnij_which_takes_the_change_back(shell: Shell, screen: Sc
     assert undone == [True]
     assert tab.refreshes == 2
     assert not snackbar.open
+
+
+def test_the_snackbar_goes_away_on_its_own_even_with_cofnij(shell: Shell, screen: Screen) -> None:
+    shell.ctx.undo("Dodano: Ryż", lambda: None)
+
+    [snackbar] = screen.presented
+    # Flutter keeps a snackbar with an action up until it is tapped, unless told not to persist
+    assert snackbar.persist is False
+    assert snackbar.duration == UNDO_MILLISECONDS
 
 
 def test_a_later_change_withdraws_cofnij(shell: Shell, screen: Screen) -> None:
