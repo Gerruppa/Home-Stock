@@ -34,7 +34,7 @@ def screen() -> Screen:
 
 @pytest.fixture
 def shell(engine: Engine, screen: Screen) -> Shell:
-    return Shell(engine, screen.present, screen.update)
+    return Shell(engine, screen.present, screen.update, screen.views)
 
 
 def test_five_tabs_open_on_start(shell: Shell) -> None:
@@ -63,6 +63,31 @@ def test_a_change_redraws_every_tab(shell: Shell, screen: Screen) -> None:
 
     assert [tab.refreshes for tab in tabs] == [1] * 5
     assert screen.updates == 1
+
+
+def test_a_full_screen_form_is_a_view_over_the_tabs_which_back_closes(shell: Shell, screen: Screen) -> None:
+    select(shell.navigation_bar, 1)
+    tabs = screen.views[0]
+
+    shell.ctx.show_full_screen(ft.Text("Formularz", key="form"))
+
+    assert len(screen.views) == 2
+    assert find(screen.top, "form")
+    assert screen.top.navigation_bar is None
+    # Android's Back pops the top view, which the page passes on (Page.on_view_pop)
+    shell.close_full_screen()
+
+    assert screen.views == [tabs]
+    assert shell.navigation_bar.selected_index == 1
+    assert shell.body.content is shell.tabs[1][2].control
+
+
+def test_back_with_no_form_open_keeps_the_tabs_view(shell: Shell, screen: Screen) -> None:
+    tabs = screen.views[0]
+
+    shell.close_full_screen()
+
+    assert screen.views == [tabs]
 
 
 def test_undo_offers_cofnij_which_takes_the_change_back(shell: Shell, screen: Screen) -> None:

@@ -28,7 +28,7 @@ def main(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
     try:
-        shell = Shell(start_database(), page.show_dialog, page.update)
+        shell = Shell(start_database(), page.show_dialog, page.update, page.views)
     except Exception:
         # No console on a phone: the traceback on screen is the only way to see what broke
         page.add(
@@ -42,8 +42,9 @@ def main(page: ft.Page) -> None:
             )
         )
         return
-    page.navigation_bar = shell.navigation_bar
-    page.add(ft.SafeArea(shell.body, expand=True))
+    # Android's Back asks to pop the top view; with only the tabs' view there is nothing to pop and Back leaves the app
+    page.on_view_pop = lambda _: shell.close_full_screen()
+    page.update()
 
 
 def run() -> None:
