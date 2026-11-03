@@ -7,6 +7,7 @@ import flet as ft
 from home_stock.domain.formatting import format_pack_size, parse_count, parse_pack_size, parse_usual_shelf_life
 from home_stock.domain.stock import BatchDraft, Product, ProductDraft, default_expiry
 from home_stock.mobile.context import Context
+from home_stock.mobile.fields import show_error, text_field
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.products import (
     DuplicateProductError,
@@ -19,26 +20,11 @@ from home_stock.persistence.products import (
 )
 
 
-def _field(label: str, value: str, key: str, *, number: bool = False, hint: str | None = None) -> ft.TextField:
-    return ft.TextField(
-        label=label,
-        value=value,
-        hint_text=hint,
-        keyboard_type=ft.KeyboardType.NUMBER if number else ft.KeyboardType.TEXT,
-        key=key,
-    )
-
-
-def _show_error(field: ft.TextField, message: str | None) -> None:
-    # A Text rather than a string, so the tests read it as the user does
-    field.error = None if message is None else ft.Text(message, color=ft.Colors.ERROR, size=12)
-
-
 def open_product_form(ctx: Context, product: Product | None = None) -> None:
     """A new Product when ``product`` is None, else that Product's fields filled in for editing."""
     categories = list_categories(ctx.engine)
     units = list_units(ctx.engine)
-    name = _field("Nazwa", "" if product is None else product.name, "name")
+    name = text_field("Nazwa", "" if product is None else product.name, "name")
     # Shown when a new Product's name exists: offers the first Batch to the existing Product instead, or, when it is
     # Archived, restoring it
     duplicate_offer = ft.Column(key="duplicate-offer")
@@ -63,7 +49,7 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
         expand=True,
         key="unit",
     )
-    pack_size = _field(
+    pack_size = text_field(
         "Rozmiar opakowania (opcjonalnie)",
         "" if product is None or product.pack_size is None else format_pack_size(product.pack_size),
         "pack-size",
@@ -71,8 +57,8 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
     )
     # Cleared, the Product has no Minimum Stock and never goes on the Shopping List
     minimum_text = "1" if product is None else "" if product.minimum_stock is None else str(product.minimum_stock)
-    minimum_stock = _field("Stan minimalny", minimum_text, "minimum-stock", number=True)
-    usual_shelf_life = _field(
+    minimum_stock = text_field("Stan minimalny", minimum_text, "minimum-stock", number=True)
+    usual_shelf_life = text_field(
         "Zwykle ważne, dni (opcjonalnie)",
         "" if product is None or product.usual_shelf_life_days is None else str(product.usual_shelf_life_days),
         "shelf-life",
@@ -81,16 +67,16 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
     )
     # Batches of an existing Product are edited on its card, not here
     first_quantity = (
-        None if product is not None else _field("Ilość na start (opcjonalnie)", "", "first-quantity", number=True)
+        None if product is not None else text_field("Ilość na start (opcjonalnie)", "", "first-quantity", number=True)
     )
 
     def parsed[T](field: ft.TextField, parse: Callable[[str], T]) -> tuple[T | None, bool]:
         try:
             value = parse(field.value or "")
         except ValueError as error:
-            _show_error(field, str(error))
+            show_error(field, str(error))
             return None, False
-        _show_error(field, None)
+        show_error(field, None)
         return value, True
 
     def save(_: ft.Event[ft.Button]) -> None:
@@ -117,13 +103,13 @@ def open_product_form(ctx: Context, product: Product | None = None) -> None:
             else:
                 update_product(ctx.engine, product.id, draft)
         except DuplicateProductError as error:
-            _show_error(name, str(error))
+            show_error(name, str(error))
             if product is None:
                 offer_existing(error, first_batch)
             ctx.update()
             return
         except StockError as error:
-            _show_error(name, str(error))
+            show_error(name, str(error))
             ctx.update()
             return
         ctx.close_full_screen()

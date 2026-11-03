@@ -65,6 +65,8 @@ class Screen:
     presented: list[ft.SnackBar] = field(default_factory=list)
     updates: int = 0
     views: list[ft.View] = field(default_factory=lambda: [ft.View()])
+    # The top view's texts as last sent to the screen: a control changed after the latest update never shows
+    shown: list[str] = field(default_factory=list)
 
     @property
     def top(self) -> ft.View:
@@ -78,3 +80,4 @@ class Screen:
 
     def update(self, *_: Any) -> None:
         self.updates += 1
+        self.shown = texts(self.top)
