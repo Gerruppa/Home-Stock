@@ -1,0 +1,23 @@
+[project]
+name = "home-stock-mobile-prototype"
+version = "0.1.0"
+description = "Throwaway prototype: Home Stock's Produkty tab on Android through Flet"
+requires-python = ">=3.14"
+dependencies = [
+    "flet>=1.0.5",
+    # The newest SQLAlchemy with an Android wheel on pypi.flet.dev; the app itself asks for 2.1
+    "sqlalchemy==2.0.50",
+    "alembic>=1.20",
+    "platformdirs>=4.12",
+]
+
+[tool.flet]
+product = "Home Stock"
+org = "pl.gerruppa"
+
+[tool.flet.app]
+path = "src"
+
+# Alembic finds the migrations by their .py files, which the default .pyc compilation removes
+[tool.flet.compile]
+app = false
