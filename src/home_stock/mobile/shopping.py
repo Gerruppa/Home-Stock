@@ -6,6 +6,7 @@ import flet as ft
 from home_stock.domain.formatting import format_purchase_amount, format_quantity, format_shopping_reason
 from home_stock.mobile.context import Context
 from home_stock.mobile.purchase_dialog import open_purchase_dialog
+from home_stock.mobile.unpacking_dialog import open_unpacking_dialog
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.products import list_shopping_list, shopping_list_text, suggested_purchases
 
@@ -30,27 +31,33 @@ class ShoppingTab:
     def refresh(self) -> None:
         engine = self.ctx.engine
         entries = list_shopping_list(engine, self.ctx.today())
+        # Rozpakuj zakupy even with nothing to buy: it also takes Products from outside the list
+        buttons: list[ft.Control] = [
+            ft.OutlinedButton(
+                "Rozpakuj zakupy",
+                icon=ft.Icons.INVENTORY_2_OUTLINED,
+                on_click=lambda _: open_unpacking_dialog(self.ctx),
+                key="unpack",
+            )
+        ]
+        if entries:
+            buttons += [
+                ft.OutlinedButton(
+                    "Kopiuj listę", icon=ft.Icons.CONTENT_COPY, on_click=lambda _: self._copy(), key="copy-list"
+                ),
+                ft.OutlinedButton(
+                    "Udostępnij", icon=ft.Icons.SHARE, on_click=lambda _: self._share(), key="share-list"
+                ),
+            ]
+        rows: list[ft.Control] = [
+            ft.Container(ft.Row(buttons, wrap=True), padding=ft.Padding.symmetric(horizontal=12, vertical=8))
+        ]
         if not entries:
-            self.content.controls = [ft.Container(ft.Text("Nic nie trzeba kupować."), padding=16, key="nothing-to-buy")]
+            rows.append(ft.Container(ft.Text("Nic nie trzeba kupować."), padding=16, key="nothing-to-buy"))
+            self.content.controls = rows
             return
         amounts = suggested_purchases(engine, [entry.product for entry in entries], self.ctx.today())
         units = {unit.id: unit for unit in list_units(engine)}
-        rows: list[ft.Control] = [
-            ft.Container(
-                ft.Row(
-                    [
-                        ft.OutlinedButton(
-                            "Kopiuj listę", icon=ft.Icons.CONTENT_COPY, on_click=lambda _: self._copy(), key="copy-list"
-                        ),
-                        ft.OutlinedButton(
-                            "Udostępnij", icon=ft.Icons.SHARE, on_click=lambda _: self._share(), key="share-list"
-                        ),
-                    ],
-                    wrap=True,
-                ),
-                padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-            )
-        ]
         for category in list_categories(engine):
             shown = [entry for entry in entries if entry.product.category_id == category.id]
             if not shown:

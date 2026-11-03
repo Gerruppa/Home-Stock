@@ -162,7 +162,18 @@ def test_a_purchase_from_the_list_can_be_undone_and_the_product_returns(engine: 
     assert get_product(engine, chusteczki) == original
 
 
-def test_with_a_rate_the_list_and_kupione_suggest_enough_to_cover_the_buffer(engine: Engine, screen: Screen) -> None:
+def test_a_product_running_out_is_on_unpacking(engine: Engine, screen: Screen) -> None:
+    cukier = _running_out(engine)
+    body = _open(engine, screen)
+
+    tap(find(body, "unpack"))
+
+    assert find(screen.top, f"unpack-row-{cukier}")
+
+
+def test_with_a_rate_the_list_kupione_and_unpacking_suggest_enough_to_cover_the_buffer(
+    engine: Engine, screen: Screen
+) -> None:
     cukier = _running_out(engine)
     update_product(engine, cukier, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=1))
     # A fifth of a Unit a day over a Buffer of 7 is 2 Units above the Minimum Stock of 1; 1 is there: buy 2
@@ -177,6 +188,10 @@ def test_with_a_rate_the_list_and_kupione_suggest_enough_to_cover_the_buffer(eng
     tap(screen.presented[-1], "on_action")
 
     assert "kup 2 opak." in texts(find(body, f"shopping-{cukier}"))
+    tap(find(body, "unpack"))
+    unpack_quantity = find(screen.top, f"unpack-quantity-{cukier}")
+    assert isinstance(unpack_quantity, ft.TextField)
+    assert unpack_quantity.value == "2"
 
 
 def test_a_product_lasting_beyond_a_smaller_buffer_is_not_listed(engine: Engine, screen: Screen) -> None:
