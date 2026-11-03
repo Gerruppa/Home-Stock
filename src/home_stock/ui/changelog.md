@@ -3,7 +3,7 @@
 ## Nieopublikowane
 
 ### Nowe funkcje
-- W aplikacji na Androida działają już Start, Produkty (z kartą produktu, dodawaniem i edycją) oraz Zakupy z rozpakowaniem zakupów; listę zakupów można skopiować albo udostępnić, a dane zostają na telefonie.
+- W aplikacji na Androida działają już Start, Produkty (z kartą produktu, dodawaniem i edycją), Zakupy z rozpakowaniem zakupów oraz Historia (marnowanie z 30 i 90 dni, ostatnie zdarzenia i szukanie po nazwie produktu); listę zakupów można skopiować albo udostępnić, a dane zostają na telefonie.
 
 ## 0.4.0 — 2026-11-02
 
