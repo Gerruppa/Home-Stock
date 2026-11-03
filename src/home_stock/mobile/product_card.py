@@ -233,28 +233,22 @@ def _batch_row(ctx: Context, product: Product, batch: Batch, warning_days: int) 
         "Termin ważności", "" if batch.expiry is None else format_date(batch.expiry), f"batch-expiry-{batch.id}"
     )
     expiry.expand = True
+    # Under the row, for a problem with either field or with the Batch itself (changed meanwhile)
+    error = ft.Text("", color=ft.Colors.ERROR, size=12, visible=False, key=f"batch-error-{batch.id}")
+
+    def fail(problem: Exception) -> None:
+        error.value = str(problem)
+        error.visible = True
+        ctx.update()
 
     def save(_: object) -> None:
-        show_error(quantity, None)
-        show_error(expiry, None)
         try:
-            count = parse_count(quantity.value or "") or 0
-        except ValueError as problem:
-            show_error(quantity, str(problem))
-            ctx.update()
-            return
-        try:
+            quantity_left = parse_count(quantity.value or "") or 0
             # A Quantity of 0 removes the Batch, so its date no longer matters
-            when = parse_date(expiry.value or "") if count else None
-        except ValueError as problem:
-            show_error(expiry, str(problem))
-            ctx.update()
-            return
-        try:
-            edit_batch(ctx.engine, batch.id, count, when, ctx.today())
-        except StockError as problem:
-            show_error(quantity, str(problem))
-            ctx.update()
+            when = parse_date(expiry.value or "") if quantity_left else None
+            edit_batch(ctx.engine, batch.id, quantity_left, when, ctx.today())
+        except (ValueError, StockError) as problem:
+            fail(problem)
             return
         ctx.changed()
 
@@ -263,8 +257,7 @@ def _batch_row(ctx: Context, product: Product, batch: Batch, warning_days: int) 
         try:
             discarded = discard_batch(engine, batch.id, ctx.today())
         except StockError as problem:
-            show_error(quantity, str(problem))
-            ctx.update()
+            fail(problem)
             return
         ctx.changed()
         ctx.undo(f"Wyrzucono partię: {product.name}", lambda: undo_discard(engine, discarded))
@@ -287,6 +280,7 @@ def _batch_row(ctx: Context, product: Product, batch: Batch, warning_days: int) 
                         ),
                     ]
                 ),
+                error,
             ],
             spacing=0,
         ),

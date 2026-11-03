@@ -52,6 +52,7 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
         # MissingBatchError, shown in the snackbar, when the Batch is already gone
         ctx.undo(f"Zakupiono: {product.name}", lambda: undo_purchase(engine, purchased))
 
+    quantity.on_submit = save
     expiry.on_submit = save
     ctx.show_full_screen(
         ft.Column(

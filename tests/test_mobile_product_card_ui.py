@@ -259,7 +259,9 @@ def test_card_lists_its_stock_events_newest_first_and_cofnij_takes_one_back(
     assert "Zakup" in shown
 
 
-def test_a_discard_and_a_correction_are_listed(shell: Shell, engine: Engine, screen: Screen, mleko: int) -> None:
+def test_a_discard_and_a_correction_are_listed_and_cofnij_takes_the_discard_back(
+    shell: Shell, engine: Engine, screen: Screen, mleko: int
+) -> None:
     first, second = get_product(engine, mleko).batches
     _open(screen, mleko)
 
@@ -270,6 +272,38 @@ def test_a_discard_and_a_correction_are_listed(shell: Shell, engine: Engine, scr
     shown = texts(find(screen.top, "card-history"))
     assert "27.10.2026 · Wyrzucenie · −2 szt." in shown
     assert "27.10.2026 · Korekta · +2 szt." in shown
+
+    tap(_snackbar(screen), "on_action")
+
+    shown = texts(find(screen.top, "card-history"))
+    assert not any("Wyrzucenie" in line for line in shown)
+    assert any("Korekta" in line for line in shown)
+
+
+def test_two_uses_from_produkty_leave_the_later_batch_on_the_card(
+    shell: Shell, engine: Engine, screen: Screen, mleko: int
+) -> None:
+    tap(find(screen.top, f"use-{mleko}"))
+    tap(find(screen.top, f"use-{mleko}"))
+
+    _open(screen, mleko)
+
+    assert _expiries(screen, engine, mleko) == ["12.11.2026"]
+    assert "Razem: 3 szt." in texts(_card(screen))
+
+
+def test_a_batch_changed_meanwhile_shows_why_under_its_row(
+    shell: Shell, engine: Engine, screen: Screen, mleko: int
+) -> None:
+    first = _batch(engine, mleko, date(2026, 10, 30))
+    _open(screen, mleko)
+    # Gone meanwhile, e.g. Used from a second screen
+    use_units(engine, mleko, 2, TODAY)
+
+    tap(find(screen.top, f"discard-{first}"))
+
+    assert texts(find(screen.top, f"batch-error-{first}")) == ["Tej partii już nie ma."]
+    assert get_product(engine, mleko).quantity == 3
 
 
 def _card_on_its_own(engine: Engine, screen: Screen, product_id: int, today: date = TODAY) -> Shell:
