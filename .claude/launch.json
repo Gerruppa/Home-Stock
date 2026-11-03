@@ -14,6 +14,18 @@
       "runtimeArgs": ["main.py", "--demo", "--port", "8766"],
       "env": { "PYTHONPATH": "src" },
       "port": 8766
+    },
+    {
+      "name": "home-stock-android",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["src/android_main.py"],
+      "env": {
+        "PYTHONPATH": "src",
+        "FLET_FORCE_WEB_SERVER": "true",
+        "FLET_SERVER_PORT": "8770",
+        "FLET_APP_STORAGE_DATA": ".preview-data/android"
+      },
+      "port": 8770
     }
   ]
 }
