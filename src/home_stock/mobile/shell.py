@@ -46,7 +46,8 @@ class UndoBar:
         self.changed = changed
         self.present = present
         self.update = update
-        self.snackbar = ft.SnackBar(ft.Text(""), duration=UNDO_MILLISECONDS, key="undo-bar")
+        # Without persist=False, Flutter keeps a snackbar with an action (Cofnij) up until it is tapped
+        self.snackbar = ft.SnackBar(ft.Text(""), duration=UNDO_MILLISECONDS, persist=False, key="undo-bar")
 
     def show(self, message: str, action: Callable[[], None]) -> None:
         def undo(_: ft.Event[ft.SnackBar]) -> None:
