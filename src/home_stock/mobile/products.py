@@ -6,6 +6,7 @@ from home_stock.domain.formatting import format_days_left, format_quantity
 from home_stock.domain.history import days_left
 from home_stock.domain.stock import Product, is_running_low, name_key
 from home_stock.mobile.context import Context
+from home_stock.mobile.product_card import open_product_card
 from home_stock.mobile.product_form import open_product_form
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.history import consumption_rates
@@ -98,6 +99,7 @@ class ProductsTab:
                             tight=True,
                         ),
                         dense=True,
+                        on_click=lambda _, p=product: open_product_card(self.ctx, p.id),
                         key=f"product-{product.id}",
                     )
                 )
