@@ -13,6 +13,7 @@ from home_stock.persistence.db import MIGRATIONS_DIR, init_db, open_engine
 from home_stock.persistence.products import (
     DuplicateProductError,
     MissingBatchError,
+    ProductInUseError,
     ProductsInUseError,
     add_product,
     add_products,
@@ -26,6 +27,7 @@ from home_stock.persistence.products import (
     purchase_many,
     remove_new_products,
     restore_product,
+    undo_add_product,
     undo_discard,
     undo_purchase,
     undo_use,
@@ -414,3 +416,26 @@ def test_remove_new_products_refuses_all_once_one_has_a_batch_or_a_stock_event_o
     with pytest.raises(ProductsInUseError):
         remove_new_products(engine, (sol, cukier + 100))
     assert len(list_products(engine)) == 2
+
+
+def test_remove_new_product_takes_back_add_product_with_its_first_batch(engine: Engine) -> None:
+    kept = add_product(engine, ProductDraft("Mąka", SPOZYWCZE, OPAKOWANIE), BatchDraft(1))
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
+
+    undo_add_product(engine, mleko)
+
+    assert [(product.id, product.quantity) for product in list_products(engine)] == [(kept, 1)]
+    # Its name is free again
+    add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA))
+
+
+def test_remove_new_product_refuses_once_it_has_a_stock_event_or_is_gone(engine: Engine) -> None:
+    mleko = add_product(engine, ProductDraft("Mleko", SPOZYWCZE, SZTUKA), BatchDraft(2))
+    use_one(engine, mleko, TODAY)
+
+    with pytest.raises(ProductInUseError, match="Nie można cofnąć"):
+        undo_add_product(engine, mleko)
+    assert get_product(engine, mleko).quantity == 1
+
+    with pytest.raises(ProductInUseError):
+        undo_add_product(engine, mleko + 100)

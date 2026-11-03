@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+import flet as ft
 from sqlalchemy import Engine
 
 
@@ -19,3 +20,6 @@ class Context:
     # StockError from the action (changed meanwhile) shows its message in the snackbar instead. Call it after
     # changed(), which hides the snackbar
     undo: Callable[[str, Callable[[], None]], None]
+    # Covers the tabs and the navigation bar with a form, the phone's dialog, until close_full_screen()
+    show_full_screen: Callable[[ft.Control], None]
+    close_full_screen: Callable[[], None]
