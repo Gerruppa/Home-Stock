@@ -10,10 +10,15 @@ Work is tracked in GitHub Issues on Gerruppa/Home-Stock (label `ready-for-agent`
 
 ## Layout
 
-`src/home_stock/` in four layers, as in KAPITA: `domain/` (pure-Python rules: Product, Batch, Running Low, Expiry Status, Polish formatting), `persistence/` (SQLite through SQLAlchemy, Alembic migrations), `sources/` (`demo_data.py`, the made-up stock for `--demo`; importers go here too) and `ui/` (NiceGUI: `shell.py` builds the tabs and the undo bar, each tab gets a `Context` from `ui/context.py`).
+`src/home_stock/` in layers, as in KAPITA:
+- `domain/`: pure-Python rules (Product, Batch, Running Low, Expiry Status, Polish formatting).
+- `persistence/`: SQLite through SQLAlchemy, Alembic migrations.
+- `sources/`: `demo_data.py`, the made-up stock for `--demo`; importers go here too.
+- `ui/`: the Windows app in NiceGUI. `shell.py` builds the tabs and the undo bar, and each tab gets a `Context` from `ui/context.py`.
+- `mobile/`: the Android app in Flet (ADR-0004), replacing `ui/` tab by tab (#99). `shell.py` builds the bottom navigation bar and the undo snackbar, and each tab gets a `Context` from `mobile/context.py`. `src/android_main.py` starts it.
 
 Rules no config enforces:
-- `domain/` never imports NiceGUI, SQLAlchemy, Alembic or pywebview (`tests/test_architecture.py` checks).
+- `domain/` never imports NiceGUI, Flet, SQLAlchemy, Alembic or pywebview; `mobile/` and `ui/` never import each other (`tests/test_architecture.py` checks).
 - The schema changes only through a new migration in `persistence/migrations/versions/`; `tests/test_database.py` fails when models and migrations drift. The database lives in the user's app-data folder (`HOME_STOCK_DATA_DIR` overrides it), never in the repo.
 - UI text is Polish; code, DB names and docs English. Errors for the user carry a Polish message; which layer raises which is in `CODING_STANDARDS.md`.
 - A change made through the UI calls `ctx.changed()` (redraws every tab, withdraws the undo bar) and then, if it can be undone, `ctx.undo(message, action)`.
@@ -29,6 +34,10 @@ UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` marke
 - `should_see` reads text, labels and values, not props: show a form error as a `ui.label`, not as the `error-message` prop.
 - `user.find(...)` raises when nothing matches: check that an element is absent with `should_not_see(marker=...)`.
 
+The Android app's tabs are tested as `tests/test_mobile_<tab>_ui.py`, in plain Python, without a page, a phone or Flutter:
+- Flet controls are dataclasses. `tests/mobile_ui.py` walks their tree, so `find(root, key)` and `absent(root, key)` use the `key=` given to a control. `texts(root)` returns what the user reads, and `tap(control)` (or `tap(snackbar, "on_action")`) calls the handler a tap would.
+- Nothing in `mobile/` touches the page or calls a control's own `update()`, which fails off the page. The shell is handed how to show a snackbar and how to send changes to the screen, and `mobile_ui.Screen` stands in for both. Keys share one namespace across the tabs, as markers do.
+
 ## Releasing
 
 The changelog `src/home_stock/ui/changelog.md` (Polish) collects, under `## Nieopublikowane`, one sentence per change the user sees, without issue numbers. A release takes two steps of `scripts/release.py`:
@@ -42,6 +51,11 @@ Try an installer in the scratchpad: `Home-Stock-<X.Y.Z>-setup.exe /DIR="<scratch
 - Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`. A worktree's `.venv` is the main checkout's, whose editable install imports the main checkout's `src/`: pytest, mypy and both previews set `src` themselves; give anything else run from a worktree (`main.py`, a `python -c` probe) `PYTHONPATH=src`.
 - Windows host. Use the venv interpreter directly, without relying on activation:
   - Run the app: `.venv/Scripts/python.exe main.py` (`--browser` serves on http://127.0.0.1:8080; `--demo` serves there too, on a fresh database of made-up Products in `%TEMP%/Home-Stock-demo`, recreated on every start). To look at a change, start the preview `home-stock` from `.claude/launch.json` (port 8765, scratch database in `.preview-data/`), or `home-stock-demo` (port 8766) for a page already full of data.
+  - The Android app: the preview `home-stock-android` (port 8770, scratch database in `.preview-data/android`) shows it in the browser.
+  - Build the APK from `android/` (Windows Developer Mode must be on): `PIP_PROGRESS_BAR=off PYTHONUTF8=1 ../.venv/Scripts/flet.exe build apk --yes --arch arm64-v8a --no-rich-output`.
+    - Without `PIP_PROGRESS_BAR=off` the pip it runs hangs after downloading, and without `PYTHONUTF8=1` it crashes on a cp1250 console.
+    - The first build downloads Flutter, a JDK and the Android SDK and takes about half an hour; run it in the background.
+    - The APK lands in `android/build/apk/`.
   - Tests: `.venv/Scripts/python.exe -m pytest -n auto`. No CI: pre-commit runs them with ruff and mypy whenever a commit touches Python files.
   - Type check: `.venv/Scripts/python.exe -m mypy` (strict)
   - Lint and format: `.venv/Scripts/python.exe -m ruff check .` and `.venv/Scripts/python.exe -m ruff format .`

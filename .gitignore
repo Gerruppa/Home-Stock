@@ -20,3 +20,7 @@ graphify-out/
 # Local Claude Code state
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Android build output (android/pyproject.toml) and Flet storage of flet run
+android/build/
+.flet/

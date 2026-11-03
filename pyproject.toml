@@ -6,7 +6,9 @@ requires-python = ">=3.14"
 dependencies = [
     "nicegui>=3.18",
     "pywebview>=6.2",
-    "sqlalchemy>=2.1",
+    "flet>=1.0.5",
+    # 2.0.50 is the newest SQLAlchemy with an Android wheel (android/pyproject.toml)
+    "sqlalchemy>=2.0.50",
     "alembic>=1.20",
     "platformdirs>=4.12",
 ]
@@ -20,6 +22,8 @@ dev = [
     "pre-commit>=4.7",
     "mypy>=2.4",
     "ruff>=0.16",
+    # flet run, the home-stock-android preview and flet build apk
+    "flet[all]>=1.0.5",
 ]
 # Builds the Windows installer (scripts/build_installer.ps1) and the icons (scripts/make_icons.py)
 build = [
