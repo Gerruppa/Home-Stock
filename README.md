@@ -1,6 +1,8 @@
 # Home Stock
 
-A desktop app for Windows (NiceGUI in a native window, SQLite).
+Tracks household stock by hand and reminds you what is running low or about to expire. Today it is a desktop app for
+Windows (NiceGUI in a native window, SQLite). It is moving to an Android app built with Flet, with the data on the
+phone (ADR-0004). The Windows app stays until the Android app has every feature (#99).
 
 ## Install from the installer
 
@@ -65,6 +67,36 @@ Every start takes a Backup of the database into `backups\` in the data folder be
 
 Without a console (the installed app, or `home-stock-gui`), the output goes to `home_stock.log` in the data folder,
 overwritten at each start.
+
+## The Android app
+
+`src/home_stock/mobile/` rewrites the UI tab by tab in Flet. `domain/`, `persistence/` and `sources/` are shared with
+the Windows app. Start, Produkty (with the Product card and form) and Zakupy (with Unpacking) work. Historia and
+Ustawienia still show "Wkrótce".
+
+To look at it in a browser on http://localhost:8770, on a scratch database in `.preview-data\android`:
+
+```
+$env:FLET_FORCE_WEB_SERVER = "true"; $env:FLET_SERVER_PORT = "8770"; $env:FLET_APP_STORAGE_DATA = ".preview-data\android"
+.venv\Scripts\python.exe src\android_main.py
+```
+
+On the phone the database lives in the app's private folder, with a Backup before migrations as on Windows. Nothing
+syncs with the Windows app, and nothing is copied over from it.
+
+### Build the APK
+
+Build from `android\`, whose `pyproject.toml` packs `src\` without the Windows app. Windows Developer Mode must be on.
+The first build downloads Flutter, a JDK and the Android SDK, and takes about half an hour.
+
+```
+cd android
+$env:PIP_PROGRESS_BAR = "off"; $env:PYTHONUTF8 = "1"
+..\.venv\Scripts\flet.exe build apk --yes --arch arm64-v8a --no-rich-output
+```
+
+Without `PIP_PROGRESS_BAR=off` the pip it runs hangs after downloading, and without `PYTHONUTF8=1` it crashes on a
+cp1250 console. The APK lands in `android\build\apk\`; install it on the phone by hand.
 
 ## Checks
 
