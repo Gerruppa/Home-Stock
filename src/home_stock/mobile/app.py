@@ -27,8 +27,17 @@ def main(page: ft.Page) -> None:
     page.title = APP_TITLE
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
+    # Services register with the page as they are made; copy and share hold them for as long as the shell lives
+    clipboard, share_sheet = ft.Clipboard(), ft.Share()
+
+    def copy(text: str) -> None:
+        page.run_task(clipboard.set, text)
+
+    def share(text: str) -> None:
+        page.run_task(share_sheet.share_text, text)
+
     try:
-        shell = Shell(start_database(), page.show_dialog, page.update, page.views)
+        shell = Shell(start_database(), page.show_dialog, page.update, page.views, copy, share)
     except Exception:
         # No console on a phone: the traceback on screen is the only way to see what broke
         page.add(

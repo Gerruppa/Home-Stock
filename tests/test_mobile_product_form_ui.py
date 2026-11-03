@@ -33,7 +33,7 @@ def screen() -> Screen:
 
 @pytest.fixture
 def shell(engine: Engine, screen: Screen) -> Shell:
-    shell = Shell(engine, screen.present, screen.update, screen.views, today=lambda: TODAY)
+    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: TODAY)
     select(shell.navigation_bar, PRODUCTS_TAB)
     return shell
 

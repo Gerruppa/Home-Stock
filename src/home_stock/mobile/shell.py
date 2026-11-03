@@ -1,7 +1,7 @@
 """The screen: the five tabs behind a bottom navigation bar, which all redraw after any change, and the undo snackbar.
 
-The shell never touches the Flet page itself: it is handed how to show a snackbar, how to send changes to the screen
-and the stack of views a full-screen form goes on, so the tests drive it without a page."""
+The shell never touches the Flet page itself: it is handed how to show a snackbar, how to send changes to the screen,
+the stack of views a full-screen form goes on and how to copy or share text, so the tests drive it without a page."""
 
 from collections.abc import Callable
 from datetime import date
@@ -12,6 +12,7 @@ from sqlalchemy import Engine
 
 from home_stock.mobile.context import Context
 from home_stock.mobile.products import ProductsTab
+from home_stock.mobile.shopping import ShoppingTab
 from home_stock.persistence.catalog import StockError
 
 APP_TITLE = "Home Stock"
@@ -85,8 +86,9 @@ class UndoBar:
 
 class Shell:
     """The five tabs on ``engine``, Start first. ``present`` shows a snackbar (Page.show_dialog), ``update`` sends
-    changed controls to the screen (Page.update), and ``views`` is the page's stack of views (Page.views), whose first
-    the shell fills with the tabs and the navigation bar."""
+    changed controls to the screen (Page.update), ``views`` is the page's stack of views (Page.views), whose first
+    the shell fills with the tabs and the navigation bar, and ``copy`` and ``share`` hand text to the clipboard and
+    the share sheet (Clipboard.set, Share.share_text)."""
 
     def __init__(
         self,
@@ -94,18 +96,29 @@ class Shell:
         present: Callable[[ft.SnackBar], None],
         update: Callable[[], None],
         views: list[ft.View],
+        copy: Callable[[str], None],
+        share: Callable[[str], None],
         today: Callable[[], date] = date.today,
     ) -> None:
         self.update = update
         self.views = views
         self.undo_bar = UndoBar(self.changed, present, update)
         self.ctx = Context(
-            engine, today, update, self.changed, self.undo_bar.show, self.show_full_screen, self.close_full_screen
+            engine=engine,
+            today=today,
+            update=update,
+            changed=self.changed,
+            undo=self.undo_bar.show,
+            say=self.undo_bar.say,
+            copy=copy,
+            share=share,
+            show_full_screen=self.show_full_screen,
+            close_full_screen=self.close_full_screen,
         )
         self.tabs: list[tuple[ft.IconData, str, Tab]] = [
             (ft.Icons.HOME_OUTLINED, "Start", ComingSoonTab()),
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
-            (ft.Icons.CHECKLIST, "Zakupy", ComingSoonTab()),
+            (ft.Icons.CHECKLIST, "Zakupy", ShoppingTab(self.ctx)),
             (ft.Icons.HISTORY, "Historia", ComingSoonTab()),
             (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", ComingSoonTab()),
         ]

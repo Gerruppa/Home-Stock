@@ -2,32 +2,18 @@
 through the Purchase dialog."""
 
 import json
-from datetime import date
 
 from nicegui import ui
-from sqlalchemy import Engine
 
-from home_stock.domain.formatting import (
-    format_purchase_amount,
-    format_quantity,
-    format_shopping_list,
-    format_shopping_reason,
-)
+from home_stock.domain.formatting import format_purchase_amount, format_quantity, format_shopping_reason
 from home_stock.persistence.catalog import list_categories, list_units
-from home_stock.persistence.products import list_shopping_list, suggested_purchases
+from home_stock.persistence.products import list_shopping_list, shopping_list_text, suggested_purchases
 from home_stock.ui.context import Context
 from home_stock.ui.purchase_dialog import open_purchase_dialog
 from home_stock.ui.unpacking_dialog import open_unpacking_dialog
 
 # Where "Drukuj" opens the printable list (served by print_list.py)
 PRINT_PATH = "/drukuj"
-
-
-def shopping_list_text(engine: Engine, today: date) -> str:
-    """The Shopping List as plain text, what "Kopiuj listę" copies and the printable page shows."""
-    units = {unit.id: unit for unit in list_units(engine)}
-    products = [entry.product for entry in list_shopping_list(engine, today)]
-    return format_shopping_list(list_categories(engine), units, products, suggested_purchases(engine, products, today))
 
 
 class ShoppingTab:
@@ -55,10 +41,11 @@ class ShoppingTab:
                     "Rozpakuj zakupy", icon="inventory_2", on_click=lambda: open_unpacking_dialog(self.ctx)
                 ).props("dense outline").mark("unpack")
                 if products:
-                    text = format_shopping_list(categories, units, products, amounts)
-                    ui.button("Kopiuj listę", icon="content_copy", on_click=lambda: self._copy_list(text)).props(
-                        "dense outline"
-                    ).mark("copy-list")
+                    ui.button(
+                        "Kopiuj listę",
+                        icon="content_copy",
+                        on_click=lambda: self._copy_list(shopping_list_text(engine, self.ctx.today())),
+                    ).props("dense outline").mark("copy-list")
                     # A new window, so the list stays on screen; the native window hands it to the default browser
                     ui.button("Drukuj", icon="print", on_click=lambda: ui.navigate.to(PRINT_PATH, new_tab=True)).props(
                         "dense outline"
