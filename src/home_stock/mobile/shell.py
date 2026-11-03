@@ -11,6 +11,7 @@ import flet as ft
 from sqlalchemy import Engine
 
 from home_stock.mobile.context import Context
+from home_stock.mobile.history import HistoryTab
 from home_stock.mobile.products import ProductsTab
 from home_stock.mobile.shopping import ShoppingTab
 from home_stock.mobile.start import StartTab
@@ -120,7 +121,7 @@ class Shell:
             (ft.Icons.HOME_OUTLINED, "Start", StartTab(self.ctx)),
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
             (ft.Icons.CHECKLIST, "Zakupy", ShoppingTab(self.ctx)),
-            (ft.Icons.HISTORY, "Historia", ComingSoonTab()),
+            (ft.Icons.HISTORY, "Historia", HistoryTab(self.ctx)),
             (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", ComingSoonTab()),
         ]
         self.navigation_bar = ft.NavigationBar(
