@@ -59,11 +59,13 @@ def select(bar: ft.NavigationBar, index: int) -> None:
 
 @dataclass
 class Screen:
-    """Stands in for the page: records the snackbars shown and how often controls were sent to the screen, and holds
-    the page's stack of views, the tabs' first."""
+    """Stands in for the page: records the snackbars shown, how often controls were sent to the screen and the texts
+    put on the clipboard or shared, and holds the page's stack of views, the tabs' first."""
 
     presented: list[ft.SnackBar] = field(default_factory=list)
     updates: int = 0
+    copied: list[str] = field(default_factory=list)
+    shared: list[str] = field(default_factory=list)
     views: list[ft.View] = field(default_factory=lambda: [ft.View()])
     # The top view's texts as last sent to the screen: a control changed after the latest update never shows
     shown: list[str] = field(default_factory=list)
@@ -77,6 +79,12 @@ class Screen:
         # Page.show_dialog opens it
         snackbar.open = True
         self.presented.append(snackbar)
+
+    def copy(self, text: str) -> None:
+        self.copied.append(text)
+
+    def share(self, text: str) -> None:
+        self.shared.append(text)
 
     def update(self, *_: Any) -> None:
         self.updates += 1

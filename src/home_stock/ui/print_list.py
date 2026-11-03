@@ -6,7 +6,8 @@ from datetime import date
 from nicegui import ui
 from sqlalchemy import Engine
 
-from home_stock.ui.shopping import PRINT_PATH, shopping_list_text
+from home_stock.persistence.products import shopping_list_text
+from home_stock.ui.shopping import PRINT_PATH
 
 
 def register_print_page(engine: Engine, today: Callable[[], date] = date.today) -> None:

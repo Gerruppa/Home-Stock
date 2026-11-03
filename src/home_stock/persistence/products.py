@@ -6,6 +6,7 @@ from datetime import date
 
 from sqlalchemy import ColumnElement, Connection, Engine, delete, insert, select, update
 
+from home_stock.domain.formatting import format_shopping_list
 from home_stock.domain.history import StockEventKind
 from home_stock.domain.stock import (
     Batch,
@@ -21,7 +22,7 @@ from home_stock.domain.stock import (
     units_to_use,
     use_order,
 )
-from home_stock.persistence.catalog import StockError
+from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.history import consumption_rates, record_event, remove_events
 from home_stock.persistence.models import BatchRow, ProductRow, StockEventRow
 from home_stock.persistence.settings import load_buffer_days
@@ -176,6 +177,14 @@ def suggested_purchases(engine: Engine, products: Sequence[Product], today: date
     List, the Purchase dialog and Unpacking show."""
     rates, buffer_days = consumption_rates(engine, today), load_buffer_days(engine)
     return {product.id: suggested_purchase(product, rates.get(product.id), buffer_days) for product in products}
+
+
+def shopping_list_text(engine: Engine, today: date) -> str:
+    """The Shopping List as plain text, what "Kopiuj listę" copies, "Udostępnij" shares and the printable page
+    shows."""
+    units = {unit.id: unit for unit in list_units(engine)}
+    products = [entry.product for entry in list_shopping_list(engine, today)]
+    return format_shopping_list(list_categories(engine), units, products, suggested_purchases(engine, products, today))
 
 
 def get_product(engine: Engine, product_id: int) -> Product:

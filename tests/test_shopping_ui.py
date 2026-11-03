@@ -8,10 +8,16 @@ from sqlalchemy import Engine
 
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.db import init_db
-from home_stock.persistence.products import add_product, get_product, purchase, update_product, use_units
+from home_stock.persistence.products import (
+    add_product,
+    get_product,
+    purchase,
+    shopping_list_text,
+    update_product,
+    use_units,
+)
 from home_stock.persistence.settings import save_buffer_days
 from home_stock.ui.shell import build_shell
-from home_stock.ui.shopping import shopping_list_text
 
 SPOZYWCZE, HIGIENA = 1, 4
 TODAY = date(2026, 11, 2)
