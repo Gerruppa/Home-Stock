@@ -6,6 +6,7 @@ from home_stock.domain.formatting import format_days_left, format_quantity
 from home_stock.domain.history import days_left
 from home_stock.domain.stock import Product, is_running_low, name_key
 from home_stock.mobile.context import Context
+from home_stock.mobile.product_form import open_product_form
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.history import consumption_rates
 from home_stock.persistence.products import list_products, undo_use, use_one
@@ -18,11 +19,24 @@ class ProductsTab:
         search = ft.TextField(
             label="Szukaj", prefix_icon=ft.Icons.SEARCH, dense=True, expand=True, on_change=self._searched, key="search"
         )
-        self.content = ft.ListView(expand=True, spacing=0, padding=ft.Padding.only(bottom=16), key="products")
-        self.control: ft.Control = ft.Column(
-            [ft.Container(ft.Row([search]), padding=ft.Padding.symmetric(horizontal=12, vertical=8)), self.content],
+        # Bottom padding keeps the last row's button clear of the add button floating over the list
+        self.content = ft.ListView(expand=True, spacing=0, padding=ft.Padding.only(bottom=88), key="products")
+        add = ft.FloatingActionButton(
+            icon=ft.Icons.ADD, tooltip="Dodaj produkt", on_click=lambda _: open_product_form(ctx), key="add-product"
+        )
+        self.control: ft.Control = ft.Stack(
+            [
+                ft.Column(
+                    [
+                        ft.Container(ft.Row([search]), padding=ft.Padding.symmetric(horizontal=12, vertical=8)),
+                        self.content,
+                    ],
+                    expand=True,
+                    spacing=0,
+                ),
+                ft.Container(add, right=16, bottom=16),
+            ],
             expand=True,
-            spacing=0,
         )
         self.refresh()
 

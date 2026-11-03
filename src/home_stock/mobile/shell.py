@@ -94,7 +94,9 @@ class Shell:
     ) -> None:
         self.update = update
         self.undo_bar = UndoBar(self.changed, present, update)
-        self.ctx = Context(engine, today, update, self.changed, self.undo_bar.show)
+        self.ctx = Context(
+            engine, today, update, self.changed, self.undo_bar.show, self.show_full_screen, self.close_full_screen
+        )
         self.tabs: list[tuple[ft.IconData, str, Tab]] = [
             (ft.Icons.HOME_OUTLINED, "Start", ComingSoonTab()),
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
@@ -123,6 +125,15 @@ class Shell:
         self.navigation_bar.selected_index = index
         self.body.content = self.tabs[index][2].control
         self.update()
+
+    def show_full_screen(self, control: ft.Control) -> None:
+        self.navigation_bar.visible = False
+        self.body.content = control
+        self.update()
+
+    def close_full_screen(self) -> None:
+        self.navigation_bar.visible = True
+        self.select(self.navigation_bar.selected_index)
 
     def _selected(self, event: ft.Event[ft.NavigationBar]) -> None:
         self.select(event.control.selected_index)

@@ -94,6 +94,25 @@ def remove_new_products(engine: Engine, product_ids: Sequence[int]) -> None:
         connection.execute(delete(ProductRow).where(ProductRow.id.in_(product_ids)))
 
 
+class ProductInUseError(StockError):
+    """The undo of add_product when the Product is gone or has a Stock Event by then."""
+
+    def __init__(self) -> None:
+        super().__init__("Nie można cofnąć: ten produkt ma już historię.")
+
+
+def undo_add_product(engine: Engine, product_id: int) -> None:
+    """Remove a Product add_product saved, with its first Batch: ProductInUseError, with nothing removed, when it is
+    gone or has a Stock Event."""
+    with engine.begin() as connection:
+        existing = connection.execute(select(ProductRow.id).where(ProductRow.id == product_id)).first()
+        used = connection.execute(select(StockEventRow.id).where(StockEventRow.product_id == product_id)).first()
+        if existing is None or used is not None:
+            raise ProductInUseError()
+        connection.execute(delete(BatchRow).where(BatchRow.product_id == product_id))
+        connection.execute(delete(ProductRow).where(ProductRow.id == product_id))
+
+
 def update_product(engine: Engine, product_id: int, draft: ProductDraft) -> None:
     """Save the Product's fields from ``draft``; its Batches stay. Keeping its own name is no duplicate."""
     with engine.begin() as connection:
