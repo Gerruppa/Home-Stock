@@ -52,7 +52,7 @@ def open_unpacking_dialog(ctx: Context) -> None:
         for product in shown:
             rows.append(_new_row(ctx, product, amounts[product.id]))
             listed.append(rows[-1].control)
-    nothing = ft.Text("Nie ma nic do rozpakowania.", visible=not products, key="nothing-to-unpack")
+    nothing = ft.Text("Nie ma nic do rozpakowania.", visible=not products)
     # Under its own heading, not the last Category's
     added = ft.Column([_heading("Spoza listy")], spacing=0, visible=False, key="unpack-added")
     name = ft.Dropdown(

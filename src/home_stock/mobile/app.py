@@ -1,8 +1,12 @@
 """Android app entry point: the database in Flet's app-private data folder, backed up and migrated, and the shell on
-it. On a computer ``flet run`` points that folder at ``.flet/storage/data``."""
+it. On a computer ``flet run`` points that folder at ``.flet/storage/data``, and ``--demo`` starts the shell on made-up
+data instead."""
 
 import os
+import sys
 import traceback
+from collections.abc import Sequence
+from datetime import date
 
 import flet as ft
 from sqlalchemy import Engine
@@ -10,7 +14,8 @@ from sqlalchemy import Engine
 from home_stock.mobile.shell import APP_TITLE, Shell
 from home_stock.persistence.backup import backup_database
 from home_stock.persistence.db import init_db
-from home_stock.persistence.paths import DATA_DIR_ENV, backups_dir, database_path
+from home_stock.persistence.paths import DATA_DIR_ENV, android_demo_database_path, backups_dir, database_path
+from home_stock.sources.demo_data import seed_demo_data
 
 # Where Flet keeps an app's durable private files (Android's app data, a folder of the project under flet run)
 FLET_DATA_ENV = "FLET_APP_STORAGE_DATA"
@@ -23,7 +28,16 @@ def start_database() -> Engine:
     return init_db(path)
 
 
-def main(page: ft.Page) -> None:
+def start_demo_database() -> Engine:
+    """A fresh database in TEMP filled with the demo data, replacing the last demo's; real data stays untouched."""
+    path = android_demo_database_path()
+    path.unlink(missing_ok=True)
+    engine = init_db(path)
+    seed_demo_data(engine, date.today())
+    return engine
+
+
+def main(page: ft.Page, demo: bool = False) -> None:
     page.title = APP_TITLE
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
@@ -37,7 +51,8 @@ def main(page: ft.Page) -> None:
         page.run_task(share_sheet.share_text, text)
 
     try:
-        shell = Shell(start_database(), page.show_dialog, page.update, page.views, copy, share)
+        engine = start_demo_database() if demo else start_database()
+        shell = Shell(engine, page.show_dialog, page.update, page.views, copy, share)
     except Exception:
         # No console on a phone: the traceback on screen is the only way to see what broke
         page.add(
@@ -56,7 +71,9 @@ def main(page: ft.Page) -> None:
     page.update()
 
 
-def run() -> None:
+def run(argv: Sequence[str] | None = None) -> None:
+    # Only the previews pass --demo; on the phone the app starts with no arguments
+    demo = "--demo" in (sys.argv[1:] if argv is None else argv)
     if os.environ.get(FLET_DATA_ENV):
         os.environ[DATA_DIR_ENV] = os.environ[FLET_DATA_ENV]
-    ft.run(main)
+    ft.run(lambda page: main(page, demo))

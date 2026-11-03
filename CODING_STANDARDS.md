@@ -14,6 +14,10 @@ Judgement calls for review; what tooling checks (ruff, mypy, `tests/test_archite
 
 Known exception: `persistence/catalog.py` checks Category and Unit fields itself (blank name, negative days) instead of through drafts.
 
+## The two apps
+
+- `mobile/` rewrites each tab of `ui/` and may repeat its layout code (a tab's sections, its lines, its grouping by Category): the two never import each other, and `ui/` goes with #113. A rule both tabs need (what is Running Low, how a line is worded) belongs in `domain/` or `persistence/`, shared by both.
+
 ## Tests
 
 - A test reads the shipped `ui/changelog.md` only for what every release keeps: its released sections. A test of the Nieopublikowane section builds its own changelog text, since `release.py prepare` renames that section.

@@ -81,6 +81,8 @@ $env:FLET_FORCE_WEB_SERVER = "true"; $env:FLET_SERVER_PORT = "8770"; $env:FLET_A
 .venv\Scripts\python.exe src\android_main.py
 ```
 
+Add `--demo` for made-up Products in `%TEMP%\Home-Stock-android-demo` instead, created afresh on every start.
+
 On the phone the database lives in the app's private folder, with a Backup before migrations as on Windows. Nothing
 syncs with the Windows app, and nothing is copied over from it.
 

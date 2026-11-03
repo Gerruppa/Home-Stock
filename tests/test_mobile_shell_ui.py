@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 
 import flet as ft
@@ -9,7 +10,8 @@ from home_stock.mobile import app
 from home_stock.mobile.shell import UNDO_MILLISECONDS, Shell
 from home_stock.persistence.catalog import StockError
 from home_stock.persistence.db import init_db
-from home_stock.persistence.paths import DATA_DIR_ENV
+from home_stock.persistence.paths import DATA_DIR_ENV, android_demo_database_path, demo_database_path
+from home_stock.persistence.products import list_products
 from mobile_ui import Screen, find, select, tap, texts
 
 
@@ -159,11 +161,44 @@ def test_the_database_is_backed_up_before_migrations(tmp_path: Path, monkeypatch
     assert len(list((tmp_path / "backups").iterdir())) == 1
 
 
+def test_the_demo_database_lives_in_temp_apart_from_the_windows_demo_and_is_fresh_on_every_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = tmp_path / "real"
+    monkeypatch.setenv(DATA_DIR_ENV, str(real))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path / "temp"))
+
+    counts = []
+    for _ in range(2):
+        engine = app.start_demo_database()
+        counts.append(len(list_products(engine)))
+        engine.dispose()  # Windows will not delete an open file
+
+    assert android_demo_database_path().is_relative_to(tmp_path / "temp")
+    assert android_demo_database_path().exists()
+    assert not demo_database_path().exists()
+    assert counts[0] > 0 and counts[0] == counts[1]
+    assert not real.exists()
+
+
+@pytest.mark.parametrize(("argv", "demo"), [(["--demo"], True), ([], False)])
+def test_demo_starts_the_shell_on_the_demo_database(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str], demo: bool
+) -> None:
+    started: list[bool] = []
+    monkeypatch.setattr(app, "main", lambda page, demo=False: started.append(demo))
+    monkeypatch.setattr(ft, "run", lambda main: main(None))
+
+    app.run(argv)
+
+    assert started == [demo]
+
+
 def test_the_data_folder_is_flets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(app.FLET_DATA_ENV, str(tmp_path))
     monkeypatch.delenv(DATA_DIR_ENV, raising=False)
     monkeypatch.setattr(ft, "run", lambda main: None)
 
-    app.run()
+    app.run([])
 
     assert os.environ[DATA_DIR_ENV] == str(tmp_path)

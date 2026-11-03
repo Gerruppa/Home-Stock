@@ -42,15 +42,7 @@ def _lines(section: ft.Control) -> list[list[str]]:
     """Each line of a section, top to bottom: a Product's name and detail, or "Nic tutaj." alone."""
     column = find(section, f"{section.key}-lines")
     assert isinstance(column, ft.Column)
-    return [_line(line) for line in column.controls]
-
-
-def _line(line: ft.Control) -> list[str]:
-    if not isinstance(line, ft.ListTile):
-        return texts(line)
-    # texts() makes no promise about order: a line's name and detail are read from the tile itself
-    assert isinstance(line.title, ft.Text) and isinstance(line.subtitle, ft.Text)
-    return [line.title.value or "", line.subtitle.value or ""]
+    return [texts(line) for line in column.controls]
 
 
 def _title(body: ft.Control, section: str) -> str | None:

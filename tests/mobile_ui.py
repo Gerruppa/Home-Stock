@@ -8,24 +8,28 @@ from typing import Any
 import flet as ft
 
 
-def walk(control: ft.Control) -> Iterator[ft.Control]:
-    """``control`` and every control under it, in no particular order."""
+def walk(control: ft.Control, *, visible_only: bool = False) -> Iterator[ft.Control]:
+    """``control`` and every control under it, each before its children and children in the order of their fields
+    and lists (a Column's top to bottom); with ``visible_only``, without hidden controls and what is under them."""
     seen: set[int] = set()
     stack = [control]
     while stack:
         current = stack.pop()
-        if id(current) in seen:
+        if id(current) in seen or (visible_only and not current.visible):
             continue
         seen.add(id(current))
         yield current
+        children: list[ft.Control] = []
         for item in fields(current):
             if item.name.startswith("_"):
                 continue
             value = getattr(current, item.name, None)
             if isinstance(value, ft.Control):
-                stack.append(value)
+                children.append(value)
             elif isinstance(value, list | tuple):
-                stack.extend(child for child in value if isinstance(child, ft.Control))
+                children.extend(child for child in value if isinstance(child, ft.Control))
+        # Reversed onto the stack, so the first child comes out first
+        stack.extend(reversed(children))
 
 
 def find(root: ft.Control, key: str) -> ft.Control:
@@ -40,8 +44,10 @@ def absent(root: ft.Control, key: str) -> bool:
 
 
 def texts(root: ft.Control) -> list[str]:
-    """Every Text value under ``root``: what the user reads."""
-    return [control.value for control in walk(root) if isinstance(control, ft.Text) and control.value]
+    """Every Text value under ``root`` that is not hidden, in reading order: what the user reads."""
+    return [
+        control.value for control in walk(root, visible_only=True) if isinstance(control, ft.Text) and control.value
+    ]
 
 
 def tap(control: ft.Control, handler: str = "on_click") -> None:
