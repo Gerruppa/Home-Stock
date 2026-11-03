@@ -305,7 +305,7 @@ def test_an_empty_shopping_list_still_takes_a_product_by_name(engine: Engine, sc
     _add_by_name(form, sol)
 
     assert find(form, "unpack-save").visible
-    assert not find(form, "nothing-to-unpack").visible
+    assert "Nie ma nic do rozpakowania." not in texts(form)
     _save(screen)
     assert texts(_snackbar(screen)) == ["Rozpakowano zakupy: 1"]
     assert get_product(engine, sol).quantity == 6

@@ -26,6 +26,13 @@
         "FLET_APP_STORAGE_DATA": ".preview-data/android"
       },
       "port": 8770
+    },
+    {
+      "name": "home-stock-android-demo",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["src/android_main.py", "--demo"],
+      "env": { "PYTHONPATH": "src", "FLET_FORCE_WEB_SERVER": "true", "FLET_SERVER_PORT": "8771" },
+      "port": 8771
     }
   ]
 }

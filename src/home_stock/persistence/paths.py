@@ -35,3 +35,9 @@ def backups_dir() -> Path:
 def demo_database_path() -> Path:
     """The ``--demo`` database, in TEMP, apart from the user's real one."""
     return Path(tempfile.gettempdir()) / "Home-Stock-demo" / DATABASE_FILE
+
+
+def android_demo_database_path() -> Path:
+    """The Android app's ``--demo`` database, in TEMP, apart from the Windows demo's: each demo deletes its own file on
+    start, which Windows refuses while the other demo has it open."""
+    return Path(tempfile.gettempdir()) / "Home-Stock-android-demo" / DATABASE_FILE
