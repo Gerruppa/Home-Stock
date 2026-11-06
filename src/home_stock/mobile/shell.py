@@ -13,6 +13,7 @@ from sqlalchemy import Engine
 from home_stock.mobile.context import Context
 from home_stock.mobile.history import HistoryTab
 from home_stock.mobile.products import ProductsTab
+from home_stock.mobile.settings import SettingsTab
 from home_stock.mobile.shopping import ShoppingTab
 from home_stock.mobile.start import StartTab
 from home_stock.persistence.catalog import StockError
@@ -27,16 +28,6 @@ class Tab(Protocol):
     control: ft.Control
 
     def refresh(self) -> None: ...
-
-
-class ComingSoonTab:
-    """A tab not rewritten for the phone yet."""
-
-    def __init__(self) -> None:
-        self.control: ft.Control = ft.Container(ft.Text("Wkrótce"), padding=24, key="coming-soon")
-
-    def refresh(self) -> None:
-        pass
 
 
 class UndoBar:
@@ -122,7 +113,7 @@ class Shell:
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
             (ft.Icons.CHECKLIST, "Zakupy", ShoppingTab(self.ctx)),
             (ft.Icons.HISTORY, "Historia", HistoryTab(self.ctx)),
-            (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", ComingSoonTab()),
+            (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", SettingsTab(self.ctx)),
         ]
         self.navigation_bar = ft.NavigationBar(
             destinations=[
