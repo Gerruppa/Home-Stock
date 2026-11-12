@@ -1,6 +1,6 @@
 # Home Stock v1 Implementation Plan
 
-> **Superseded by GitHub Issues.** Task 1 is done; the rest of the work is tracked as tickets on Gerruppa/Home-Stock (label `ready-for-agent`). Keep this plan as a reference for names, signatures and test cases; the tickets decide scope and order.
+> **Superseded by GitHub Issues.** Task 1 is done; the rest of the work is tracked as tickets on Gerruppa/Home-Stock (label `ready-for-agent`). Keep this plan as a reference for names, signatures and test cases; the tickets decide scope and order. Its UI is the Windows app (NiceGUI), removed in #113: the app is now `mobile/`, for Android (ADR-0004).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

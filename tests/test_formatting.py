@@ -130,7 +130,7 @@ def test_format_quantity() -> None:
 
 
 def test_a_cleared_field_reads_as_blank() -> None:
-    # NiceGUI gives a cleared input the value None
+    # A cleared field holds None, not ""
     assert parse_date(None) is None
     assert parse_count(None, allow_blank=True) is None
     assert parse_pack_size(None) is None

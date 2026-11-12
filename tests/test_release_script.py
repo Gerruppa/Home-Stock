@@ -145,12 +145,13 @@ def test_notes_say_how_to_install_then_list_the_version_s_changes(capsys: pytest
 
     section = release.CHANGELOG.read_text(encoding="utf-8").split("## 0.1.0 — 2026-10-28\n\n")[1]
     assert capsys.readouterr().out == (
-        "**Home Stock** 0.1.0 dla Windows.\n"
+        "**Home Stock** 0.1.0 na Androida.\n"
         "\n"
         "## Instalacja\n"
         "\n"
-        "Pobierz `Home-Stock-0.1.0-setup.exe` i uruchom. Instalator instaluje Home Stock albo aktualizuje "
-        "zainstalowaną wersję, a Twoje dane w `%LOCALAPPDATA%\\Home Stock` zostają.\n"
+        "Pobierz na telefonie `Home-Stock-0.1.0.apk` i otwórz. Android instaluje Home Stock albo aktualizuje "
+        "zainstalowaną wersję, a Twoje dane zostają. Za pierwszym razem poprosi o zgodę na instalowanie aplikacji "
+        "spoza Sklepu Play.\n"
         "\n"
         "## Zmiany\n"
         "\n"

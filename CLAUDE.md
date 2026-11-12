@@ -14,46 +14,35 @@ Work is tracked in GitHub Issues on Gerruppa/Home-Stock (label `ready-for-agent`
 - `domain/`: pure-Python rules (Product, Batch, Running Low, Expiry Status, Polish formatting).
 - `persistence/`: SQLite through SQLAlchemy, Alembic migrations.
 - `sources/`: `demo_data.py`, the made-up stock for `--demo`; importers go here too.
-- `ui/`: the Windows app in NiceGUI. `shell.py` builds the tabs and the undo bar, and each tab gets a `Context` from `ui/context.py`.
-- `mobile/`: the Android app in Flet (ADR-0004), replacing `ui/` tab by tab (#99). `shell.py` builds the bottom navigation bar and the undo snackbar, and each tab gets a `Context` from `mobile/context.py`. `src/android_main.py` starts it.
+- `mobile/`: the app, for Android, in Flet (ADR-0004). `shell.py` builds the bottom navigation bar and the undo snackbar, and each tab gets a `Context` from `mobile/context.py`. `src/android_main.py` starts it.
 
 Rules no config enforces:
-- `domain/` never imports NiceGUI, Flet, SQLAlchemy, Alembic or pywebview; `mobile/` and `ui/` never import each other (`tests/test_architecture.py` checks).
+- `domain/` never imports Flet, SQLAlchemy or Alembic (`tests/test_architecture.py` checks).
 - The schema changes only through a new migration in `persistence/migrations/versions/`; `tests/test_database.py` fails when models and migrations drift. The database lives in the user's app-data folder (`HOME_STOCK_DATA_DIR` overrides it), never in the repo.
 - UI text is Polish; code, DB names and docs English. Errors for the user carry a Polish message; which layer raises which is in `CODING_STANDARDS.md`.
-- A change made through the UI calls `ctx.changed()` (redraws every tab, withdraws the undo bar) and then, if it can be undone, `ctx.undo(message, action)`.
-- Open a `ui.dialog` inside `ctx.overlay`, which outlives every tab's redraw.
+- A change made through the UI calls `ctx.changed()` (redraws every tab, withdraws the undo snackbar) and then, if it can be undone, `ctx.undo(message, action)`.
+- A dialog or form opens over the tabs with `ctx.show_full_screen(...)` and closes with `ctx.close_full_screen()`, so Android's Back closes it.
 
 ## Testing the UI
 
-The test seams are fixed, no need to agree them per ticket: `persistence/` functions (`tests/test_<module>.py`) and each tab through `user_simulation` (`tests/test_<tab>_ui.py`).
-
-UI tests use NiceGUI's `user_simulation` and find elements by `.mark(...)` markers; `tests/conftest.py` makes `should_see`/`should_not_see` wait up to 5 s. Gotchas:
-- All five tabs sit on the page at once: scope a text check with a marker or `user.scope(...)`, since another tab may show the same text (Ustawienia shows every Category name). Markers share one namespace across tabs, so give a tab's markers its own shape (Produkty's `category-<id>`, Ustawienia's `category-row-<id>`).
-- `user.find(...).elements` comes back in no page order: compare positions through `element.parent_slot.children`.
-- `should_see` reads text, labels and values, not props: show a form error as a `ui.label`, not as the `error-message` prop.
-- `user.find(...)` raises when nothing matches: check that an element is absent with `should_not_see(marker=...)`.
-
-The Android app's tabs are tested as `tests/test_mobile_<tab>_ui.py`, in plain Python, without a page, a phone or Flutter:
+The test seams are fixed, no need to agree them per ticket: `persistence/` functions (`tests/test_<module>.py`) and each tab as `tests/test_mobile_<tab>_ui.py`, in plain Python, without a page, a phone or Flutter:
 - Flet controls are dataclasses. `tests/mobile_ui.py` walks their tree, so `find(root, key)` (failing unless exactly one control has the key) and `absent(root, key)` use the `key=` given to a control. `texts(root)` returns what the user reads, in reading order and without hidden controls, and `tap(control)` (or `tap(snackbar, "on_action")`) calls the handler a tap would.
-- Nothing in `mobile/` touches the page or calls a control's own `update()`, which fails off the page. The shell is handed how to show a snackbar and how to send changes to the screen, and `mobile_ui.Screen` stands in for both. Keys share one namespace across the tabs, as markers do.
+- Nothing in `mobile/` touches the page or calls a control's own `update()`, which fails off the page. The shell is handed how to show a snackbar and how to send changes to the screen, and `mobile_ui.Screen` stands in for both.
+- All five tabs sit in the shell at once, and keys share one namespace across them: give a tab's keys their own shape (Zakupy's `list-chip-<id>`, Ustawienia's `category-row-<id>`).
 
 ## Releasing
 
-The changelog `src/home_stock/sources/changelog.md` (Polish) collects, under `## Nieopublikowane`, one sentence per change the user sees, without issue numbers, in the Android app too (from #107 on, starting with „W aplikacji na Androida…”). A release takes two steps of `scripts/release.py`:
+The changelog `src/home_stock/sources/changelog.md` (Polish) collects, under `## Nieopublikowane`, one sentence per change the user sees, without issue numbers. A release takes two steps of `scripts/release.py`:
 - `.venv/Scripts/python.exe scripts/release.py prepare <X.Y.Z>` on a branch `release/<X.Y.Z>`: sets `__version__` and renames Nieopublikowane to `<X.Y.Z> — <today>`; it refuses a version that is not X.Y.Z or not newer, and an empty Nieopublikowane. Commit, open the PR, merge when the user says so.
-- `.venv/Scripts/python.exe scripts/release.py publish` on an up-to-date, clean main: builds the installer (several minutes, needs Inno Setup) and the APK signed with the upload key (`flet build apk`; several minutes, the first build about half an hour), pushes the tag `v<X.Y.Z>` and creates the GitHub Release "Home Stock <X.Y.Z>" with `Home-Stock-<X.Y.Z>-setup.exe` and `Home-Stock-<X.Y.Z>.apk`. Ask first if the user is busy at the computer. `scripts/release.py notes [<X.Y.Z>]` prints the Release text without publishing.
+- `.venv/Scripts/python.exe scripts/release.py publish` on an up-to-date, clean main: builds the APK signed with the upload key (`flet build apk`; several minutes, the first build about half an hour), pushes the tag `v<X.Y.Z>` and creates the GitHub Release "Home Stock <X.Y.Z>" with `Home-Stock-<X.Y.Z>.apk`. Ask first if the user is busy at the computer. `scripts/release.py notes [<X.Y.Z>]` prints the Release text without publishing.
   - The APK is signed with the keystore `%USERPROFILE%\.android\home-stock-upload.jks` (alias `upload`, #111), its password in the user's environment variable `HOME_STOCK_KEYSTORE_PASSWORD`; without both, `publish` stops before building anything. Never print, log or commit the password, and never replace the keystore: an APK signed with another key does not install over the app.
   - The APK's version is `__version__` and its build number X·10000 + Y·100 + Z, which Android compares on update (ADR-0005).
 
-Try an installer in the scratchpad: `Home-Stock-<X.Y.Z>-setup.exe /DIR="<scratchpad>\app"` with `HOME_STOCK_DATA_DIR` set to a scratch folder. The user's own install in `%LOCALAPPDATA%\Programs\Home Stock`, and its running `HomeStock` processes, are theirs.
-
 ## Environment
 
-- Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`. A worktree's `.venv` is the main checkout's, whose editable install imports the main checkout's `src/`: pytest, mypy and the previews set `src` themselves; give anything else run from a worktree (`main.py`, a `python -c` probe) `PYTHONPATH=src`.
+- Python 3.14 in a virtualenv at `.venv/`; install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`. A worktree's `.venv` is the main checkout's, whose editable install imports the main checkout's `src/`: pytest, mypy and the previews set `src` themselves; give anything else run from a worktree (`src/android_main.py`, a `python -c` probe) `PYTHONPATH=src`.
 - Windows host. Use the venv interpreter directly, without relying on activation:
-  - Run the app: `.venv/Scripts/python.exe main.py` (`--browser` serves on http://127.0.0.1:8080; `--demo` serves there too, on a fresh database of made-up Products in `%TEMP%/Home-Stock-demo`, recreated on every start). To look at a change, start the preview `home-stock` from `.claude/launch.json` (port 8765, scratch database in `.preview-data/`), or `home-stock-demo` (port 8766) for a page already full of data.
-  - The Android app: the preview `home-stock-android` (port 8770, scratch database in `.preview-data/android`) shows it in the browser, or `home-stock-android-demo` (port 8771, `android_main.py --demo`) on the demo data, fresh on every start. A preview runs the code as it was at its start: restart it after a change.
+  - To look at a change, start the preview `home-stock-android` from `.claude/launch.json` (port 8770, scratch database in `.preview-data/android`), which shows the app in the browser, or `home-stock-android-demo` (port 8771, `android_main.py --demo`) on made-up Products in `%TEMP%/Home-Stock-demo`, fresh on every start. A preview runs the code as it was at its start: restart it after a change.
   - Build the APK from `android/` (Windows Developer Mode must be on): `PIP_PROGRESS_BAR=off PYTHONUTF8=1 ../.venv/Scripts/flet.exe build apk --yes --arch arm64-v8a --no-rich-output`.
     - Without `PIP_PROGRESS_BAR=off` the pip it runs hangs after downloading, and without `PYTHONUTF8=1` it crashes on a cp1250 console.
     - The first build downloads Flutter, a JDK and the Android SDK and takes about half an hour; run it in the background.

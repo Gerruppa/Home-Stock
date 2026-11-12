@@ -53,8 +53,7 @@ class StartTab:
         sections = [
             _Section("expired", "Przeterminowane", EXPIRED, _expiry_lines(expired, units)),
             _Section("expiring", "Kończy się termin", EXPIRING, _expiry_lines(expiring, units)),
-            # The Windows app's marker, kept as the key
-            _Section("running-low", "Do kupienia", TO_BUY, to_buy),
+            _Section("to-buy", "Do kupienia", TO_BUY, to_buy),
         ]
         if not any(section.lines for section in sections):
             self.content.controls = [
@@ -88,7 +87,7 @@ class StartTab:
                 ],
                 spacing=0,
             ),
-            # The urgency colour down the section's left edge, as on the Windows app
+            # The urgency colour down the section's left edge
             border=ft.Border.only(left=ft.BorderSide(6, colour)),
             margin=ft.Margin.only(top=8),
             key=key,

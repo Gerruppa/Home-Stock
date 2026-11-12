@@ -141,5 +141,5 @@ _Avoid_: Snapshot, export, dump
 ## Distribution
 
 **Release**:
-A published version of Home Stock: the GitHub Release tagged `v<X.Y.Z>`, carrying its Windows installer, its Android APK and its changelog section; the installed app offers a newer one.
+A published version of Home Stock: the GitHub Release tagged `v<X.Y.Z>`, carrying its Android APK and its changelog section; the installed app offers a newer one.
 _Avoid_: Build, update package

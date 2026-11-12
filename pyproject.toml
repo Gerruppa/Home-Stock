@@ -1,11 +1,9 @@
 [project]
 name = "home-stock"
 dynamic = ["version"]
-description = "Home Stock: desktop app"
+description = "Home Stock: an Android app for household stock"
 requires-python = ">=3.14"
 dependencies = [
-    "nicegui>=3.18",
-    "pywebview>=6.2",
     "flet>=1.0.5",
     # 2.0.50 is the newest SQLAlchemy with an Android wheel (android/pyproject.toml)
     "sqlalchemy>=2.0.50",
@@ -16,7 +14,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=9.1",
-    "pytest-asyncio>=1.4",
     "pytest-xdist>=3.8",
     "pytest-timeout>=2.4",
     "pre-commit>=4.7",
@@ -25,18 +22,6 @@ dev = [
     # flet run, the home-stock-android preview and flet build apk
     "flet[all]>=1.0.5",
 ]
-# Builds the Windows installer (scripts/build_installer.ps1) and the icons (scripts/make_icons.py)
-build = [
-    "pyinstaller>=6.16",
-    "pillow>=11",
-]
-
-[project.scripts]
-home-stock = "home_stock.app:main"
-
-# No console window: this is what the desktop shortcut starts.
-[project.gui-scripts]
-home-stock-gui = "home_stock.app:main"
 
 [build-system]
 requires = ["setuptools>=80"]
@@ -49,22 +34,16 @@ where = ["src"]
 version = { attr = "home_stock.__version__" }
 
 [tool.setuptools.package-data]
-home_stock = ["sources/changelog.md", "ui/assets/*", "persistence/migrations/*.py", "persistence/migrations/*.mako", "persistence/migrations/versions/*.py"]
+home_stock = ["sources/changelog.md", "persistence/migrations/*.py", "persistence/migrations/*.mako", "persistence/migrations/versions/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-asyncio_mode = "auto"
-markers = ["ui: drives the UI through NiceGUI's user_simulation"]
 
 [tool.mypy]
 files = ["src", "tests"]
 mypy_path = "src"
 strict = true
-
-[[tool.mypy.overrides]]
-module = ["webview.*"]
-ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120

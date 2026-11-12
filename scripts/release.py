@@ -4,9 +4,8 @@
     .venv/Scripts/python.exe scripts/release.py publish         # on main, once the PR is merged
 
 `prepare` sets `__version__` and turns the changelog's "Nieopublikowane" into "<version> — <today>". `publish` builds
-the installer from main (scripts/build_installer.ps1) and the APK signed with the upload key (flet build apk), pushes
-the tag `v<version>` and creates the GitHub Release "Home Stock <version>" with both and the version's changelog
-section; `notes` prints that text.
+the APK from main, signed with the upload key (flet build apk), pushes the tag `v<version>` and creates the GitHub
+Release "Home Stock <version>" with the APK and the version's changelog section; `notes` prints that text.
 
 The upload key is the keystore at KEYSTORE, its password in the environment variable HOME_STOCK_KEYSTORE_PASSWORD
 (ticket #111); without both publish stops before it builds anything.
@@ -22,7 +21,7 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-from home_stock.domain.app_update import android_build_number, apk_name, installer_name
+from home_stock.domain.app_update import android_build_number, apk_name
 from home_stock.domain.changelog import UNRELEASED, ChangelogError, is_newer, parse_changelog
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,12 +69,13 @@ def release_notes(text: str, version: str) -> str:
     if release is None:
         raise ChangelogError(f"Historia zmian nie ma sekcji wersji {version}.")
     lines = [
-        f"**Home Stock** {version} dla Windows.",
+        f"**Home Stock** {version} na Androida.",
         "",
         "## Instalacja",
         "",
-        f"Pobierz `{installer_name(version)}` i uruchom. Instalator instaluje Home Stock albo aktualizuje "
-        "zainstalowaną wersję, a Twoje dane w `%LOCALAPPDATA%\\Home Stock` zostają.",
+        f"Pobierz na telefonie `{apk_name(version)}` i otwórz. Android instaluje Home Stock albo aktualizuje "
+        "zainstalowaną wersję, a Twoje dane zostają. Za pierwszym razem poprosi o zgodę na instalowanie aplikacji "
+        "spoza Sklepu Play.",
         "",
         "## Zmiany",
     ]
@@ -177,7 +177,7 @@ def publish() -> None:
     if _run("git", "status", "--porcelain", "--untracked-files=no"):
         sys.exit("The working tree has uncommitted changes.")
     version = current_version(VERSION_FILE.read_text(encoding="utf-8"))
-    # Everything the APK needs, checked before the installer's minutes of building
+    # Everything the APK needs, checked before the tag or anything else is touched
     try:
         apk_env = apk_build_env(dict(os.environ), KEYSTORE)
         android_build_number(version)
@@ -193,11 +193,6 @@ def publish() -> None:
         sys.exit(f"The tag {tag} exists already.")
     notes = release_notes(CHANGELOG.read_text(encoding="utf-8"), version)
 
-    print(f"Building {installer_name(version)} (several minutes)...", flush=True)
-    _run("powershell", "-ExecutionPolicy", "Bypass", "-File", str(ROOT / "scripts" / "build_installer.ps1"))
-    installer = ROOT / "dist" / installer_name(version)
-    if not installer.exists():
-        sys.exit(f"{installer} was not built.")
     print(f"Building {apk_name(version)} (several minutes; the first build half an hour)...", flush=True)
     apk = build_apk(version, apk_env)
 
@@ -211,7 +206,6 @@ def publish() -> None:
             "release",
             "create",
             tag,
-            str(installer),
             str(apk),
             "--title",
             f"Home Stock {version}",
@@ -219,9 +213,8 @@ def publish() -> None:
             str(notes_file),
         )
     assets = _run("gh", "release", "view", tag, "--json", "assets", "-q", ".assets[].name")
-    for asset in (installer, apk):
-        if asset.name not in assets.splitlines():
-            sys.exit(f"The Release {tag} has no {asset.name}.")
+    if apk.name not in assets.splitlines():
+        sys.exit(f"The Release {tag} has no {apk.name}.")
     print(_run("gh", "release", "view", tag, "--json", "url", "-q", ".url"))
 
 
@@ -231,7 +224,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="set the version and date the changelog section").add_argument("version")
-    commands.add_parser("publish", help="build the installer and the APK, push the tag, create the GitHub Release")
+    commands.add_parser("publish", help="build the APK, push the tag, create the GitHub Release")
     notes = commands.add_parser("notes", help="print the GitHub Release text of a version")
     notes.add_argument("version", nargs="?")
     args = parser.parse_args(argv)

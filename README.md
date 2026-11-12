@@ -1,28 +1,13 @@
 # Home Stock
 
-Tracks household stock by hand and reminds you what is running low or about to expire. Today it is a desktop app for
-Windows (NiceGUI in a native window, SQLite). It is moving to an Android app built with Flet, with the data on the
-phone (ADR-0004). The Windows app stays until the Android app has every feature (#99).
+Tracks household stock by hand and reminds you what is running low or about to expire. An Android app built with
+Flet, with the data on the phone (SQLite, ADR-0004).
 
-## Install from the installer
+## Install on the phone
 
-Run `Home-Stock-<version>-setup.exe`. It installs for the current user only (no administrator rights) into
-`%LOCALAPPDATA%\Programs\Home Stock`, adds Home Stock to the Start menu and to the desktop (untick it in the wizard to skip that). Installing a
-newer version over it upgrades in place; uninstalling (Settings > Apps) leaves your data alone. Home Stock needs the
-Microsoft Edge WebView2 runtime, which Windows 11 already has.
-
-## Build the installer
-
-Needs Inno Setup 6 (`winget install JRSoftware.InnoSetup`) and the `build` extra:
-
-```
-.venv\Scripts\python.exe -m pip install -e ".[dev,build]"
-powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
-```
-
-The installer lands in `dist\Home-Stock-<version>-setup.exe`; the version comes from `src/home_stock/__init__.py`. A
-silent install (`/SILENT /CLOSEAPPLICATIONS /NORESTART`) closes a running Home Stock and starts the new one when done.
-To change the icon, edit and run `.venv\Scripts\python.exe scripts\make_icons.py`.
+Download `Home-Stock-<version>.apk` from the latest GitHub Release on the phone and open it. The first time, Android
+asks to allow installing apps from outside the Play Store. A newer APK installs over the app and keeps your data; the
+app itself says in Ustawienia when a newer version is out (ADR-0005).
 
 ## Release
 
@@ -35,10 +20,11 @@ steps around a release PR:
 ```
 
 `prepare` sets `__version__` and turns `## Nieopublikowane` into `## 0.2.0 — <today>`; it refuses a version that is not
-X.Y.Z or not newer, and an empty Nieopublikowane section. `publish` needs a clean main equal to `origin/main` and an
-authenticated `gh`: it builds the installer, pushes the tag `v0.2.0` and creates the GitHub Release "Home Stock 0.2.0"
-with `Home-Stock-0.2.0-setup.exe`, its notes a short install paragraph and that version's changelog section.
-`scripts\release.py notes 0.2.0` prints those notes.
+X.Y.Z or not newer, and an empty Nieopublikowane section. `publish` needs a clean main equal to `origin/main`, an
+authenticated `gh` and the upload key (the keystore `%USERPROFILE%\.android\home-stock-upload.jks`, its password in
+`HOME_STOCK_KEYSTORE_PASSWORD`): it builds the signed APK, pushes the tag `v0.2.0` and creates the GitHub Release
+"Home Stock 0.2.0" with `Home-Stock-0.2.0.apk`, its notes a short install paragraph and that version's changelog
+section. `scripts\release.py notes 0.2.0` prints those notes.
 
 ## Install for development
 
@@ -50,46 +36,25 @@ py -3.14 -m venv .venv
 .venv\Scripts\python.exe -m pre_commit install
 ```
 
-## Run
+## Run in a browser
 
-```
-.venv\Scripts\python.exe main.py            # native window
-.venv\Scripts\python.exe main.py --browser  # http://127.0.0.1:8080
-.venv\Scripts\python.exe main.py --demo     # made-up data, http://127.0.0.1:8080
-```
-
-Your data lives in the app-data folder (`%LOCALAPPDATA%\Home Stock`; set `HOME_STOCK_DATA_DIR` to use another).
-`--demo` never touches it: it serves a database of made-up Products from `%TEMP%\Home-Stock-demo`, created afresh on
-every start, with something in every section of Start and on the Shopping List.
-
-Every start takes a Backup of the database into `backups\` in the data folder before migrations run, keeping the newest
-30 (the demo takes none). To restore one, close Home Stock and copy the chosen file over `home_stock.sqlite3`.
-
-Without a console (the installed app, or `home-stock-gui`), the output goes to `home_stock.log` in the data folder,
-overwritten at each start.
-
-## The Android app
-
-`src/home_stock/mobile/` rewrites the UI tab by tab in Flet. `domain/`, `persistence/` and `sources/` are shared with
-the Windows app. Start, Produkty (with the Product card and form) and Zakupy (with Unpacking) work. Historia and
-Ustawienia still show "Wkrótce".
-
-To look at it in a browser on http://localhost:8770, on a scratch database in `.preview-data\android`:
+To look at the app on http://localhost:8770, on a scratch database in `.preview-data\android`:
 
 ```
 $env:FLET_FORCE_WEB_SERVER = "true"; $env:FLET_SERVER_PORT = "8770"; $env:FLET_APP_STORAGE_DATA = ".preview-data\android"
 .venv\Scripts\python.exe src\android_main.py
 ```
 
-Add `--demo` for made-up Products in `%TEMP%\Home-Stock-android-demo` instead, created afresh on every start.
+Add `--demo` for made-up Products in `%TEMP%\Home-Stock-demo` instead, created afresh on every start, with something in
+every section of Start and on the Shopping List.
 
-On the phone the database lives in the app's private folder, with a Backup before migrations as on Windows. Nothing
-syncs with the Windows app, and nothing is copied over from it.
+On the phone the database lives in the app's private folder. Every start takes a Backup of it into `backups\` beside it
+before migrations run, keeping the newest 30 (the demo takes none).
 
-### Build the APK
+## Build the APK
 
-Build from `android\`, whose `pyproject.toml` packs `src\` without the Windows app. Windows Developer Mode must be on.
-The first build downloads Flutter, a JDK and the Android SDK, and takes about half an hour.
+Build from `android\`, whose `pyproject.toml` packs `src\` with only the dependencies the phone needs. Windows Developer
+Mode must be on. The first build downloads Flutter, a JDK and the Android SDK, and takes about half an hour.
 
 ```
 cd android
@@ -98,12 +63,13 @@ $env:PIP_PROGRESS_BAR = "off"; $env:PYTHONUTF8 = "1"
 ```
 
 Without `PIP_PROGRESS_BAR=off` the pip it runs hangs after downloading, and without `PYTHONUTF8=1` it crashes on a
-cp1250 console. The APK lands in `android\build\apk\`; install it on the phone by hand.
+cp1250 console. The APK lands in `android\build\apk\`; it is signed with a throwaway key, so for a phone that has the
+released app use `scripts\release.py publish`.
 
 ## Checks
 
 ```
-.venv\Scripts\python.exe -m pytest
+.venv\Scripts\python.exe -m pytest -n auto
 .venv\Scripts\python.exe -m mypy
 .venv\Scripts\python.exe -m ruff check .
 .venv\Scripts\python.exe -m ruff format .

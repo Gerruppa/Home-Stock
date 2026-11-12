@@ -10,7 +10,7 @@ from home_stock.mobile import app
 from home_stock.mobile.shell import UNDO_MILLISECONDS, Shell
 from home_stock.persistence.catalog import StockError
 from home_stock.persistence.db import init_db
-from home_stock.persistence.paths import DATA_DIR_ENV, android_demo_database_path, demo_database_path
+from home_stock.persistence.paths import DATA_DIR_ENV, demo_database_path
 from home_stock.persistence.products import list_products
 from mobile_ui import Screen, find, select, tap, texts
 
@@ -176,7 +176,7 @@ def test_the_database_is_backed_up_before_migrations(tmp_path: Path, monkeypatch
     assert len(list((tmp_path / "backups").iterdir())) == 1
 
 
-def test_the_demo_database_lives_in_temp_apart_from_the_windows_demo_and_is_fresh_on_every_start(
+def test_the_demo_database_lives_in_temp_and_is_fresh_on_every_start(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     real = tmp_path / "real"
@@ -189,9 +189,8 @@ def test_the_demo_database_lives_in_temp_apart_from_the_windows_demo_and_is_fres
         counts.append(len(list_products(engine)))
         engine.dispose()  # Windows will not delete an open file
 
-    assert android_demo_database_path().is_relative_to(tmp_path / "temp")
-    assert android_demo_database_path().exists()
-    assert not demo_database_path().exists()
+    assert demo_database_path().is_relative_to(tmp_path / "temp")
+    assert demo_database_path().exists()
     assert counts[0] > 0 and counts[0] == counts[1]
     assert not real.exists()
 

@@ -1,13 +1,11 @@
-"""The app's own update check: the latest GitHub Release read into its version and the file to download, the Windows
-installer or the Android APK (from KAPITA's).
+"""The app's own update check: the latest GitHub Release read into its version and its APK (from KAPITA's).
 
-The Release is ``v<version>`` with the assets ``Home-Stock-<version>-setup.exe`` and ``Home-Stock-<version>.apk``
-(scripts/release.py publishes both); only a download address on this project's own Releases is accepted.
+The Release is ``v<version>`` with the asset ``Home-Stock-<version>.apk`` (scripts/release.py publishes it); only a
+download address on this project's own Releases is accepted.
 """
 
 import json
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from home_stock.domain.changelog import is_newer
@@ -25,14 +23,8 @@ class UpdateError(ValueError):
 @dataclass(frozen=True)
 class LatestRelease:
     version: str
-    # Where the asset downloads from, the installer or the APK
+    # Where the APK downloads from
     url: str
-    size: int
-
-
-def installer_name(version: str) -> str:
-    """The installer's file name, as scripts/build_installer.ps1 builds it and every Release carries it."""
-    return f"Home-Stock-{version}-setup.exe"
 
 
 def apk_name(version: str) -> str:
@@ -49,8 +41,8 @@ def android_build_number(version: str) -> int:
     return major * 10000 + minor * 100 + patch
 
 
-def parse_latest_release(text: str, asset_name: Callable[[str], str] = installer_name) -> LatestRelease:
-    """The version and the file named ``asset_name(version)`` of the GitHub API's ``releases/latest`` answer."""
+def parse_latest_release(text: str) -> LatestRelease:
+    """The version and the APK of the GitHub API's ``releases/latest`` answer."""
     try:
         data = json.loads(text)
         tag = _TAG.match(str(data["tag_name"]))
@@ -62,12 +54,12 @@ def parse_latest_release(text: str, asset_name: Callable[[str], str] = installer
     if tag is None:
         raise UpdateError("Najnowsze wydanie nie ma numeru wersji.")
     version = tag["version"]
-    name = asset_name(version)
+    name = apk_name(version)
     for asset in assets:
         if isinstance(asset, dict) and asset.get("name") == name:
-            url, size = asset.get("browser_download_url"), asset.get("size")
-            if isinstance(url, str) and url.startswith(DOWNLOAD_PREFIX) and isinstance(size, int):
-                return LatestRelease(version, url, size)
+            url = asset.get("browser_download_url")
+            if isinstance(url, str) and url.startswith(DOWNLOAD_PREFIX):
+                return LatestRelease(version, url)
     raise UpdateError(f"Wydanie {version} nie ma pliku {name}.")
 
 
