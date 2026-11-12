@@ -291,5 +291,5 @@ def test_cofnij_after_the_product_was_used_says_so_and_keeps_it(shell: Shell, en
 
     tap(bar, "on_action")
 
-    assert texts(bar) == ["Nie można cofnąć: ten produkt ma już historię."]
+    assert texts(screen.presented[-1]) == ["Nie można cofnąć: ten produkt ma już historię."]
     assert [product.quantity for product in list_products(engine)] == [1]

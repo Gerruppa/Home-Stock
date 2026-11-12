@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from home_stock.domain.custom_lists import CustomList
 from home_stock.domain.history import StockEvent, StockEventKind, WasteLine
 from home_stock.domain.stock import (
     BUFFER_ERROR,
@@ -171,6 +172,13 @@ def format_shopping_list(
         if lines:
             sections.append("\n".join([category.name, *lines]))
     return "\n\n".join(sections)
+
+
+def format_custom_list_label(custom_list: CustomList) -> str:
+    """ "Kolacja · 15.11", or the name alone without a date: a Custom List's chip on Zakupy."""
+    if custom_list.occasion is None:
+        return custom_list.name
+    return f"{custom_list.name} · {custom_list.occasion:%d.%m}"
 
 
 def format_shopping_reason(entry: ShoppingListEntry) -> str:

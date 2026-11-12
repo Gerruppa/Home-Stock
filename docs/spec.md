@@ -23,6 +23,15 @@ A single-user Windows desktop app for keeping a fully manual record of what the 
 - **Archive** a Product (hidden with its Batches) and restore it from Ustawienia.
 - After a Use, Purchase, Discard or Archive a toast offers "Cofnij" for a few seconds. Undoing a Purchase removes the Batch it added; when that Batch is already gone (e.g. removed in another window), the toast says so and nothing changes.
 
+## Custom Lists
+
+In the Android app only (the Windows app goes with #113). A **Custom List** ("Lista własna") is kept by hand for an occasion, beside the Shopping List, which it never changes (ADR-0006).
+
+- A Custom List has a name (not blank; spaces trimmed) and an optional date of the occasion. Zakupy shows a chip per list after "Brakuje" (the Shopping List, selected by default), by date, undated ones last, then by name: "Kolacja · 15.11", or the name alone. "Nowa lista" opens a form with Nazwa and an optional Data; saving selects the new list, and "Cofnij" removes it while it has no List Lines.
+- A **List Line** ("Pozycja") is a Product with a Quantity (a whole number, at least 1) or free text (not blank) for something not kept as stock. "Dopisz" adds one: a Product picked by name with a Quantity, or text that names no Product as free text (a Quantity above 1 goes into its text: "wino × 3"). Adding a Product already on the list adds the Quantity to its line instead of a second one. "Cofnij" takes back the line, or the Quantity added.
+- Lines show in the order added: a Product line with its Quantity in its Unit ("kup 2 szt."), followed by "(w archiwum)" for an Archived Product; a free-text line as written. An empty list reads "Lista jest pusta."
+- A Product is not removed (the undo of adding it) while a List Line names it.
+
 ## Stock History
 
 - Every Use, Purchase (single or from Unpacking), Discard and **Correction** records a **Stock Event** with the Product, its kind, the signed change in Units and the date, in the same transaction as the change. A Product's first Batch, entered with the Product, is its starting stock, not a Purchase.
@@ -46,7 +55,7 @@ The **Starter Catalog** ("Dodaj typowe produkty" in Ustawienia, and in Produkty 
 
 1. **Start**: Przeterminowane, Kończy się termin, Do kupienia; clicking a line opens that Product's card.
 2. **Produkty**: grouped by Category, with search; each row shows Quantity, Unit, Days Left when there is a Consumption Rate and a "−1" button; clicking opens the Product's card with its Batches.
-3. **Lista zakupów**: the Shopping List, each line with its reason; ticking a Product records a Purchase.
+3. **Lista zakupów**: the Shopping List, each line with its reason; ticking a Product records a Purchase. In the Android app ("Zakupy") it also holds the Custom Lists.
 4. **Historia**: Waste over the last 30 and 90 days, then the latest 200 Stock Events of all Products, newest first, with a name filter (which leaves Waste as it is).
 5. **Ustawienia**: the Buffer, Categories with their Warning Windows, Units, the Starter Catalog, the archive.
 

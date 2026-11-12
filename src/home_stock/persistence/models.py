@@ -65,6 +65,36 @@ class StockEventRow(Base):
     expired: Mapped[bool] = mapped_column(default=False)
 
 
+class CustomListRow(Base):
+    __tablename__ = "custom_lists"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    occasion: Mapped[date | None] = mapped_column(Date)
+
+
+class ListLineRow(Base):
+    """A List Line, in the order added (by id)."""
+
+    __tablename__ = "list_lines"
+    __table_args__ = (
+        # A Product with a Quantity, or free text without one
+        CheckConstraint(
+            "(product_id IS NOT NULL AND quantity > 0 AND text IS NULL)"
+            " OR (product_id IS NULL AND quantity IS NULL AND text IS NOT NULL)",
+            name="ck_list_lines_product_or_text",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    list_id: Mapped[int] = mapped_column(ForeignKey("custom_lists.id", ondelete="CASCADE"))
+    # No cascade: a Product is not removed while a line names it
+    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"))
+    quantity: Mapped[int | None]
+    text: Mapped[str | None] = mapped_column(String)
+    bought: Mapped[bool] = mapped_column(default=False)
+
+
 class SettingRow(Base):
     __tablename__ = "settings"
 

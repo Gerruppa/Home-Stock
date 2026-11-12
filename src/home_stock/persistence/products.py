@@ -24,7 +24,7 @@ from home_stock.domain.stock import (
 )
 from home_stock.persistence.catalog import StockError, list_categories, list_units
 from home_stock.persistence.history import consumption_rates, record_event, remove_events
-from home_stock.persistence.models import BatchRow, ProductRow, StockEventRow
+from home_stock.persistence.models import BatchRow, ListLineRow, ProductRow, StockEventRow
 from home_stock.persistence.settings import load_buffer_days
 
 
@@ -88,7 +88,10 @@ def remove_new_products(engine: Engine, product_ids: Sequence[int]) -> None:
         used = connection.execute(
             select(BatchRow.id)
             .where(BatchRow.product_id.in_(product_ids))
-            .union_all(select(StockEventRow.id).where(StockEventRow.product_id.in_(product_ids)))
+            .union_all(
+                select(StockEventRow.id).where(StockEventRow.product_id.in_(product_ids)),
+                select(ListLineRow.id).where(ListLineRow.product_id.in_(product_ids)),
+            )
         ).first()
         if len(existing) < len(set(product_ids)) or used is not None:
             raise ProductsInUseError()
@@ -107,7 +110,11 @@ def undo_add_product(engine: Engine, product_id: int) -> None:
     gone or has a Stock Event."""
     with engine.begin() as connection:
         existing = connection.execute(select(ProductRow.id).where(ProductRow.id == product_id)).first()
-        used = connection.execute(select(StockEventRow.id).where(StockEventRow.product_id == product_id)).first()
+        used = connection.execute(
+            select(StockEventRow.id)
+            .where(StockEventRow.product_id == product_id)
+            .union_all(select(ListLineRow.id).where(ListLineRow.product_id == product_id))
+        ).first()
         if existing is None or used is not None:
             raise ProductInUseError()
         connection.execute(delete(BatchRow).where(BatchRow.product_id == product_id))

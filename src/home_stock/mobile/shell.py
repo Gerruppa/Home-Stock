@@ -44,7 +44,7 @@ class UndoBar:
         self.present = present
         self.update = update
         # Without persist=False, Flutter keeps a snackbar with an action (Cofnij) up until it is tapped
-        self.snackbar = ft.SnackBar(ft.Text(""), duration=UNDO_MILLISECONDS, persist=False, key="undo-bar")
+        self.snackbar = ft.SnackBar(ft.Text(""))
 
     def show(self, message: str, action: Callable[[], None]) -> None:
         def undo(_: ft.Event[ft.SnackBar]) -> None:
@@ -71,13 +71,20 @@ class UndoBar:
     def _open(
         self, message: str, action: str | None, on_action: Callable[[ft.Event[ft.SnackBar]], None] | None
     ) -> None:
-        self.snackbar.content = ft.Text(message)
-        self.snackbar.action = action
-        self.snackbar.on_action = on_action
         if self.snackbar.open:
+            self.snackbar.content = ft.Text(message)
+            self.snackbar.action = action
+            self.snackbar.on_action = on_action
             self.update()
-        else:
-            self.present(self.snackbar)
+            return
+        # A new snackbar each time: a hidden one stays among the page's dialogs until the phone reports it dismissed,
+        # and showing it again before that fails ("Dialog is already opened"). No key: Flet takes a new control with
+        # the key of an old one for a rebuild of it and freezes it, so it can no longer be hidden
+        # Without persist=False, Flutter keeps a snackbar with an action (Cofnij) up until it is tapped
+        self.snackbar = ft.SnackBar(
+            ft.Text(message), action=action, on_action=on_action, duration=UNDO_MILLISECONDS, persist=False
+        )
+        self.present(self.snackbar)
 
 
 class Shell:

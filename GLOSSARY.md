@@ -122,6 +122,16 @@ _Avoid_: Lead time, horizon, safety stock
 The state of a Product whose Days Left is at or below the Buffer; a Product without a Consumption Rate never Runs Out.
 _Avoid_: Running short, depleting
 
+## Shopping for an occasion
+
+**Custom List** ("Lista własna"):
+A named list the user keeps by hand for an occasion, such as a dinner, with an optional date; it sits beside the Shopping List and never changes it (ADR-0006).
+_Avoid_: Wish list, extra list, custom shopping list
+
+**List Line** ("Pozycja"):
+One line of a Custom List: a Product with a Quantity in its Unit, or free text for something not kept as stock; adding a Product already on the list adds to its line.
+_Avoid_: List item, shopping item
+
 ## Data
 
 **Backup**:
