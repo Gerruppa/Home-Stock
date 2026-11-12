@@ -8,6 +8,7 @@ from home_stock.domain.stock import Product, is_running_low, name_key
 from home_stock.mobile.context import Context
 from home_stock.mobile.product_card import open_product_card
 from home_stock.mobile.product_form import open_product_form
+from home_stock.mobile.starter_dialog import open_starter_dialog
 from home_stock.persistence.catalog import list_categories, list_units
 from home_stock.persistence.history import consumption_rates
 from home_stock.persistence.products import list_products, undo_use, use_one
@@ -53,7 +54,24 @@ class ProductsTab:
         rates = consumption_rates(engine, self.ctx.today())
         rows: list[ft.Control] = []
         if not products:
-            rows.append(ft.Container(ft.Text("Nie masz jeszcze produktów."), padding=16, key="no-products"))
+            rows.append(
+                ft.Container(
+                    ft.Column(
+                        [
+                            ft.Text("Nie masz jeszcze produktów."),
+                            ft.OutlinedButton(
+                                "Dodaj typowe produkty",
+                                icon=ft.Icons.PLAYLIST_ADD,
+                                on_click=lambda _: open_starter_dialog(self.ctx),
+                                key="starter-open-empty",
+                            ),
+                        ],
+                        spacing=12,
+                    ),
+                    padding=16,
+                    key="no-products",
+                )
+            )
         wanted = name_key(self.search)
         for category in list_categories(engine):
             shown = [p for p in products if p.category_id == category.id and wanted in name_key(p.name)]
