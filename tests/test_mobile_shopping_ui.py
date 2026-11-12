@@ -326,7 +326,7 @@ def test_dopisz_writes_a_product_with_its_quantity_and_cofnij_takes_it_back(engi
 
     [line] = list_lines(engine, _only_list(engine))
     # Then the line's menu: Zmień ilość, Usuń
-    assert texts(find(body, f"custom-line-{line.id}"))[:2] == ["Śmietana", "kup 2 szt."]
+    assert texts(find(body, f"custom-line-{line.id}"))[:3] == ["Śmietana", "w domu: brak", "kup 2 szt."]
     assert "Lista jest pusta." not in texts(body)
     assert texts(screen.presented[-1]) == ["Dopisano: Śmietana"]
 
@@ -610,3 +610,63 @@ def test_usun_liste_shows_brakuje_and_cofnij_brings_the_list_back(engine: Engine
     assert list_lines(engine, kolacja) == lines
     chip = find(body, f"list-chip-{kolacja}")
     assert isinstance(chip, ft.Chip) and chip.selected
+
+
+def test_a_line_to_buy_says_how_much_is_at_home(engine: Engine, screen: Screen) -> None:
+    # Spożywcze warns 3 days ahead: Śmietana's Batch expiring 4.11 is Expiring Soon on 2.11, and gone before 15.11
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA), BatchDraft(1, date(2026, 11, 4)))
+    maslo = add_product(engine, ProductDraft("Masło", SPOZYWCZE, SZTUKA))
+    kolacja = make_custom_list(engine, CustomListDraft("Kolacja", date(2026, 11, 15)))
+    smietana_line = add_line(engine, kolacja, ListLineDraft.product(smietana, 2)).line_id
+    maslo_line = add_line(engine, kolacja, ListLineDraft.product(maslo, 1)).line_id
+    note_line = add_line(engine, kolacja, ListLineDraft.note("świeczki")).line_id
+    body = _open(engine, screen)
+
+    tap(find(body, f"list-chip-{kolacja}"), "on_select")
+
+    assert "w domu: 1 szt. · ważne do 04.11 · przed okazją" in texts(find(body, f"custom-line-{smietana_line}"))
+    assert "w domu: brak" in texts(find(body, f"custom-line-{maslo_line}"))
+    assert not any(text.startswith("w domu") for text in texts(find(body, f"custom-line-{note_line}")))
+
+
+def test_a_bought_line_says_nothing_of_what_is_at_home(engine: Engine, screen: Screen) -> None:
+    body, _, _, _, note_line = _dinner_on_screen(engine, screen)
+    tap(find(body, f"tick-{note_line}"))
+    [product_line] = [line for line in list_lines(engine, _only_list(engine)) if line.product_id is not None]
+    tap(find(body, f"tick-{product_line.id}"))
+    tap(find(screen.top, "purchase-save"))
+
+    assert not any(text.startswith("w domu") for text in texts(find(body, f"custom-line-{product_line.id}")))
+
+
+def _name_field(body: ft.Control) -> ft.Dropdown:
+    box = find(body, "line-name")
+    assert isinstance(box, ft.Row)
+    [name] = box.controls
+    assert isinstance(name, ft.Dropdown)
+    return name
+
+
+def test_dopisz_says_how_much_of_the_picked_product_is_at_home(engine: Engine, screen: Screen) -> None:
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA), BatchDraft(2))
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+    assert texts(find(body, "line-at-home")) == []
+
+    name = _name_field(body)
+    name.value = str(smietana)
+    tap(name, "on_select")
+
+    assert texts(find(body, "line-at-home")) == ["w domu: 2 szt."]
+
+    # Text naming no Product writes a free-text line, which says nothing of what is at home
+    name.text = "świeczki"
+    tap(name, "on_text_change")
+    assert texts(find(body, "line-at-home")) == []
+
+    name.text = "śmietana"
+    tap(name, "on_text_change")
+    assert texts(find(body, "line-at-home")) == ["w domu: 2 szt."]
+
+    tap(find(body, "line-add"))
+    assert texts(find(body, "line-at-home")) == []

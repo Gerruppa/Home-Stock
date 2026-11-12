@@ -9,6 +9,7 @@ import flet as ft
 
 from home_stock.domain.custom_lists import NOTHING_TYPED, CustomList, ListLine, ListLineDraft
 from home_stock.domain.formatting import (
+    format_at_home,
     format_custom_list,
     format_custom_list_label,
     format_custom_list_title,
@@ -196,10 +197,18 @@ class ShoppingTab:
     def _custom_list(self, custom_list: CustomList) -> list[ft.Control]:
         engine = self.ctx.engine
         active = list_products(engine)
-        self.line_form.show(custom_list.id, active)
         # An Archived Product's line stays on the list
         products = {product.id: product for product in active + list_products(engine, archived=True)}
         units = {unit.id: unit for unit in list_units(engine)}
+        warning_days = {category.id: category.warning_days for category in list_categories(engine)}
+        today = self.ctx.today()
+
+        def at_home(product: Product) -> str:
+            return format_at_home(
+                product, units[product.unit_id], today, warning_days[product.category_id], custom_list.occasion
+            )
+
+        self.line_form.show(custom_list.id, active, at_home)
         lines = list_lines(engine, custom_list.id)
         to_buy = [line for line in lines if not line.bought]
         bought = [line for line in lines if line.bought]
@@ -213,7 +222,7 @@ class ShoppingTab:
             rows.append(ft.Container(ft.Text("Lista jest pusta."), padding=16, key="custom-list-empty"))
         elif not to_buy:
             rows.append(ft.Container(ft.Text("Wszystko kupione."), padding=16, key="all-bought"))
-        rows += [self._line_tile(line, products, units) for line in to_buy]
+        rows += [self._line_tile(line, products, units, at_home) for line in to_buy]
         if bought:
             rows.append(
                 ft.Container(
@@ -222,7 +231,7 @@ class ShoppingTab:
                     key="bought-heading",
                 )
             )
-            rows += [self._line_tile(line, products, units) for line in bought]
+            rows += [self._line_tile(line, products, units, at_home) for line in bought]
         return rows
 
     def _title(self, custom_list: CustomList) -> ft.Control:
@@ -281,9 +290,15 @@ class ShoppingTab:
         self.ctx.changed()
         self.ctx.undo(f"Usunięto listę: {custom_list.name}", undo)
 
-    def _line_tile(self, line: ListLine, products: dict[int, Product], units: dict[int, Unit]) -> ft.Control:
-        """A line to buy has a tick and a menu (Zmień ilość or Zmień tekst, Usuń); a bought one is crossed out, with
-        Usuń only."""
+    def _line_tile(
+        self,
+        line: ListLine,
+        products: dict[int, Product],
+        units: dict[int, Unit],
+        at_home: Callable[[Product], str],
+    ) -> ft.Control:
+        """A line to buy has a tick and a menu (Zmień ilość or Zmień tekst, Usuń), and a Product line says under it
+        what ``at_home`` says of the Product; a bought one is crossed out, with Usuń only."""
         product = None if line.product_id is None else products[line.product_id]
         name = line.text or "" if product is None else product.name
         title = f"{name} (w archiwum)" if product is not None and product.archived else name
@@ -329,6 +344,7 @@ class ShoppingTab:
         trailing.append(ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, tooltip="Pozycja", items=items))
         return ft.ListTile(
             title=ft.Text(title, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, style=style, color=color),
+            subtitle=None if product is None or line.bought else ft.Text(at_home(product), size=12),
             trailing=ft.Row(trailing, tight=True),
             dense=True,
             key=f"custom-line-{line.id}",
@@ -380,6 +396,9 @@ class LineForm:
         self.quantity = text_field("Ilość", "1", "line-quantity", number=True, width=80)
         self.quantity.on_submit = self._add
         self.error = ft.Text("", color=ft.Colors.ERROR, size=12, visible=False, key="line-error")
+        # How much of the Product the line would name is at home, before it is added
+        self.at_home_hint = ft.Text("", size=12, visible=False, key="line-at-home")
+        self.at_home: Callable[[Product], str] = lambda _: ""
         self.control = ft.Container(
             ft.Column(
                 [
@@ -390,6 +409,7 @@ class LineForm:
                             ft.IconButton(ft.Icons.ADD, tooltip="Dopisz", on_click=self._add, key="line-add"),
                         ]
                     ),
+                    self.at_home_hint,
                     self.error,
                 ],
                 spacing=4,
@@ -397,14 +417,18 @@ class LineForm:
             padding=ft.Padding.symmetric(horizontal=12, vertical=8),
         )
 
-    def show(self, list_id: int, active: list[Product]) -> None:
-        """Offer the active Products for the Custom List ``list_id``; empty again after another list."""
+    def show(self, list_id: int, active: list[Product], at_home: Callable[[Product], str]) -> None:
+        """Offer the active Products for the Custom List ``list_id``, ``at_home`` saying how much of the one picked
+        is at home; empty again after another list."""
+        self.by_id = {product.id: product for product in active}
+        self.by_name = {name_key(product.name): product for product in active}
+        self.at_home = at_home
         if list_id != self.list_id:
             self.list_id = list_id
             self._clear()
-        self.by_id = {product.id: product for product in active}
-        self.by_name = {name_key(product.name): product for product in active}
         self.name.options = [ft.DropdownOption(key=str(p.id), text=p.name) for p in active]
+        # What is at home may have changed since
+        self._show_at_home()
 
     def _new_name(self) -> ft.Dropdown:
         # A key of its own: with the old one's key, or none, Flet takes the new field for the old one (and freezes
@@ -416,6 +440,8 @@ class LineForm:
             editable=True,
             enable_filter=True,
             expand=True,
+            on_select=self._picked_changed,
+            on_text_change=self._picked_changed,
             key=f"line-name-field-{self.made}",
         )
 
@@ -428,17 +454,32 @@ class LineForm:
         self.quantity.value = "1"
         show_error(self.quantity, None)
         self.error.visible = False
+        self._show_at_home()
+
+    def _picked(self) -> tuple[Product | None, str]:
+        """The Product the line would name, if any, and the text typed."""
+        picked = self.by_id.get(int(self.name.value)) if self.name.value else None
+        typed = " ".join((self.name.text or "").split())
+        # Text typed after picking a Product names what was typed, not the Product picked
+        if typed and (picked is None or name_key(typed) != name_key(picked.name)):
+            picked = self.by_name.get(name_key(typed))
+        return picked, typed
+
+    def _show_at_home(self) -> None:
+        picked, _ = self._picked()
+        self.at_home_hint.value = "" if picked is None else self.at_home(picked)
+        self.at_home_hint.visible = picked is not None
+
+    def _picked_changed(self, _: object) -> None:
+        self._show_at_home()
+        self.ctx.update()
 
     def _say(self, problem: str) -> None:
         self.error.value, self.error.visible = problem, True
         self.ctx.update()
 
     def _add(self, _: object) -> None:
-        picked = self.by_id.get(int(self.name.value)) if self.name.value else None
-        typed = " ".join((self.name.text or "").split())
-        # Text typed after picking a Product names what was typed, not the Product picked
-        if typed and (picked is None or name_key(typed) != name_key(picked.name)):
-            picked = self.by_name.get(name_key(typed))
+        picked, typed = self._picked()
         self.error.visible = False
         show_error(self.quantity, None)
         if picked is None and not typed:
