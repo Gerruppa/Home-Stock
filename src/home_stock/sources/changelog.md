@@ -1,6 +1,6 @@
 # Historia zmian
 
-## Nieopublikowane
+## 0.5.0 — 2026-11-12
 
 ### Nowe funkcje
 - W aplikacji na Androida działają już Start, Produkty (z kartą produktu, dodawaniem i edycją), Zakupy z rozpakowaniem zakupów, Historia (marnowanie z 30 i 90 dni, ostatnie zdarzenia i szukanie po nazwie produktu) oraz Ustawienia (zapas dni, kategorie z dniami ostrzeżenia, jednostki i przywracanie produktów z archiwum); listę zakupów można skopiować albo udostępnić, a dane zostają na telefonie.
