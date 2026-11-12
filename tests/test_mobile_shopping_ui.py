@@ -8,7 +8,7 @@ from sqlalchemy import Engine
 from home_stock.domain.custom_lists import CustomListDraft, ListLineDraft
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.mobile.shell import Shell
-from home_stock.persistence.custom_lists import add_line, list_custom_lists, list_lines, make_custom_list
+from home_stock.persistence.custom_lists import add_line, get_line, list_custom_lists, list_lines, make_custom_list
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import (
     add_product,
@@ -246,8 +246,8 @@ def _make_list(body: ft.Control, screen: Screen, name: str, occasion: str = "") 
 
 def _write(body: ft.Control, *, product: int | None = None, text: str | None = None, quantity: str = "1") -> None:
     box = find(body, "line-name")
-    assert isinstance(box, ft.Container)
-    name = box.content
+    assert isinstance(box, ft.Row)
+    [name] = box.controls
     assert isinstance(name, ft.Dropdown)
     name.value = None if product is None else str(product)
     name.text = text
@@ -325,7 +325,8 @@ def test_dopisz_writes_a_product_with_its_quantity_and_cofnij_takes_it_back(engi
     _write(body, product=smietana, quantity="2")
 
     [line] = list_lines(engine, _only_list(engine))
-    assert texts(find(body, f"custom-line-{line.id}")) == ["Śmietana", "kup 2 szt."]
+    # Then the line's menu: Zmień ilość, Usuń
+    assert texts(find(body, f"custom-line-{line.id}"))[:2] == ["Śmietana", "kup 2 szt."]
     assert "Lista jest pusta." not in texts(body)
     assert texts(screen.presented[-1]) == ["Dopisano: Śmietana"]
 
@@ -355,11 +356,13 @@ def test_text_naming_no_product_becomes_a_free_text_line(engine: Engine, screen:
 
     lines = list_lines(engine, _only_list(engine))
     assert [line.text for line in lines] == ["świeczki", "wino × 3"]
-    assert texts(find(body, f"custom-line-{lines[0].id}")) == ["świeczki"]
+    assert texts(find(body, f"custom-line-{lines[0].id}"))[0] == "świeczki"
     # Empty again for the next line
     box = find(body, "line-name")
-    assert isinstance(box, ft.Container) and isinstance(box.content, ft.Dropdown)
-    assert (box.content.value, box.content.text) == (None, None)
+    assert isinstance(box, ft.Row)
+    [name] = box.controls
+    assert isinstance(name, ft.Dropdown)
+    assert (name.value, name.text) == (None, None)
     quantity = find(body, "line-quantity")
     assert isinstance(quantity, ft.TextField)
     assert quantity.value == "1"
@@ -419,3 +422,170 @@ def test_a_line_of_an_archived_product_stays_and_says_so(engine: Engine, screen:
 
     [line] = list_lines(engine, kolacja)
     assert "Śmietana (w archiwum)" in texts(find(body, f"custom-line-{line.id}"))
+
+
+def _dinner_on_screen(engine: Engine, screen: Screen) -> tuple[ft.Control, int, int, int, int]:
+    """Kolacja (15.11.2026) with Śmietana × 2 and "świeczki", selected on Zakupy; returns the tab's body, the list,
+    the Product and the two line ids."""
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA))
+    kolacja = make_custom_list(engine, CustomListDraft("Kolacja", date(2026, 11, 15)))
+    product_line = add_line(engine, kolacja, ListLineDraft.product(smietana, 2)).line_id
+    note_line = add_line(engine, kolacja, ListLineDraft.note("świeczki")).line_id
+    body = _open(engine, screen)
+    tap(find(body, f"list-chip-{kolacja}"), "on_select")
+    return body, kolacja, smietana, product_line, note_line
+
+
+def _bought(engine: Engine, line_id: int) -> bool:
+    return get_line(engine, line_id).bought
+
+
+def test_the_list_shows_its_name_and_date(engine: Engine, screen: Screen) -> None:
+    body, *_ = _dinner_on_screen(engine, screen)
+
+    assert texts(find(body, "custom-list-title")) == ["Kolacja · 15.11.2026"]
+
+
+def test_a_free_text_line_ticked_goes_under_kupione_and_cofnij_brings_it_back(engine: Engine, screen: Screen) -> None:
+    body, _, _, _, note_line = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"tick-{note_line}"))
+
+    assert _bought(engine, note_line)
+    assert find(body, "bought-heading")
+    assert absent(body, f"tick-{note_line}")
+    # Bought lines come after the heading
+    shown = texts(body)
+    assert shown.index("Kupione") < shown.index("świeczki")
+    assert texts(screen.presented[-1]) == ["Kupiono: świeczki"]
+
+    tap(screen.presented[-1], "on_action")
+
+    assert not _bought(engine, note_line)
+    assert absent(body, "bought-heading")
+    assert find(body, f"tick-{note_line}")
+
+
+def test_a_product_line_is_bought_with_its_quantity_and_one_cofnij_takes_back_both(
+    engine: Engine, screen: Screen
+) -> None:
+    body, _, smietana, product_line, _ = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"tick-{product_line}"))
+    assert _quantity_field(screen).value == "2"
+    tap(find(screen.top, "purchase-save"))
+
+    assert _bought(engine, product_line)
+    assert get_product(engine, smietana).quantity == 2
+    assert screen.top is screen.views[0]
+
+    tap(screen.presented[-1], "on_action")
+
+    assert not _bought(engine, product_line)
+    assert get_product(engine, smietana).quantity == 0
+
+
+def test_cancelling_the_purchase_leaves_the_line_to_buy(engine: Engine, screen: Screen) -> None:
+    body, _, smietana, product_line, _ = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"tick-{product_line}"))
+    tap(find(screen.top, "purchase-cancel"))
+
+    assert not _bought(engine, product_line)
+    assert get_product(engine, smietana).quantity == 0
+
+
+def test_with_every_line_bought_the_list_says_so(engine: Engine, screen: Screen) -> None:
+    body, _, _, product_line, note_line = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"tick-{note_line}"))
+    tap(find(body, f"tick-{product_line}"))
+    tap(find(screen.top, "purchase-save"))
+
+    assert "Wszystko kupione." in texts(body)
+    # A bought line keeps only Usuń
+    assert absent(body, f"change-line-{product_line}")
+    assert find(body, f"delete-line-{product_line}")
+
+
+def test_zmien_ilosc_changes_a_product_line_and_cofnij_changes_it_back(engine: Engine, screen: Screen) -> None:
+    body, _, _, product_line, _ = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"change-line-{product_line}"))
+    field = _field(screen, "line-edit-field")
+    assert field.value == "2"
+    field.value = "4"
+    tap(find(screen.top, "line-edit-save"))
+
+    assert get_line(engine, product_line).quantity == 4
+    assert "kup 4 szt." in texts(find(body, f"custom-line-{product_line}"))
+    tap(screen.presented[-1], "on_action")
+    assert get_line(engine, product_line).quantity == 2
+
+
+def test_zmien_ilosc_refuses_zero(engine: Engine, screen: Screen) -> None:
+    body, _, _, product_line, _ = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"change-line-{product_line}"))
+    _field(screen, "line-edit-field").value = "0"
+    tap(find(screen.top, "line-edit-save"))
+
+    assert "Ilość musi być liczbą całkowitą większą od zera." in texts(screen.top)
+    assert get_line(engine, product_line).quantity == 2
+
+
+def test_zmien_tekst_changes_a_free_text_line(engine: Engine, screen: Screen) -> None:
+    body, _, _, _, note_line = _dinner_on_screen(engine, screen)
+
+    tap(find(body, f"change-line-{note_line}"))
+    _field(screen, "line-edit-field").value = "świece zapachowe"
+    tap(find(screen.top, "line-edit-save"))
+
+    assert get_line(engine, note_line).text == "świece zapachowe"
+
+
+def test_usun_removes_a_line_and_cofnij_puts_it_back(engine: Engine, screen: Screen) -> None:
+    body, kolacja, _, product_line, _ = _dinner_on_screen(engine, screen)
+    before = list_lines(engine, kolacja)
+
+    tap(find(body, f"delete-line-{product_line}"))
+
+    assert absent(body, f"custom-line-{product_line}")
+    assert texts(screen.presented[-1]) == ["Usunięto: Śmietana"]
+    tap(screen.presented[-1], "on_action")
+    assert list_lines(engine, kolacja) == before
+
+
+def test_edytuj_liste_renames_and_re_dates_the_list(engine: Engine, screen: Screen) -> None:
+    body, kolacja, *_ = _dinner_on_screen(engine, screen)
+
+    tap(find(body, "edit-list"))
+    assert _field(screen, "custom-list-name").value == "Kolacja"
+    assert _field(screen, "custom-list-occasion").value == "15.11.2026"
+    _field(screen, "custom-list-name").value = "Kolacja u mamy"
+    _field(screen, "custom-list-occasion").value = ""
+    tap(find(screen.top, "custom-list-save"))
+
+    assert texts(find(body, f"list-chip-{kolacja}")) == ["Kolacja u mamy"]
+    tap(screen.presented[-1], "on_action")
+    assert texts(find(body, f"list-chip-{kolacja}")) == ["Kolacja · 15.11"]
+
+
+def test_usun_liste_shows_brakuje_and_cofnij_brings_the_list_back(engine: Engine, screen: Screen) -> None:
+    body, kolacja, _, _, note_line = _dinner_on_screen(engine, screen)
+    tap(find(body, f"tick-{note_line}"))
+    lines = list_lines(engine, kolacja)
+
+    tap(find(body, "delete-list"))
+
+    assert list_custom_lists(engine) == []
+    assert absent(body, f"list-chip-{kolacja}")
+    chip = find(body, "list-chip-missing")
+    assert isinstance(chip, ft.Chip) and chip.selected
+    assert texts(screen.presented[-1]) == ["Usunięto listę: Kolacja"]
+
+    tap(screen.presented[-1], "on_action")
+
+    assert list_lines(engine, kolacja) == lines
+    chip = find(body, f"list-chip-{kolacja}")
+    assert isinstance(chip, ft.Chip) and chip.selected

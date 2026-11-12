@@ -1,12 +1,17 @@
 """Custom Lists and their List Lines (ADR-0006)."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
+from typing import Any
 
-from sqlalchemy import Connection, Engine, delete, insert, select, update
+from sqlalchemy import Connection, Engine, Row, delete, insert, select, update
 
 from home_stock.domain.custom_lists import CustomList, CustomListDraft, ListLine, ListLineDraft, custom_list_order
+from home_stock.domain.stock import BatchDraft
 from home_stock.persistence.catalog import StockError
 from home_stock.persistence.models import CustomListRow, ListLineRow
+from home_stock.persistence.products import Purchased, record_purchases, remove_purchases
 
 
 class MissingCustomListError(StockError):
@@ -61,7 +66,7 @@ def list_lines(engine: Engine, list_id: int) -> list[ListLine]:
         rows = connection.execute(
             select(ListLineRow).where(ListLineRow.list_id == list_id).order_by(ListLineRow.id)
         ).all()
-    return [ListLine(row.id, row.list_id, row.product_id, row.quantity, row.text, row.bought) for row in rows]
+    return [_line(row) for row in rows]
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,172 @@ def undo_add_line(engine: Engine, added: AddedLine) -> None:
         connection.execute(
             update(ListLineRow).where(ListLineRow.id == added.line_id).values(quantity=quantity[0] - added.quantity)
         )
+
+
+class LineBoughtError(StockError):
+    """The List Line was ticked meanwhile."""
+
+    def __init__(self) -> None:
+        super().__init__("Ta pozycja jest już kupiona.")
+
+
+@dataclass(frozen=True)
+class BoughtLines:
+    """What buy_lines or tick_line did, for undo_buy_lines: the lines ticked and the Purchases recorded with them."""
+
+    line_ids: tuple[int, ...]
+    purchased: Purchased
+
+
+def tick_line(engine: Engine, line_id: int) -> BoughtLines:
+    """Mark a free-text List Line bought; MissingListLineError when it is gone, LineBoughtError when ticked already."""
+    with engine.begin() as connection:
+        products = _refuse_unbought_missing(connection, [line_id])
+        assert products[line_id] is None, "a Product line is bought through buy_lines"
+        _set_bought(connection, [line_id], True)
+    return BoughtLines((line_id,), Purchased((), ()))
+
+
+def buy_lines(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]], on: date) -> BoughtLines:
+    """Record a Purchase of each (Product line id, draft), dated ``on``, and mark those lines bought, in one
+    transaction; MissingListLineError when a line is gone, LineBoughtError when one is ticked already."""
+    line_ids = [line_id for line_id, _ in purchases]
+    with engine.begin() as connection:
+        products = _refuse_unbought_missing(connection, line_ids)
+        product_purchases = []
+        for line_id, draft in purchases:
+            product_id = products[line_id]
+            assert product_id is not None, "a free-text line is ticked, not bought"
+            product_purchases.append((product_id, draft))
+        purchased = record_purchases(connection, product_purchases, on)
+        _set_bought(connection, line_ids, True)
+    return BoughtLines(tuple(line_ids), purchased)
+
+
+def undo_buy_lines(engine: Engine, bought: BoughtLines) -> None:
+    """Take back tick_line or buy_lines, all or none: the lines unticked, the Batches and their Stock Events removed;
+    MissingBatchError or MissingListLineError, with nothing changed, when one is gone."""
+    with engine.begin() as connection:
+        found = connection.execute(select(ListLineRow.id).where(ListLineRow.id.in_(bought.line_ids))).scalars().all()
+        if len(found) < len(bought.line_ids):
+            raise MissingListLineError()
+        remove_purchases(connection, bought.purchased)
+        _set_bought(connection, bought.line_ids, False)
+
+
+def get_line(engine: Engine, line_id: int) -> ListLine:
+    """One List Line; MissingListLineError when it is gone."""
+    with engine.connect() as connection:
+        row = connection.execute(select(ListLineRow).where(ListLineRow.id == line_id)).one_or_none()
+    if row is None:
+        raise MissingListLineError()
+    return _line(row)
+
+
+def change_line(engine: Engine, line_id: int, draft: ListLineDraft) -> ListLineDraft:
+    """Set a List Line's Quantity, or its text, from ``draft`` (of the same kind); returns the line as it was, for
+    the undo, which is change_line with it. MissingListLineError when the line is gone."""
+    with engine.begin() as connection:
+        row = connection.execute(select(ListLineRow).where(ListLineRow.id == line_id)).one_or_none()
+        if row is None:
+            raise MissingListLineError()
+        assert row.product_id == draft.product_id, "a line keeps its Product, or stays free text"
+        connection.execute(
+            update(ListLineRow).where(ListLineRow.id == line_id).values(quantity=draft.quantity, text=draft.text)
+        )
+    return ListLineDraft(row.product_id, row.quantity, row.text)
+
+
+def delete_line(engine: Engine, line_id: int) -> ListLine:
+    """Remove a List Line; returns it, for restore_lines. MissingListLineError when it is gone."""
+    line = get_line(engine, line_id)
+    with engine.begin() as connection:
+        connection.execute(delete(ListLineRow).where(ListLineRow.id == line_id))
+    return line
+
+
+def restore_lines(engine: Engine, lines: Sequence[ListLine]) -> None:
+    """Put deleted List Lines back as they were, ids and all: the undo of delete_line. MissingCustomListError when
+    their list is gone."""
+    with engine.begin() as connection:
+        _insert_lines(connection, lines)
+
+
+def edit_custom_list(engine: Engine, list_id: int, draft: CustomListDraft) -> CustomListDraft:
+    """Rename or re-date a Custom List; returns it as it was, for the undo, which is edit_custom_list with it.
+    MissingCustomListError when it is gone."""
+    with engine.begin() as connection:
+        row = connection.execute(select(CustomListRow).where(CustomListRow.id == list_id)).one_or_none()
+        if row is None:
+            raise MissingCustomListError()
+        connection.execute(
+            update(CustomListRow).where(CustomListRow.id == list_id).values(name=draft.name, occasion=draft.occasion)
+        )
+    return CustomListDraft(row.name, row.occasion)
+
+
+@dataclass(frozen=True)
+class DeletedCustomList:
+    """What delete_custom_list removed, for restore_custom_list: the list and every line on it."""
+
+    custom_list: CustomList
+    lines: tuple[ListLine, ...]
+
+
+def delete_custom_list(engine: Engine, list_id: int) -> DeletedCustomList:
+    """Remove a Custom List with its lines, bought or not; MissingCustomListError when it is gone."""
+    with engine.begin() as connection:
+        row = connection.execute(select(CustomListRow).where(CustomListRow.id == list_id)).one_or_none()
+        if row is None:
+            raise MissingCustomListError()
+        lines = connection.execute(
+            select(ListLineRow).where(ListLineRow.list_id == list_id).order_by(ListLineRow.id)
+        ).all()
+        connection.execute(delete(CustomListRow).where(CustomListRow.id == list_id))
+    return DeletedCustomList(CustomList(row.id, row.name, row.occasion), tuple(_line(line) for line in lines))
+
+
+def restore_custom_list(engine: Engine, deleted: DeletedCustomList) -> None:
+    """Put a deleted Custom List back as it was, ids and lines and all: the undo of delete_custom_list."""
+    lst = deleted.custom_list
+    with engine.begin() as connection:
+        connection.execute(insert(CustomListRow).values(id=lst.id, name=lst.name, occasion=lst.occasion))
+        _insert_lines(connection, deleted.lines)
+
+
+def _insert_lines(connection: Connection, lines: Sequence[ListLine]) -> None:
+    for line in lines:
+        _refuse_missing_list(connection, line.list_id)
+        connection.execute(
+            insert(ListLineRow).values(
+                id=line.id,
+                list_id=line.list_id,
+                product_id=line.product_id,
+                quantity=line.quantity,
+                text=line.text,
+                bought=line.bought,
+            )
+        )
+
+
+def _line(row: Row[Any]) -> ListLine:
+    return ListLine(row.id, row.list_id, row.product_id, row.quantity, row.text, row.bought)
+
+
+def _refuse_unbought_missing(connection: Connection, line_ids: Sequence[int]) -> dict[int, int | None]:
+    """The Product of each line by id; MissingListLineError when one is gone, LineBoughtError when one is bought."""
+    rows = connection.execute(
+        select(ListLineRow.id, ListLineRow.product_id, ListLineRow.bought).where(ListLineRow.id.in_(line_ids))
+    ).all()
+    if len(rows) < len(set(line_ids)):
+        raise MissingListLineError()
+    if any(row.bought for row in rows):
+        raise LineBoughtError()
+    return {row.id: row.product_id for row in rows}
+
+
+def _set_bought(connection: Connection, line_ids: Sequence[int], bought: bool) -> None:
+    connection.execute(update(ListLineRow).where(ListLineRow.id.in_(line_ids)).values(bought=bought))
 
 
 def _refuse_missing_list(connection: Connection, list_id: int) -> None:

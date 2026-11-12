@@ -31,6 +31,9 @@ In the Android app only (the Windows app goes with #113). A **Custom List** ("Li
 - A **List Line** ("Pozycja") is a Product with a Quantity (a whole number, at least 1) or free text (not blank) for something not kept as stock. "Dopisz" adds one: a Product picked by name with a Quantity, or text that names no Product as free text (a Quantity above 1 goes into its text: "wino × 3"). Adding a Product already on the list adds the Quantity to its line instead of a second one. "Cofnij" takes back the line, or the Quantity added.
 - Lines show in the order added: a Product line with its Quantity in its Unit ("kup 2 szt."), followed by "(w archiwum)" for an Archived Product; a free-text line as written. An empty list reads "Lista jest pusta."
 - A Product is not removed (the undo of adding it) while a List Line names it.
+- A Custom List opens with its name and date ("Kolacja · 15.11.2026") and a menu: "Edytuj listę" (the same form, filled in) and "Usuń listę", which removes it with every line and shows Brakuje; "Cofnij" brings it back as it was, shown again.
+- Ticking a line ("Kupione") marks it bought: a free-text line at once, a Product line through the Purchase dialog with the line's Quantity filled in, recording the Purchase and the tick in one transaction (cancelling leaves the line to buy). One "Cofnij" takes back both.
+- Bought lines go under "Kupione", crossed out, in the order added, without a tick; when no line is left to buy, the list reads "Wszystko kupione." A line's menu offers "Zmień ilość" (a Product line) or "Zmień tekst" (a free-text line), and "Usuń"; a bought line has "Usuń" only. Each has "Cofnij".
 
 ## Stock History
 

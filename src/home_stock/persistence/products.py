@@ -225,20 +225,25 @@ def purchase(engine: Engine, product_id: int, draft: BatchDraft, on: date) -> Pu
 def purchase_many(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]], on: date) -> Purchased:
     """The Purchases of an Unpacking in one transaction: a new Batch and a Purchase event for each (product id,
     draft), in order."""
+    with engine.begin() as connection:
+        return record_purchases(connection, purchases, on)
+
+
+def record_purchases(connection: Connection, purchases: Sequence[tuple[int, BatchDraft]], on: date) -> Purchased:
+    """purchase_many inside the caller's transaction, for an action that changes more along with the Purchases."""
     batches: list[Batch] = []
     event_ids: list[int] = []
-    with engine.begin() as connection:
-        for product_id, draft in purchases:
-            batches.append(
-                Batch(
-                    *connection.execute(
-                        insert(BatchRow)
-                        .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
-                        .returning(BatchRow.id, BatchRow.product_id, BatchRow.quantity, BatchRow.expiry)
-                    ).one()
-                )
+    for product_id, draft in purchases:
+        batches.append(
+            Batch(
+                *connection.execute(
+                    insert(BatchRow)
+                    .values(product_id=product_id, quantity=draft.quantity, expiry=draft.expiry)
+                    .returning(BatchRow.id, BatchRow.product_id, BatchRow.quantity, BatchRow.expiry)
+                ).one()
             )
-            event_ids.append(record_event(connection, product_id, StockEventKind.PURCHASE, draft.quantity, on))
+        )
+        event_ids.append(record_event(connection, product_id, StockEventKind.PURCHASE, draft.quantity, on))
     return Purchased(tuple(batches), tuple(event_ids))
 
 
@@ -246,9 +251,14 @@ def undo_purchase(engine: Engine, purchased: Purchased) -> None:
     """Remove the Batches and Stock Events of a Purchase or an Unpacking, all or none: MissingBatchError, with nothing
     removed, when a Batch is already gone."""
     with engine.begin() as connection:
-        for batch in purchased.batches:
-            _discard_batch(connection, batch.id)
-        remove_events(connection, purchased.event_ids)
+        remove_purchases(connection, purchased)
+
+
+def remove_purchases(connection: Connection, purchased: Purchased) -> None:
+    """undo_purchase inside the caller's transaction."""
+    for batch in purchased.batches:
+        _discard_batch(connection, batch.id)
+    remove_events(connection, purchased.event_ids)
 
 
 def edit_batch(engine: Engine, batch_id: int, quantity: int, expiry: date | None, on: date) -> None:

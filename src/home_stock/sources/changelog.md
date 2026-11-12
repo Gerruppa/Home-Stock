@@ -8,6 +8,7 @@
 - W aplikacji na Androida wersja na dole Ustawień otwiera historię zmian, a pierwsze uruchomienie nowej wersji pokazuje „Co nowego”.
 - W aplikacji na Androida, gdy na GitHubie jest nowsza wersja, obok numeru wersji w Ustawieniach pojawia się „Dostępna wersja X”; dotknięcie pobiera nową aplikację, którą instalujesz na starej, a dane zostają.
 - W aplikacji na Androida na zakładce Zakupy założysz listę własną na okazję, np. „Kolacja w sobotę”, z datą albo bez, i dopiszesz do niej produkty z ilością albo cokolwiek innego, niezależnie od tego, czego brakuje.
+- W aplikacji na Androida pozycje listy własnej odhaczasz w sklepie (produkt od razu trafia do zapasów, z ilością z listy), a kupione przechodzą pod „Kupione”; pozycje i całe listy można zmieniać i usuwać, każdą zmianę z „Cofnij”.
 
 ## 0.4.0 — 2026-11-02
 
