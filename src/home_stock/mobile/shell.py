@@ -10,6 +10,8 @@ from typing import Protocol
 import flet as ft
 from sqlalchemy import Engine
 
+from home_stock import __version__
+from home_stock.mobile.changelog import announce_new_version
 from home_stock.mobile.context import Context
 from home_stock.mobile.history import HistoryTab
 from home_stock.mobile.products import ProductsTab
@@ -81,7 +83,7 @@ class Shell:
     """The five tabs on ``engine``, Start first. ``present`` shows a snackbar (Page.show_dialog), ``update`` sends
     changed controls to the screen (Page.update), ``views`` is the page's stack of views (Page.views), whose first
     the shell fills with the tabs and the navigation bar, and ``copy`` and ``share`` hand text to the clipboard and
-    the share sheet (Clipboard.set, Share.share_text)."""
+    the share sheet (Clipboard.set, Share.share_text). The first start of a new ``version`` opens "Co nowego"."""
 
     def __init__(
         self,
@@ -92,6 +94,7 @@ class Shell:
         copy: Callable[[str], None],
         share: Callable[[str], None],
         today: Callable[[], date] = date.today,
+        version: str = __version__,
     ) -> None:
         self.update = update
         self.views = views
@@ -113,7 +116,7 @@ class Shell:
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
             (ft.Icons.CHECKLIST, "Zakupy", ShoppingTab(self.ctx)),
             (ft.Icons.HISTORY, "Historia", HistoryTab(self.ctx)),
-            (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", SettingsTab(self.ctx)),
+            (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", SettingsTab(self.ctx, version)),
         ]
         self.navigation_bar = ft.NavigationBar(
             destinations=[
@@ -128,6 +131,7 @@ class Shell:
         tabs_view.controls = [ft.SafeArea(self.body, expand=True)]
         tabs_view.navigation_bar = self.navigation_bar
         tabs_view.padding = 0
+        announce_new_version(self.ctx, engine, version)
 
     def changed(self) -> None:
         self.undo_bar.hide()

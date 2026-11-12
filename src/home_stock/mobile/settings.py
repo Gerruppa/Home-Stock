@@ -7,6 +7,7 @@ import flet as ft
 
 from home_stock.domain.formatting import parse_buffer_days, parse_count
 from home_stock.domain.stock import Category, Unit
+from home_stock.mobile.changelog import version_button
 from home_stock.mobile.context import Context
 from home_stock.mobile.fields import text_field
 from home_stock.mobile.starter_dialog import open_starter_dialog
@@ -29,7 +30,7 @@ NEW_WARNING_DAYS = "7"
 
 
 class SettingsTab:
-    def __init__(self, ctx: Context) -> None:
+    def __init__(self, ctx: Context, version: str) -> None:
         self.ctx = ctx
         self.buffer_rows, self.buffer_error, buffer = _section("buffer", "Zakupy", "buffer-error")
         self.category_rows, self.category_error, categories = _section("categories", "Kategorie", "category-error")
@@ -55,7 +56,19 @@ class SettingsTab:
         self.archive_rows = ft.Column(spacing=12)
         archive = _titled("archive", "Archiwum", [self.archive_rows])
         self.control: ft.Control = ft.ListView(
-            [buffer, categories, units, starter, archive], expand=True, spacing=8, padding=16, key="settings"
+            [
+                buffer,
+                categories,
+                units,
+                starter,
+                archive,
+                # No header on a phone: the version sits at the bottom of Ustawienia
+                ft.Row([version_button(ctx, version)], alignment=ft.MainAxisAlignment.CENTER),
+            ],
+            expand=True,
+            spacing=8,
+            padding=16,
+            key="settings",
         )
         self.refresh()
 

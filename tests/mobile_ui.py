@@ -44,9 +44,12 @@ def absent(root: ft.Control, key: str) -> bool:
 
 
 def texts(root: ft.Control) -> list[str]:
-    """Every Text value under ``root`` that is not hidden, in reading order: what the user reads."""
+    """Every Text and Markdown value under ``root`` that is not hidden, in reading order: what the user reads (a
+    Markdown's as written, list marks and all)."""
     return [
-        control.value for control in walk(root, visible_only=True) if isinstance(control, ft.Text) and control.value
+        control.value
+        for control in walk(root, visible_only=True)
+        if isinstance(control, ft.Text | ft.Markdown) and control.value
     ]
 
 

@@ -40,7 +40,7 @@ The Android app's tabs are tested as `tests/test_mobile_<tab>_ui.py`, in plain P
 
 ## Releasing
 
-The changelog `src/home_stock/ui/changelog.md` (Polish) collects, under `## Nieopublikowane`, one sentence per change the user sees, without issue numbers, in the Android app too (from #107 on, starting with „W aplikacji na Androida…”). A release takes two steps of `scripts/release.py`:
+The changelog `src/home_stock/sources/changelog.md` (Polish) collects, under `## Nieopublikowane`, one sentence per change the user sees, without issue numbers, in the Android app too (from #107 on, starting with „W aplikacji na Androida…”). A release takes two steps of `scripts/release.py`:
 - `.venv/Scripts/python.exe scripts/release.py prepare <X.Y.Z>` on a branch `release/<X.Y.Z>`: sets `__version__` and renames Nieopublikowane to `<X.Y.Z> — <today>`; it refuses a version that is not X.Y.Z or not newer, and an empty Nieopublikowane. Commit, open the PR, merge when the user says so.
 - `.venv/Scripts/python.exe scripts/release.py publish` on an up-to-date, clean main: builds the installer (several minutes, needs Inno Setup; ask first if the user is busy at the computer), pushes the tag `v<X.Y.Z>` and creates the GitHub Release "Home Stock <X.Y.Z>" with `Home-Stock-<X.Y.Z>-setup.exe`. `scripts/release.py notes [<X.Y.Z>]` prints the Release text without publishing.
 

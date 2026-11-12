@@ -15,7 +15,7 @@ datas = [
     # The icon, which the app also serves as its favicon
     (str(PACKAGE / "ui" / "assets"), "home_stock/ui/assets"),
 ]
-datas += [(str(path), "home_stock/ui") for path in (PACKAGE / "ui").glob("*.md")]
+datas += [(str(path), "home_stock/sources") for path in (PACKAGE / "sources").glob("*.md")]
 
 a = Analysis(
     [str(ROOT / "main.py")],

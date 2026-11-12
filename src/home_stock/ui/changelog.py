@@ -1,25 +1,16 @@
 """The changelog: the version in the header opens every released version, and the first start of a new version
-opens "Co nowego" with only that version (from KAPITA's).
-
-The text lives in ``changelog.md`` beside this module (format in ``domain/changelog.py``), kept by hand: a PR adds an
-entry to its "Nieopublikowane" section, which the window never shows.
-"""
+opens "Co nowego" with only that version (from KAPITA's). The text and the choice of what to announce are in
+``sources/changelog.py``."""
 
 from collections.abc import Iterable
-from importlib.resources import files
 
 from nicegui import ui
 from sqlalchemy import Engine
 
-from home_stock.domain.changelog import TITLE, Changelog, ChangelogError, Release, is_newer, parse_changelog
+from home_stock.domain.changelog import TITLE, ChangelogError, Release
 from home_stock.domain.formatting import format_date
-from home_stock.persistence.settings import LAST_ANNOUNCED_VERSION, load_setting, save_setting
+from home_stock.sources.changelog import load_changelog, release_to_announce
 from home_stock.ui.dialog_keys import wire_dialog_keys
-
-
-def load_changelog() -> Changelog:
-    """The changelog shipped with the app."""
-    return parse_changelog(files(__package__).joinpath("changelog.md").read_text(encoding="utf-8"))
 
 
 def open_changelog(overlay: ui.element, title: str, releases: Iterable[Release]) -> None:
@@ -58,19 +49,7 @@ def version_label(overlay: ui.element, version: str) -> None:
 
 
 def announce_new_version(overlay: ui.element, engine: Engine, version: str) -> None:
-    """On the first start of ``version`` after an older one, open "Co nowego" with its section, and record it; a fresh
-    database (a first install, every ``--demo``) only records it, and going back to an older version records nothing,
-    so the newer one is not announced twice."""
-    last = load_setting(engine, LAST_ANNOUNCED_VERSION)
-    if last is not None and not is_newer(version, last):
-        return
-    save_setting(engine, LAST_ANNOUNCED_VERSION, version)
-    if last is None:
-        return
-    try:
-        release = load_changelog().release(version)
-    except ChangelogError:
-        # A broken file never stops the start; clicking the version says what is wrong
-        return
+    """Open "Co nowego" on the first start of ``version`` after an older one (see ``release_to_announce``)."""
+    release = release_to_announce(engine, version)
     if release is not None:
         open_changelog(overlay, "Co nowego", [release])

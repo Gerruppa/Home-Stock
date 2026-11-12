@@ -21,7 +21,7 @@ from home_stock.domain.changelog import UNRELEASED, ChangelogError, is_newer, pa
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / "src" / "home_stock" / "__init__.py"
-CHANGELOG = ROOT / "src" / "home_stock" / "ui" / "changelog.md"
+CHANGELOG = ROOT / "src" / "home_stock" / "sources" / "changelog.md"
 _VERSION_LINE = re.compile(r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE)
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
