@@ -107,8 +107,9 @@ def test_cofnij_refuses_once_a_product_has_a_purchase(engine: Engine, screen: Sc
     [bar] = screen.presented
     tap(bar, "on_action")
 
-    assert texts(bar)[0].startswith("Nie można cofnąć")
-    assert bar.action is None
+    said = screen.presented[-1]
+    assert texts(said)[0].startswith("Nie można cofnąć")
+    assert said.action is None
     assert len(list_products(engine)) == len(STARTER_CATALOG)
 
 

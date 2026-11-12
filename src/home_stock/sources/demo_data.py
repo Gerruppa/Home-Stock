@@ -7,8 +7,10 @@ from typing import NamedTuple
 
 from sqlalchemy import Engine
 
+from home_stock.domain.custom_lists import CustomListDraft, ListLineDraft
 from home_stock.domain.stock import BatchDraft, PackSize, ProductDraft
 from home_stock.persistence.catalog import list_categories, list_units
+from home_stock.persistence.custom_lists import add_line, make_custom_list
 from home_stock.persistence.products import add_product, archive_product, discard_batch, purchase, use_units
 
 
@@ -142,6 +144,20 @@ PRODUCTS = [
 ARCHIVED = DemoProduct("Kawa rozpuszczalna", "Spożywcze", "słoik", None, 1, [(1, 90)])
 
 
+class DemoCustomList(NamedTuple):
+    name: str
+    # The occasion, this many days from today
+    in_days: int
+    # Product lines by the demo Product's name, with their Quantity
+    products: tuple[tuple[str, int], ...]
+    notes: tuple[str, ...]
+
+
+DINNER = DemoCustomList(
+    "Kolacja w sobotę", 3, (("Mleko 2%", 2), ("Sok pomarańczowy", 3), ("Woda mineralna", 6)), ("świeczki", "kwiaty")
+)
+
+
 def history_uses(demo: DemoProduct) -> list[DemoUse]:
     """The Product's Uses in the Stock History, oldest first."""
     if demo.use_every is None:
@@ -199,6 +215,10 @@ def seed_demo_data(engine: Engine, today: date) -> None:
             purchase(engine, product_id, BatchDraft(quantity, expiry), days_ago(demo.use_every or BOUGHT_DAYS_AGO))
         return product_id
 
-    for demo in PRODUCTS:
-        add(demo)
+    product_ids = {demo.name: add(demo) for demo in PRODUCTS}
     archive_product(engine, add(ARCHIVED))
+    dinner = make_custom_list(engine, CustomListDraft(DINNER.name, today + timedelta(days=DINNER.in_days)))
+    for name, quantity in DINNER.products:
+        add_line(engine, dinner, ListLineDraft.product(product_ids[name], quantity))
+    for text in DINNER.notes:
+        add_line(engine, dinner, ListLineDraft.note(text))

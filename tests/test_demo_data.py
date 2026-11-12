@@ -8,6 +8,7 @@ from sqlalchemy import Engine
 from home_stock.domain.history import StockEventKind
 from home_stock.domain.stock import BatchDraft, ExpiryStatus, expiry_status, is_running_low
 from home_stock.persistence.catalog import list_categories
+from home_stock.persistence.custom_lists import list_custom_lists, list_lines
 from home_stock.persistence.db import init_db
 from home_stock.persistence.history import consumption_rates, list_latest_events, waste_by_period
 from home_stock.persistence.products import Purchased, list_products, list_shopping_list, purchase
@@ -128,3 +129,13 @@ def test_uses_take_only_the_history_and_leave_the_stock_today(engine: Engine) ->
 def test_demo_discards_only_products_without_uses() -> None:
     # A Use takes a dated Batch first, so it would eat the Batch meant to be Discarded
     assert not [demo.name for demo in [*PRODUCTS, ARCHIVED] if demo.use_every is not None and demo.discards]
+
+
+def test_demo_data_has_a_custom_list_for_a_dinner(engine: Engine) -> None:
+    [dinner] = list_custom_lists(engine)
+    lines = list_lines(engine, dinner.id)
+
+    assert dinner.name == "Kolacja w sobotę"
+    assert dinner.occasion is not None and dinner.occasion > TODAY
+    assert any(line.product_id is not None for line in lines)
+    assert any(line.text is not None for line in lines)

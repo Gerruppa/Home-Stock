@@ -138,9 +138,24 @@ def test_an_undo_that_fails_says_why_without_cofnij(shell: Shell, screen: Screen
 
     tap(snackbar, "on_action")
 
-    assert snackbar.open
-    assert texts(snackbar) == ["Tej partii już nie ma."]
-    assert snackbar.action is None
+    # A new snackbar: the redraw hid the one tapped
+    said = screen.presented[-1]
+    assert said is not snackbar
+    assert said.open
+    assert texts(said) == ["Tej partii już nie ma."]
+    assert said.action is None
+
+
+def test_an_undo_right_after_a_hidden_one_opens_a_new_snackbar(shell: Shell, screen: Screen) -> None:
+    shell.ctx.undo("Zużyto 1 × Mleko", lambda: None)
+    shell.changed()
+
+    shell.ctx.undo("Zużyto 1 × Chleb", lambda: None)
+
+    first, second = screen.presented
+    assert not first.open
+    assert second.open
+    assert texts(second) == ["Zużyto 1 × Chleb"]
 
 
 def test_the_next_undo_reuses_the_open_snackbar(shell: Shell, screen: Screen) -> None:

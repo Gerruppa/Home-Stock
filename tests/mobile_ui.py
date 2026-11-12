@@ -87,7 +87,10 @@ class Screen:
         return self.views[-1]
 
     def present(self, snackbar: ft.SnackBar) -> None:
-        # Page.show_dialog opens it
+        # Page.show_dialog opens it, and refuses one shown before: a hidden snackbar stays among the page's dialogs
+        # until the phone reports it dismissed, which never happens here
+        if any(shown is snackbar for shown in self.presented):
+            raise RuntimeError("Dialog is already opened")
         snackbar.open = True
         self.presented.append(snackbar)
 

@@ -7,6 +7,7 @@
 - W aplikacji na Androida „Dodaj typowe produkty” w Ustawieniach i na pustej zakładce Produkty dodaje naraz zaznaczone typowe produkty, z jednym „Cofnij”; tak nowy telefon dostaje swoje produkty.
 - W aplikacji na Androida wersja na dole Ustawień otwiera historię zmian, a pierwsze uruchomienie nowej wersji pokazuje „Co nowego”.
 - W aplikacji na Androida, gdy na GitHubie jest nowsza wersja, obok numeru wersji w Ustawieniach pojawia się „Dostępna wersja X”; dotknięcie pobiera nową aplikację, którą instalujesz na starej, a dane zostają.
+- W aplikacji na Androida na zakładce Zakupy założysz listę własną na okazję, np. „Kolacja w sobotę”, z datą albo bez, i dopiszesz do niej produkty z ilością albo cokolwiek innego, niezależnie od tego, czego brakuje.
 
 ## 0.4.0 — 2026-11-02
 

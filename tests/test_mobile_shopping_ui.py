@@ -5,11 +5,14 @@ import flet as ft
 import pytest
 from sqlalchemy import Engine
 
+from home_stock.domain.custom_lists import CustomListDraft, ListLineDraft
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.mobile.shell import Shell
+from home_stock.persistence.custom_lists import add_line, list_custom_lists, list_lines, make_custom_list
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import (
     add_product,
+    archive_product,
     get_product,
     purchase,
     shopping_list_text,
@@ -211,3 +214,208 @@ def test_a_product_lasting_beyond_a_smaller_buffer_is_not_listed(engine: Engine,
 
     assert "Nic nie trzeba kupować." in texts(body)
     assert absent(body, f"shopping-{cukier}")
+
+
+def _shell(engine: Engine, screen: Screen) -> Shell:
+    shell = Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: TODAY,
+    )
+    select(shell.navigation_bar, SHOPPING_TAB)
+    return shell
+
+
+def _field(screen: Screen, key: str) -> ft.TextField:
+    field = find(screen.top, key)
+    assert isinstance(field, ft.TextField)
+    return field
+
+
+def _make_list(body: ft.Control, screen: Screen, name: str, occasion: str = "") -> None:
+    tap(find(body, "new-list"))
+    _field(screen, "custom-list-name").value = name
+    _field(screen, "custom-list-occasion").value = occasion
+    tap(find(screen.top, "custom-list-save"))
+
+
+def _write(body: ft.Control, *, product: int | None = None, text: str | None = None, quantity: str = "1") -> None:
+    box = find(body, "line-name")
+    assert isinstance(box, ft.Container)
+    name = box.content
+    assert isinstance(name, ft.Dropdown)
+    name.value = None if product is None else str(product)
+    name.text = text
+    quantity_field = find(body, "line-quantity")
+    assert isinstance(quantity_field, ft.TextField)
+    quantity_field.value = quantity
+    tap(find(body, "line-add"))
+
+
+def _only_list(engine: Engine) -> int:
+    [custom_list] = list_custom_lists(engine)
+    return custom_list.id
+
+
+def test_nowa_lista_makes_a_list_and_selects_it(engine: Engine, screen: Screen) -> None:
+    add_product(engine, ProductDraft("Papier toaletowy", HIGIENA, ROLKA, minimum_stock=3), BatchDraft(1))
+    body = _open(engine, screen)
+
+    _make_list(body, screen, "  Kolacja ", "15.11.2026")
+
+    kolacja = _only_list(engine)
+    assert screen.top is screen.views[0]
+    chip = find(body, f"list-chip-{kolacja}")
+    assert isinstance(chip, ft.Chip)
+    assert chip.selected
+    assert texts(chip) == ["Kolacja · 15.11"]
+    assert "Lista jest pusta." in texts(body)
+    assert absent(body, "unpack")
+    assert texts(screen.presented[-1]) == ["Utworzono listę: Kolacja"]
+
+
+def test_brakuje_shows_the_shopping_list_again(engine: Engine, screen: Screen) -> None:
+    papier = add_product(engine, ProductDraft("Papier toaletowy", HIGIENA, ROLKA, minimum_stock=3), BatchDraft(1))
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+
+    tap(find(body, "list-chip-missing"), "on_select")
+
+    assert find(body, f"shopping-{papier}")
+    assert absent(body, "line-name")
+    tap(find(body, f"list-chip-{_only_list(engine)}"), "on_select")
+    assert find(body, "line-name")
+
+
+def test_a_list_needs_a_name_and_a_proper_date(engine: Engine, screen: Screen) -> None:
+    body = _open(engine, screen)
+    tap(find(body, "new-list"))
+    _field(screen, "custom-list-occasion").value = "jutro"
+
+    tap(find(screen.top, "custom-list-save"))
+
+    assert "Podaj nazwę listy." in texts(screen.top)
+    assert "Podaj datę w formacie DD.MM.RRRR." in texts(screen.top)
+    assert list_custom_lists(engine) == []
+
+
+def test_cofnij_takes_back_a_new_list_and_brakuje_is_shown(engine: Engine, screen: Screen) -> None:
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+
+    tap(screen.presented[-1], "on_action")
+
+    assert list_custom_lists(engine) == []
+    chip = find(body, "list-chip-missing")
+    assert isinstance(chip, ft.Chip)
+    assert chip.selected
+    assert "Nic nie trzeba kupować." in texts(body)
+
+
+def test_dopisz_writes_a_product_with_its_quantity_and_cofnij_takes_it_back(engine: Engine, screen: Screen) -> None:
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA))
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+
+    _write(body, product=smietana, quantity="2")
+
+    [line] = list_lines(engine, _only_list(engine))
+    assert texts(find(body, f"custom-line-{line.id}")) == ["Śmietana", "kup 2 szt."]
+    assert "Lista jest pusta." not in texts(body)
+    assert texts(screen.presented[-1]) == ["Dopisano: Śmietana"]
+
+    tap(screen.presented[-1], "on_action")
+
+    assert list_lines(engine, _only_list(engine)) == []
+    assert "Lista jest pusta." in texts(body)
+
+
+def test_a_typed_product_name_writes_that_product(engine: Engine, screen: Screen) -> None:
+    smietana = add_product(engine, ProductDraft("Śmietana 30%", SPOZYWCZE, SZTUKA))
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+
+    _write(body, text=" śmietana  30% ")
+
+    [line] = list_lines(engine, _only_list(engine))
+    assert (line.product_id, line.quantity) == (smietana, 1)
+
+
+def test_text_naming_no_product_becomes_a_free_text_line(engine: Engine, screen: Screen) -> None:
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+
+    _write(body, text="świeczki")
+    _write(body, text="wino", quantity="3")
+
+    lines = list_lines(engine, _only_list(engine))
+    assert [line.text for line in lines] == ["świeczki", "wino × 3"]
+    assert texts(find(body, f"custom-line-{lines[0].id}")) == ["świeczki"]
+    # Empty again for the next line
+    box = find(body, "line-name")
+    assert isinstance(box, ft.Container) and isinstance(box.content, ft.Dropdown)
+    assert (box.content.value, box.content.text) == (None, None)
+    quantity = find(body, "line-quantity")
+    assert isinstance(quantity, ft.TextField)
+    assert quantity.value == "1"
+
+
+def test_the_same_product_adds_to_its_line(engine: Engine, screen: Screen) -> None:
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA))
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+    _write(body, product=smietana, quantity="2")
+
+    _write(body, product=smietana, quantity="3")
+
+    [line] = list_lines(engine, _only_list(engine))
+    assert "kup 5 szt." in texts(find(body, f"custom-line-{line.id}"))
+    tap(screen.presented[-1], "on_action")
+    assert "kup 2 szt." in texts(find(body, f"custom-line-{line.id}"))
+
+
+def test_dopisz_with_nothing_typed_or_a_wrong_quantity_says_so(engine: Engine, screen: Screen) -> None:
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA))
+    body = _open(engine, screen)
+    _make_list(body, screen, "Kolacja")
+
+    _write(body)
+    assert "Wpisz, co kupić." in texts(body)
+
+    _write(body, product=smietana, quantity="0")
+    assert "Ilość musi być liczbą całkowitą większą od zera." in texts(body)
+    _write(body, product=smietana, quantity="dwa")
+    assert "Podaj liczbę całkowitą, np. 2." in texts(body)
+    assert list_lines(engine, _only_list(engine)) == []
+
+
+def test_the_selected_list_stays_after_a_redraw(engine: Engine, screen: Screen) -> None:
+    shell = _shell(engine, screen)
+    _make_list(shell.body, screen, "Kolacja")
+    _make_list(shell.body, screen, "Grill")
+    grill = next(lst.id for lst in list_custom_lists(engine) if lst.name == "Grill")
+
+    shell.changed()
+
+    chip = find(shell.body, f"list-chip-{grill}")
+    assert isinstance(chip, ft.Chip)
+    assert chip.selected
+    assert find(shell.body, "line-name")
+
+
+def test_a_line_of_an_archived_product_stays_and_says_so(engine: Engine, screen: Screen) -> None:
+    smietana = add_product(engine, ProductDraft("Śmietana", SPOZYWCZE, SZTUKA))
+    kolacja = make_custom_list(engine, CustomListDraft("Kolacja"))
+    add_line(engine, kolacja, ListLineDraft.product(smietana, 1))
+    archive_product(engine, smietana)
+    body = _open(engine, screen)
+
+    tap(find(body, f"list-chip-{kolacja}"), "on_select")
+
+    [line] = list_lines(engine, kolacja)
+    assert "Śmietana (w archiwum)" in texts(find(body, f"custom-line-{line.id}"))
