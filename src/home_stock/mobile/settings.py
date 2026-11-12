@@ -7,6 +7,7 @@ import flet as ft
 
 from home_stock.domain.formatting import parse_buffer_days, parse_count
 from home_stock.domain.stock import Category, Unit
+from home_stock.mobile.app_update import UpdateNotice
 from home_stock.mobile.changelog import version_button
 from home_stock.mobile.context import Context
 from home_stock.mobile.fields import text_field
@@ -52,6 +53,7 @@ class SettingsTab:
                 ),
             ],
         )
+        self.update_notice = UpdateNotice(ctx)
         # Restoring is never refused, so the archive has no line for a refusal
         self.archive_rows = ft.Column(spacing=12)
         archive = _titled("archive", "Archiwum", [self.archive_rows])
@@ -62,8 +64,12 @@ class SettingsTab:
                 units,
                 starter,
                 archive,
-                # No header on a phone: the version sits at the bottom of Ustawienia
-                ft.Row([version_button(ctx, version)], alignment=ft.MainAxisAlignment.CENTER),
+                # No header on a phone: the version sits at the bottom of Ustawienia, with a newer one beside it
+                ft.Row(
+                    [version_button(ctx, version), self.update_notice.control],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    wrap=True,
+                ),
             ],
             expand=True,
             spacing=8,

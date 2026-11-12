@@ -4,24 +4,36 @@
     .venv/Scripts/python.exe scripts/release.py publish         # on main, once the PR is merged
 
 `prepare` sets `__version__` and turns the changelog's "Nieopublikowane" into "<version> — <today>". `publish` builds
-the installer from main (scripts/build_installer.ps1), pushes the tag `v<version>` and creates the GitHub Release
-"Home Stock <version>" with the installer and the version's changelog section; `notes` prints that text.
+the installer from main (scripts/build_installer.ps1) and the APK signed with the upload key (flet build apk), pushes
+the tag `v<version>` and creates the GitHub Release "Home Stock <version>" with both and the version's changelog
+section; `notes` prints that text.
+
+The upload key is the keystore at KEYSTORE, its password in the environment variable HOME_STOCK_KEYSTORE_PASSWORD
+(ticket #111); without both publish stops before it builds anything.
 """
 
 import argparse
+import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 from datetime import date
 from pathlib import Path
 
-from home_stock.domain.app_update import installer_name
+from home_stock.domain.app_update import android_build_number, apk_name, installer_name
 from home_stock.domain.changelog import UNRELEASED, ChangelogError, is_newer, parse_changelog
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / "src" / "home_stock" / "__init__.py"
 CHANGELOG = ROOT / "src" / "home_stock" / "sources" / "changelog.md"
+ANDROID = ROOT / "android"
+# Where flet build apk leaves the APK (android/pyproject.toml)
+APK_OUTPUT = ANDROID / "build" / "apk"
+KEYSTORE = Path.home() / ".android" / "home-stock-upload.jks"
+KEY_ALIAS = "upload"
+PASSWORD_ENV = "HOME_STOCK_KEYSTORE_PASSWORD"
 _VERSION_LINE = re.compile(r'^__version__ = "(?P<version>[^"]+)"$', re.MULTILINE)
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -74,6 +86,59 @@ def release_notes(text: str, version: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def apk_build_command(version: str) -> list[str]:
+    """flet build apk for a phone (arm64), with ``version`` and its build number, which Android compares on update."""
+    flet = Path(sys.executable).with_name("flet.exe" if sys.platform == "win32" else "flet")
+    return [
+        str(flet),
+        "build",
+        "apk",
+        "--yes",
+        "--arch",
+        "arm64-v8a",
+        "--no-rich-output",
+        "--build-version",
+        version,
+        "--build-number",
+        str(android_build_number(version)),
+    ]
+
+
+def apk_build_env(environ: dict[str, str], keystore: Path) -> dict[str, str]:
+    """``environ`` with what flet build apk needs to sign with the upload key; flet reads the password from there, so
+    it never shows on a command line. Without the key Flet would sign with a throwaway one, and the APK would not
+    install over the app."""
+    password = environ.get(PASSWORD_ENV)
+    if not password:
+        raise ValueError(f"Set {PASSWORD_ENV} to the upload keystore's password (ticket #111).")
+    if not keystore.is_file():
+        raise ValueError(f"The upload keystore {keystore} is missing (ticket #111).")
+    return {
+        **environ,
+        "FLET_ANDROID_SIGNING_KEY_STORE": str(keystore),
+        "FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD": password,
+        "FLET_ANDROID_SIGNING_KEY_ALIAS": KEY_ALIAS,
+        # Without them the pip flet runs hangs after downloading, and flet crashes on a cp1250 console
+        "PIP_PROGRESS_BAR": "off",
+        "PYTHONUTF8": "1",
+    }
+
+
+def build_apk(version: str, env: dict[str, str]) -> Path:
+    """The signed APK of ``version``, copied into dist/ under its Release name."""
+    shutil.rmtree(APK_OUTPUT, ignore_errors=True)
+    # Its output goes straight to the console: a build takes minutes, and the first one half an hour
+    if subprocess.run(apk_build_command(version), cwd=ANDROID, env=env, check=False).returncode != 0:
+        sys.exit("flet build apk failed (its output is above).")
+    built = sorted(APK_OUTPUT.glob("*.apk"))
+    if len(built) != 1:
+        sys.exit(f"Expected one APK in {APK_OUTPUT}, found {[path.name for path in built]}.")
+    apk = ROOT / "dist" / apk_name(version)
+    apk.parent.mkdir(exist_ok=True)
+    shutil.copyfile(built[0], apk)
+    return apk
+
+
 def _run(*command: str) -> str:
     done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False)
     if done.returncode != 0:
@@ -95,6 +160,10 @@ def publish() -> None:
         sys.exit("Publish from main, after the release PR is merged.")
     if _run("git", "status", "--porcelain", "--untracked-files=no"):
         sys.exit("The working tree has uncommitted changes.")
+    try:
+        apk_env = apk_build_env(dict(os.environ), KEYSTORE)
+    except ValueError as error:
+        sys.exit(str(error))
     version = current_version(VERSION_FILE.read_text(encoding="utf-8"))
     tag = f"v{version}"
     _run("git", "fetch", "origin", "main", "--tags")
@@ -109,6 +178,8 @@ def publish() -> None:
     installer = ROOT / "dist" / installer_name(version)
     if not installer.exists():
         sys.exit(f"{installer} was not built.")
+    print(f"Building {apk_name(version)} (several minutes; the first build half an hour)...", flush=True)
+    apk = build_apk(version, apk_env)
 
     _run("git", "tag", tag)
     _run("git", "push", "origin", tag)
@@ -121,14 +192,16 @@ def publish() -> None:
             "create",
             tag,
             str(installer),
+            str(apk),
             "--title",
             f"Home Stock {version}",
             "--notes-file",
             str(notes_file),
         )
     assets = _run("gh", "release", "view", tag, "--json", "assets", "-q", ".assets[].name")
-    if installer.name not in assets.splitlines():
-        sys.exit(f"The Release {tag} has no {installer.name}.")
+    for asset in (installer, apk):
+        if asset.name not in assets.splitlines():
+            sys.exit(f"The Release {tag} has no {asset.name}.")
     print(_run("gh", "release", "view", tag, "--json", "url", "-q", ".url"))
 
 
@@ -138,7 +211,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="set the version and date the changelog section").add_argument("version")
-    commands.add_parser("publish", help="build the installer, push the tag, create the GitHub Release")
+    commands.add_parser("publish", help="build the installer and the APK, push the tag, create the GitHub Release")
     notes = commands.add_parser("notes", help="print the GitHub Release text of a version")
     notes.add_argument("version", nargs="?")
     args = parser.parse_args(argv)

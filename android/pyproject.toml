@@ -2,6 +2,7 @@
 # with only the dependencies the phone needs. The app's own pyproject.toml stays the one for development.
 [project]
 name = "home-stock"
+# scripts/release.py builds with --build-version from __version__; this one only counts for builds by hand
 version = "0.4.0"
 description = "Home Stock for Android"
 requires-python = ">=3.14"

@@ -1,5 +1,6 @@
 """The app's own updates: the latest GitHub Release, the download of its installer and starting it (from KAPITA's; the
-installer built by scripts/build_installer.ps1 upgrades the installed Home Stock in place and keeps the data folder)."""
+installer built by scripts/build_installer.ps1 upgrades the installed Home Stock in place and keeps the data folder).
+The Android app asks for the same Release's APK, which Android's own installer puts over the app."""
 
 import http.client
 import subprocess
@@ -8,7 +9,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from home_stock.domain.app_update import LatestRelease, UpdateError, installer_name, parse_latest_release
+from home_stock.domain.app_update import LatestRelease, UpdateError, apk_name, installer_name, parse_latest_release
 
 LATEST_URL = "https://api.github.com/repos/Gerruppa/Home-Stock/releases/latest"
 # Inno Setup: no wizard, close the running Home Stock first, no reboot; the installer starts the new version itself
@@ -37,8 +38,11 @@ class UpdateSource:
         fetch: Callable[[str], bytes] = fetch,
         launch: Callable[[list[str]], None] = launch,
         can_install: bool = False,
+        asset: Callable[[str], str] = installer_name,
     ) -> None:
         self.fetch = fetch
+        # The file the Release must carry for this app: the Windows installer or the APK
+        self.asset = asset
         self.launch = launch
         # Only the installed (frozen) app can be replaced by the installer; a source checkout just points to the page
         self.can_install = can_install
@@ -47,17 +51,22 @@ class UpdateSource:
     def real(cls) -> UpdateSource:
         return cls(can_install=bool(getattr(sys, "frozen", False)))
 
+    @classmethod
+    def android(cls, fetch: Callable[[str], bytes] = fetch) -> UpdateSource:
+        """The Android app's source: it offers the APK, which the phone downloads and installs itself."""
+        return cls(fetch=fetch, asset=apk_name)
+
     def latest(self) -> LatestRelease:
         try:
             body = self.fetch(LATEST_URL)
         except _NETWORK_ERRORS:
             raise UpdateError("Brak połączenia z GitHubem; nie sprawdzono, czy jest nowa wersja.") from None
-        return parse_latest_release(body.decode("utf-8", errors="replace"))
+        return parse_latest_release(body.decode("utf-8", errors="replace"), self.asset)
 
     def download(self, release: LatestRelease, folder: Path) -> Path:
         """The installer of ``release`` saved in ``folder``; a file of the wrong size is never written."""
         try:
-            data = self.fetch(release.installer_url)
+            data = self.fetch(release.url)
         except _NETWORK_ERRORS:
             raise UpdateError("Nie udało się pobrać instalatora; spróbuj ponownie.") from None
         if len(data) != release.size:
