@@ -11,7 +11,7 @@ from home_stock import __version__
 from home_stock.app import start_demo_database
 from home_stock.persistence.db import init_db
 from home_stock.persistence.settings import LAST_ANNOUNCED_VERSION, load_setting, save_setting
-from home_stock.ui.changelog import load_changelog
+from home_stock.sources.changelog import load_changelog
 from home_stock.ui.shell import build_shell
 
 

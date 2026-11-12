@@ -26,7 +26,7 @@ To change the icon, edit and run `.venv\Scripts\python.exe scripts\make_icons.py
 
 ## Release
 
-The changelog `src/home_stock/ui/changelog.md` gathers the coming changes under `## Nieopublikowane`. A release is two
+The changelog `src/home_stock/sources/changelog.md` gathers the coming changes under `## Nieopublikowane`. A release is two
 steps around a release PR:
 
 ```
