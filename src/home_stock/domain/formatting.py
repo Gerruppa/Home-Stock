@@ -13,11 +13,15 @@ from home_stock.domain.stock import (
     MEASURES,
     USUAL_SHELF_LIFE_ERROR,
     Category,
+    ExpiryStatus,
     PackSize,
     Product,
     ShoppingListEntry,
     Unit,
+    all_expired_on,
     check_buffer_days,
+    expiry_status,
+    use_order,
 )
 
 DATE_ERROR = "Podaj datę w formacie DD.MM.RRRR."
@@ -206,6 +210,21 @@ def format_custom_list(
             assert line.quantity is not None, "a Product line has a Quantity"
             rows.append(f"{product.name} — {format_quantity(line.quantity, units[product.unit_id], None)}")
     return "\n".join(rows)
+
+
+def format_at_home(product: Product, unit: Unit, today: date, warning_days: int, occasion: date | None) -> str:
+    """ "w domu: 1 szt.", or "w domu: brak": how much of a Product on a Custom List is at home. The nearest Expiry
+    Date follows when that Batch is Expiring Soon or Expired: "w domu: 1 szt. · ważne do 14.11", and "· przed okazją"
+    when the list has an ``occasion`` and nothing at home lasts until it."""
+    if not product.batches:
+        return "w domu: brak"
+    parts = [f"w domu: {format_quantity(product.quantity, unit, product.pack_size)}"]
+    first = min(product.batches, key=use_order)
+    if first.expiry is not None and expiry_status(first, today, warning_days) != ExpiryStatus.FRESH:
+        parts.append(f"ważne do {first.expiry.strftime('%d.%m')}")
+    if occasion is not None and all_expired_on(product, occasion):
+        parts.append("przed okazją")
+    return " · ".join(parts)
 
 
 def format_shopping_reason(entry: ShoppingListEntry) -> str:

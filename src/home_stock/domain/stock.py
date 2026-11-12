@@ -136,6 +136,12 @@ def expiry_status(batch: Batch, today: date, warning_days: int) -> ExpiryStatus 
     return ExpiryStatus.FRESH
 
 
+def all_expired_on(product: Product, day: date) -> bool:
+    """Every Batch of it is Expired on ``day``; a Batch without an Expiry Date never is, one expiring on ``day`` not
+    yet."""
+    return all(is_expired(batch, day) for batch in product.batches)
+
+
 def use_order(batch: Batch) -> tuple[bool, date, int]:
     """Sort key of the order Uses take Batches in: nearest Expiry Date first, undated last, older Batch first."""
     return (batch.expiry is None, batch.expiry or date.max, batch.id)

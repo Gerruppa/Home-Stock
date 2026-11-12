@@ -11,6 +11,7 @@
 - W aplikacji na Androida pozycje listy własnej odhaczasz w sklepie (produkt od razu trafia do zapasów, z ilością z listy), a kupione przechodzą pod „Kupione”; pozycje i całe listy można zmieniać i usuwać, każdą zmianę z „Cofnij”.
 - W aplikacji na Androida „Rozpakuj zakupy” na liście własnej wpisuje naraz do zapasów jej produkty z ilościami z listy i odhacza ich pozycje, z jednym „Cofnij”.
 - W aplikacji na Androida listę własną można skopiować albo udostępnić jako tekst (nazwa z datą, a pod nią to, co zostało do kupienia), np. do komunikatora albo dla osoby, która robi zakupy.
+- W aplikacji na Androida pod każdym produktem do kupienia na liście własnej, a także przy produkcie wybranym w „Dopisz”, widać, ile go jest w domu, z datą ważności, gdy termin się kończy, i z ostrzeżeniem „przed okazją”, gdy to, co jest w domu, nie dotrwa do daty listy.
 
 ## 0.4.0 — 2026-11-02
 

@@ -5,6 +5,7 @@ import pytest
 
 from home_stock.domain.custom_lists import CustomList, ListLine
 from home_stock.domain.formatting import (
+    format_at_home,
     format_custom_list,
     format_custom_list_title,
     format_date,
@@ -25,7 +26,7 @@ from home_stock.domain.formatting import (
     parse_usual_shelf_life,
 )
 from home_stock.domain.history import StockEvent, StockEventKind
-from home_stock.domain.stock import Category, PackSize, Product, ShoppingListEntry, Unit
+from home_stock.domain.stock import Batch, Category, PackSize, Product, ShoppingListEntry, Unit
 
 
 def test_format_shopping_list() -> None:
@@ -177,3 +178,64 @@ def test_parse_buffer_days() -> None:
     for bad in ("", "0", "-1", "1,5", "tydzień", "²"):
         with pytest.raises(ValueError, match="Podaj liczbę dni większą od zera"):
             parse_buffer_days(bad)
+
+
+SZT = Unit(1, "sztuka", "szt.")
+NOV_12 = date(2026, 11, 12)
+
+
+def _smietana_with(*batches: tuple[int, date | None], pack_size: PackSize | None = None) -> Product:
+    return Product(
+        1,
+        "Śmietana",
+        1,
+        SZT.id,
+        pack_size,
+        None,
+        False,
+        tuple(Batch(n, 1, quantity, expiry) for n, (quantity, expiry) in enumerate(batches, start=1)),
+    )
+
+
+def test_format_at_home_with_nothing_at_home() -> None:
+    assert format_at_home(_smietana_with(), SZT, NOV_12, 3, date(2026, 11, 15)) == "w domu: brak"
+
+
+def test_format_at_home_gives_the_quantity() -> None:
+    product = _smietana_with((1, None), (2, date(2026, 12, 31)), pack_size=PackSize(Decimal("0.2"), "l"))
+
+    assert format_at_home(product, SZT, NOV_12, 3, None) == "w domu: 3 szt. (0,6 l)"
+
+
+def test_format_at_home_gives_the_date_of_a_batch_expiring_soon_or_expired() -> None:
+    # Warned 3 days ahead: 14.11 is Expiring Soon on 12.11, 20.11 is Fresh
+    soon = _smietana_with((2, date(2026, 11, 20)), (1, date(2026, 11, 14)))
+    expired = _smietana_with((1, date(2026, 11, 10)), (1, None))
+    fresh = _smietana_with((1, date(2026, 11, 16)))
+
+    assert format_at_home(soon, SZT, NOV_12, 3, None) == "w domu: 3 szt. · ważne do 14.11"
+    assert format_at_home(expired, SZT, NOV_12, 3, None) == "w domu: 2 szt. · ważne do 10.11"
+    assert format_at_home(fresh, SZT, NOV_12, 3, None) == "w domu: 1 szt."
+
+
+def test_format_at_home_warns_when_everything_expires_before_the_occasion() -> None:
+    gone = _smietana_with((1, date(2026, 11, 13)), (1, date(2026, 11, 20)))
+    # Still good on the day itself
+    lasts = _smietana_with((1, date(2026, 11, 13)), (1, date(2026, 11, 21)))
+
+    assert format_at_home(gone, SZT, NOV_12, 3, date(2026, 11, 21)) == (
+        "w domu: 2 szt. · ważne do 13.11 · przed okazją"
+    )
+    assert format_at_home(lasts, SZT, NOV_12, 3, date(2026, 11, 21)) == "w domu: 2 szt. · ważne do 13.11"
+
+
+def test_format_at_home_a_batch_without_an_expiry_date_always_lasts() -> None:
+    product = _smietana_with((1, date(2026, 11, 13)), (1, None))
+
+    assert format_at_home(product, SZT, NOV_12, 3, date(2026, 11, 21)) == "w domu: 2 szt. · ważne do 13.11"
+
+
+def test_format_at_home_without_an_occasion_date_never_says_przed_okazja() -> None:
+    product = _smietana_with((1, date(2026, 11, 13)))
+
+    assert format_at_home(product, SZT, NOV_12, 3, None) == "w domu: 1 szt. · ważne do 13.11"
