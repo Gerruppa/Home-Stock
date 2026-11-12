@@ -51,7 +51,7 @@ def test_a_newer_release_shows_beside_the_version_and_says_so(engine: Engine) ->
     screen = Screen()
     shell = _shell(engine, screen)
 
-    shell.check_for_update(UpdateSource.android(fetch=lambda url: _answer("99.0.0")))
+    shell.check_for_update(UpdateSource(fetch=lambda url: _answer("99.0.0")))
 
     assert _notice_shown(screen)
     assert texts(find(screen.top, "update-available")) == ["Dostępna wersja 99.0.0"]
@@ -63,7 +63,7 @@ def test_a_newer_release_shows_beside_the_version_and_says_so(engine: Engine) ->
 def test_tapping_the_notice_hands_the_apk_to_the_phone(engine: Engine) -> None:
     screen = Screen()
     shell = _shell(engine, screen)
-    shell.check_for_update(UpdateSource.android(fetch=lambda url: _answer("99.0.0")))
+    shell.check_for_update(UpdateSource(fetch=lambda url: _answer("99.0.0")))
 
     tap(find(screen.top, "update-available"))
 
@@ -76,19 +76,19 @@ def test_the_running_or_an_older_version_shows_nothing(engine: Engine, version: 
     screen = Screen()
     shell = _shell(engine, screen)
 
-    shell.check_for_update(UpdateSource.android(fetch=lambda url: _answer(version)))
+    shell.check_for_update(UpdateSource(fetch=lambda url: _answer(version)))
 
     assert not _notice_shown(screen)
     assert screen.presented == []
 
 
-def test_a_release_with_only_the_windows_installer_shows_nothing(engine: Engine) -> None:
-    installer = "https://github.com/Gerruppa/Home-Stock/releases/download/v99.0.0/Home-Stock-99.0.0-setup.exe"
-    answer = _answer("99.0.0", [{"name": "Home-Stock-99.0.0-setup.exe", "browser_download_url": installer, "size": 1}])
+def test_a_release_without_the_apk_shows_nothing(engine: Engine) -> None:
+    other = "https://github.com/Gerruppa/Home-Stock/releases/download/v99.0.0/notes.txt"
+    answer = _answer("99.0.0", [{"name": "notes.txt", "browser_download_url": other, "size": 1}])
     screen = Screen()
     shell = _shell(engine, screen)
 
-    shell.check_for_update(UpdateSource.android(fetch=lambda url: answer))
+    shell.check_for_update(UpdateSource(fetch=lambda url: answer))
 
     assert not _notice_shown(screen)
 
@@ -100,7 +100,7 @@ def test_a_failed_check_stays_silent(engine: Engine) -> None:
     screen = Screen()
     shell = _shell(engine, screen)
 
-    shell.check_for_update(UpdateSource.android(fetch=offline))
+    shell.check_for_update(UpdateSource(fetch=offline))
 
     assert not _notice_shown(screen)
     assert screen.presented == []

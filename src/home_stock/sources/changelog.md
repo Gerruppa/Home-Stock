@@ -13,6 +13,9 @@
 - W aplikacji na Androida listę własną można skopiować albo udostępnić jako tekst (nazwa z datą, a pod nią to, co zostało do kupienia), np. do komunikatora albo dla osoby, która robi zakupy.
 - W aplikacji na Androida pod każdym produktem do kupienia na liście własnej, a także przy produkcie wybranym w „Dopisz”, widać, ile go jest w domu, z datą ważności, gdy termin się kończy, i z ostrzeżeniem „przed okazją”, gdy to, co jest w domu, nie dotrwa do daty listy.
 
+### Zmiany
+- Aplikacja na Windows nie jest już rozwijana: Home Stock to teraz aplikacja na Androida, a wydania zawierają tylko plik APK; zainstalowana wersja na Windows działa dalej, ale nie dostanie już aktualizacji.
+
 ## 0.4.0 — 2026-11-02
 
 ### Nowe funkcje

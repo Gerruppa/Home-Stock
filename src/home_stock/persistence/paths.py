@@ -9,22 +9,16 @@ from platformdirs import user_data_dir
 APP_NAME = "Home Stock"
 DATA_DIR_ENV = "HOME_STOCK_DATA_DIR"
 DATABASE_FILE = "home_stock.sqlite3"
-LOG_FILE = "home_stock.log"
 
 
 def data_dir() -> Path:
-    """The app-data folder (e.g. %LOCALAPPDATA%/Home Stock); override with HOME_STOCK_DATA_DIR."""
+    """The app-data folder; HOME_STOCK_DATA_DIR overrides it, which the Android app points at Flet's app storage."""
     override = os.environ.get(DATA_DIR_ENV)
     return Path(override) if override else Path(user_data_dir(APP_NAME, appauthor=False))
 
 
 def database_path() -> Path:
     return data_dir() / DATABASE_FILE
-
-
-def log_path() -> Path:
-    """Where the output goes when there is no console (pythonw, the installed HomeStock.exe)."""
-    return data_dir() / LOG_FILE
 
 
 def backups_dir() -> Path:
@@ -35,9 +29,3 @@ def backups_dir() -> Path:
 def demo_database_path() -> Path:
     """The ``--demo`` database, in TEMP, apart from the user's real one."""
     return Path(tempfile.gettempdir()) / "Home-Stock-demo" / DATABASE_FILE
-
-
-def android_demo_database_path() -> Path:
-    """The Android app's ``--demo`` database, in TEMP, apart from the Windows demo's: each demo deletes its own file on
-    start, which Windows refuses while the other demo has it open."""
-    return Path(tempfile.gettempdir()) / "Home-Stock-android-demo" / DATABASE_FILE

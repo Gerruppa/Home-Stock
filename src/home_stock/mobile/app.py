@@ -16,7 +16,7 @@ from home_stock.mobile.app_update import CHECK_DELAY
 from home_stock.mobile.shell import APP_TITLE, Shell
 from home_stock.persistence.backup import backup_database
 from home_stock.persistence.db import init_db
-from home_stock.persistence.paths import DATA_DIR_ENV, android_demo_database_path, backups_dir, database_path
+from home_stock.persistence.paths import DATA_DIR_ENV, backups_dir, database_path, demo_database_path
 from home_stock.sources.app_update import UpdateSource
 from home_stock.sources.demo_data import seed_demo_data
 
@@ -33,7 +33,7 @@ def start_database() -> Engine:
 
 def start_demo_database() -> Engine:
     """A fresh database in TEMP filled with the demo data, replacing the last demo's; real data stays untouched."""
-    path = android_demo_database_path()
+    path = demo_database_path()
     path.unlink(missing_ok=True)
     engine = init_db(path)
     seed_demo_data(engine, date.today())
@@ -86,7 +86,7 @@ def main(page: ft.Page, demo: bool = False) -> None:
 def _check_for_update(shell: Shell) -> None:
     """On a thread of its own, so neither the wait nor the network holds up the screen."""
     time.sleep(CHECK_DELAY)
-    shell.check_for_update(UpdateSource.android())
+    shell.check_for_update(UpdateSource())
 
 
 def run(argv: Sequence[str] | None = None) -> None:

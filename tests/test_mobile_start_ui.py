@@ -91,7 +91,7 @@ def test_expired_and_expiring_by_warning_window(engine: Engine, screen: Screen) 
     assert {line[0] for line in _lines(expiring)} == {"Mleko", "Ser", "Aspiryna"}
     assert ["Aspiryna", "1 szt., termin 20.11.2026"] in _lines(expiring)
     assert "Szynka" not in texts(body)
-    assert _lines(find(body, "running-low")) == [["Nic tutaj."]]
+    assert _lines(find(body, "to-buy")) == [["Nic tutaj."]]
     assert "Wszystko w porządku." not in texts(body)
 
 
@@ -116,8 +116,8 @@ def test_do_kupienia_lists_products_running_low(engine: Engine, screen: Screen) 
 
     body = _shell(engine, screen).body
 
-    running_low = find(body, "running-low")
-    assert _title(body, "running-low") == "Do kupienia"
+    running_low = find(body, "to-buy")
+    assert _title(body, "to-buy") == "Do kupienia"
     assert _lines(running_low) == [["Cukier", "3 opak. (3 kg), minimum 3 opak."]]
     assert _lines(find(body, "expired")) == [["Nic tutaj."]]
 
@@ -127,7 +127,7 @@ def test_each_section_title_is_in_its_urgency_colour(engine: Engine, screen: Scr
 
     body = _shell(engine, screen).body
 
-    for key, colour in (("expired", EXPIRED), ("expiring", EXPIRING), ("running-low", TO_BUY)):
+    for key, colour in (("expired", EXPIRED), ("expiring", EXPIRING), ("to-buy", TO_BUY)):
         title = find(body, f"{key}-title")
         assert isinstance(title, ft.Text)
         assert title.color == colour
@@ -136,7 +136,7 @@ def test_each_section_title_is_in_its_urgency_colour(engine: Engine, screen: Scr
 def test_a_purchase_on_the_shopping_list_clears_do_kupienia(engine: Engine, screen: Screen) -> None:
     cukier = add_product(engine, ProductDraft("Cukier", SPOZYWCZE, OPAKOWANIE, minimum_stock=1), BatchDraft(1))
     shell = _shell(engine, screen)
-    assert ["Cukier", "1 opak., minimum 1 opak."] in _lines(find(shell.body, "running-low"))
+    assert ["Cukier", "1 opak., minimum 1 opak."] in _lines(find(shell.body, "to-buy"))
 
     select(shell.navigation_bar, SHOPPING_TAB)
     tap(find(shell.body, f"bought-{cukier}"))
@@ -190,5 +190,5 @@ def test_a_purchase_from_the_card_above_the_minimum_clears_do_kupienia(engine: E
     quantity.value = "2"
     tap(find(screen.top, "purchase-save"))
 
-    assert _lines(find(body, "running-low")) == [["Nic tutaj."]]
+    assert _lines(find(body, "to-buy")) == [["Nic tutaj."]]
     assert get_product(engine, cukier).quantity == 3

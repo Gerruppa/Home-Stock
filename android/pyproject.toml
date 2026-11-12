@@ -1,5 +1,5 @@
-# What `flet build apk` packs into the Android app, run from this folder: the repo's src/ without the Windows app,
-# with only the dependencies the phone needs. The app's own pyproject.toml stays the one for development.
+# What `flet build apk` packs into the Android app, run from this folder: the repo's src/, with only the dependencies
+# the phone needs. The app's own pyproject.toml stays the one for development.
 [project]
 name = "home-stock"
 # scripts/release.py builds with --build-version from __version__; this one only counts for builds by hand
@@ -21,9 +21,6 @@ org = "pl.gerruppa"
 [tool.flet.app]
 path = "../src"
 module = "android_main"
-# The Windows app (NiceGUI) never runs on the phone. serious_python compares each entry with the OS's own relative
-# path, so on Windows they take backslashes
-exclude = ['home_stock\ui', 'home_stock\app.py', 'home_stock\__main__.py']
 
 # Alembic finds the migrations by their .py files, which the default .pyc compilation removes
 [tool.flet.compile]

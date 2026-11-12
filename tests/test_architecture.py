@@ -2,7 +2,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-FORBIDDEN = {"nicegui", "sqlalchemy", "alembic", "webview", "flet"}
+FORBIDDEN = {"sqlalchemy", "alembic", "flet"}
 PACKAGE = Path(__file__).parent.parent / "src" / "home_stock"
 
 
@@ -15,15 +15,12 @@ def _imports(folder: Path) -> Iterator[tuple[Path, str]]:
                 yield path, node.module
 
 
+def test_nothing_imports_the_removed_windows_app_s_frameworks() -> None:
+    # Still installed in an older venv, so an import would not fail on its own
+    for path, name in _imports(PACKAGE):
+        assert name.split(".")[0] not in {"nicegui", "webview"}, f"{path.name} imports {name}"
+
+
 def test_domain_has_no_framework_imports() -> None:
     for path, name in _imports(PACKAGE / "domain"):
         assert name.split(".")[0] not in FORBIDDEN, f"{path.name} imports {name}"
-
-
-def test_the_android_and_windows_apps_never_import_each_other() -> None:
-    # Each goes on its own: the Android build leaves ui/ and app.py out, and the Windows app will be removed
-    windows = ("nicegui", "webview", "home_stock.ui", "home_stock.app")
-    for path, name in _imports(PACKAGE / "mobile"):
-        assert not name.startswith(windows), f"mobile/{path.name} imports {name}"
-    for path, name in _imports(PACKAGE / "ui"):
-        assert not name.startswith(("flet", "home_stock.mobile")), f"ui/{path.name} imports {name}"
