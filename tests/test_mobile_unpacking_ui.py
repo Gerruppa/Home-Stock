@@ -29,7 +29,16 @@ def screen() -> Screen:
 
 def _open(engine: Engine, screen: Screen) -> ft.Control:
     """Rozpakuj zakupy tapped in Zakupy: the form over the whole screen."""
-    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: TODAY)
+    shell = Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: TODAY,
+    )
     select(shell.navigation_bar, SHOPPING_TAB)
     tap(find(shell.body, "unpack"))
     return find(screen.top, "unpacking-dialog")
@@ -312,7 +321,7 @@ def test_an_empty_shopping_list_still_takes_a_product_by_name(engine: Engine, sc
 
 
 def test_rozpakuj_zakupy_is_offered_on_an_empty_list_too(engine: Engine, screen: Screen) -> None:
-    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share)
+    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, screen.open_url)
     select(shell.navigation_bar, SHOPPING_TAB)
 
     assert find(shell.body, "unpack")

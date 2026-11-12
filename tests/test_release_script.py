@@ -187,3 +187,98 @@ def test_publish_refuses_before_touching_anything(
 
     with pytest.raises(SystemExit, match=refusal):
         release.main(["publish"])
+
+
+def test_the_apk_is_built_for_the_phone_with_the_version_and_its_build_number() -> None:
+    command = release.apk_build_command("0.5.1")
+
+    assert command[1:] == [
+        "build",
+        "apk",
+        "--yes",
+        "--arch",
+        "arm64-v8a",
+        "--no-rich-output",
+        "--build-version",
+        "0.5.1",
+        "--build-number",
+        "501",
+    ]
+
+
+def test_the_apk_is_signed_with_the_upload_key(tmp_path: Path) -> None:
+    keystore = tmp_path / "home-stock-upload.jks"
+    keystore.write_bytes(b"key")
+
+    env = release.apk_build_env({"PATH": "x", "HOME_STOCK_KEYSTORE_PASSWORD": "secret"}, keystore)
+
+    assert env["PATH"] == "x"
+    assert env["FLET_ANDROID_SIGNING_KEY_STORE"] == str(keystore)
+    assert env["FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"] == "secret"
+    assert env["FLET_ANDROID_SIGNING_KEY_ALIAS"] == "upload"
+    # Without these flet build hangs in pip, or crashes on a cp1250 console
+    assert (env["PIP_PROGRESS_BAR"], env["PYTHONUTF8"]) == ("off", "1")
+
+
+def test_an_apk_without_the_password_is_refused(tmp_path: Path) -> None:
+    keystore = tmp_path / "home-stock-upload.jks"
+    keystore.write_bytes(b"key")
+
+    with pytest.raises(ValueError, match="HOME_STOCK_KEYSTORE_PASSWORD"):
+        release.apk_build_env({}, keystore)
+
+
+def test_an_apk_without_the_keystore_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="home-stock-upload.jks"):
+        release.apk_build_env({"HOME_STOCK_KEYSTORE_PASSWORD": "secret"}, tmp_path / "home-stock-upload.jks")
+
+
+def test_publish_without_the_signing_key_stops_before_touching_anything(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    answers = {
+        ("git", "branch", "--show-current"): "main",
+        ("git", "status", "--porcelain", "--untracked-files=no"): "",
+    }
+
+    def run(*command: str) -> str:
+        assert command in answers, f"publish ran {command} after it should have stopped"
+        return answers[command]
+
+    monkeypatch.setattr(release, "_run", run)
+    monkeypatch.setattr(release, "KEYSTORE", tmp_path / "home-stock-upload.jks")
+    monkeypatch.delenv("HOME_STOCK_KEYSTORE_PASSWORD", raising=False)
+
+    with pytest.raises(SystemExit, match="HOME_STOCK_KEYSTORE_PASSWORD|home-stock-upload.jks"):
+        release.main(["publish"])
+
+
+@pytest.mark.parametrize(
+    ("developer_mode", "version", "refusal"),
+    [(False, "0.5.0", "Developer Mode"), (True, "0.100.0", "99")],
+    ids=["developer mode off", "no build number"],
+)
+def test_publish_stops_before_building_when_the_apk_cannot_be_built(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, developer_mode: bool, version: str, refusal: str
+) -> None:
+    keystore = tmp_path / "home-stock-upload.jks"
+    keystore.write_bytes(b"key")
+    version_file = tmp_path / "__init__.py"
+    version_file.write_text(f'__version__ = "{version}"\n', encoding="utf-8")
+    answers = {
+        ("git", "branch", "--show-current"): "main",
+        ("git", "status", "--porcelain", "--untracked-files=no"): "",
+    }
+
+    def run(*command: str) -> str:
+        assert command in answers, f"publish ran {command} after it should have stopped"
+        return answers[command]
+
+    monkeypatch.setattr(release, "_run", run)
+    monkeypatch.setattr(release, "KEYSTORE", keystore)
+    monkeypatch.setattr(release, "VERSION_FILE", version_file)
+    monkeypatch.setattr(release, "developer_mode_on", lambda: developer_mode)
+    monkeypatch.setenv("HOME_STOCK_KEYSTORE_PASSWORD", "secret")
+
+    with pytest.raises(SystemExit, match=refusal):
+        release.main(["publish"])

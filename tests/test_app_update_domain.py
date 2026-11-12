@@ -1,10 +1,16 @@
-"""The app's own update check: the latest GitHub Release read into its version and installer."""
+"""The app's own update check: the latest GitHub Release read into its version and its installer or APK."""
 
 import json
 
 import pytest
 
-from home_stock.domain.app_update import UpdateError, newer_release, parse_latest_release
+from home_stock.domain.app_update import (
+    UpdateError,
+    android_build_number,
+    apk_name,
+    newer_release,
+    parse_latest_release,
+)
 
 BASE = "https://github.com/Gerruppa/Home-Stock/releases/download/v0.2.0/"
 
@@ -31,15 +37,12 @@ def test_the_release_gives_its_version_and_installer() -> None:
     release = parse_latest_release(_release())
 
     assert release.version == "0.2.0"
-    assert (
-        release.installer_url
-        == "https://github.com/Gerruppa/Home-Stock/releases/download/v0.2.0/Home-Stock-0.2.0-setup.exe"
-    )
+    assert release.url == "https://github.com/Gerruppa/Home-Stock/releases/download/v0.2.0/Home-Stock-0.2.0-setup.exe"
     assert release.size == 4321
 
 
 def test_a_release_without_the_installer_is_refused() -> None:
-    with pytest.raises(UpdateError, match="nie ma instalatora Home-Stock-0.2.0-setup.exe"):
+    with pytest.raises(UpdateError, match="nie ma pliku Home-Stock-0.2.0-setup.exe"):
         parse_latest_release(_release(assets=[]))
 
 
@@ -53,7 +56,7 @@ def test_a_release_without_the_installer_is_refused() -> None:
 def test_an_installer_from_a_foreign_address_is_refused(url: str) -> None:
     assets = [{"name": "Home-Stock-0.2.0-setup.exe", "browser_download_url": url, "size": 1}]
 
-    with pytest.raises(UpdateError, match="nie ma instalatora"):
+    with pytest.raises(UpdateError, match="nie ma pliku"):
         parse_latest_release(_release(assets=assets))
 
 
@@ -76,3 +79,32 @@ def test_only_a_newer_release_is_offered(running: str, offered: bool) -> None:
 def test_an_answer_of_another_shape_is_refused(text: str) -> None:
     with pytest.raises(UpdateError, match="Nieoczekiwana odpowiedź"):
         parse_latest_release(text)
+
+
+def test_the_android_app_reads_the_apk_of_the_same_release() -> None:
+    apk = {"name": "Home-Stock-0.2.0.apk", "browser_download_url": BASE + "Home-Stock-0.2.0.apk", "size": 9876}
+    installer = {"name": "Home-Stock-0.2.0-setup.exe", "browser_download_url": BASE + "x.exe", "size": 1}
+
+    release = parse_latest_release(_release(assets=[installer, apk]), asset_name=apk_name)
+
+    assert (release.version, release.size) == ("0.2.0", 9876)
+    assert release.url == "https://github.com/Gerruppa/Home-Stock/releases/download/v0.2.0/Home-Stock-0.2.0.apk"
+
+
+def test_a_release_without_the_apk_is_refused() -> None:
+    with pytest.raises(UpdateError, match="nie ma pliku Home-Stock-0.2.0.apk"):
+        parse_latest_release(_release(), asset_name=apk_name)
+
+
+@pytest.mark.parametrize(
+    ("version", "number"), [("0.4.0", 400), ("0.4.1", 401), ("0.10.0", 1000), ("1.0.0", 10000), ("2.3.45", 20345)]
+)
+def test_the_android_build_number_grows_with_the_version(version: str, number: int) -> None:
+    # Android installs an APK over the app only when its build number (versionCode) is higher
+    assert android_build_number(version) == number
+
+
+@pytest.mark.parametrize("version", ["0.100.0", "0.1.100"])
+def test_a_version_part_over_99_has_no_build_number(version: str) -> None:
+    with pytest.raises(ValueError, match="99"):
+        android_build_number(version)

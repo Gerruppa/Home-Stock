@@ -6,6 +6,7 @@
 - W aplikacji na Androida działają już Start, Produkty (z kartą produktu, dodawaniem i edycją), Zakupy z rozpakowaniem zakupów, Historia (marnowanie z 30 i 90 dni, ostatnie zdarzenia i szukanie po nazwie produktu) oraz Ustawienia (zapas dni, kategorie z dniami ostrzeżenia, jednostki i przywracanie produktów z archiwum); listę zakupów można skopiować albo udostępnić, a dane zostają na telefonie.
 - W aplikacji na Androida „Dodaj typowe produkty” w Ustawieniach i na pustej zakładce Produkty dodaje naraz zaznaczone typowe produkty, z jednym „Cofnij”; tak nowy telefon dostaje swoje produkty.
 - W aplikacji na Androida wersja na dole Ustawień otwiera historię zmian, a pierwsze uruchomienie nowej wersji pokazuje „Co nowego”.
+- W aplikacji na Androida, gdy na GitHubie jest nowsza wersja, obok numeru wersji w Ustawieniach pojawia się „Dostępna wersja X”; dotknięcie pobiera nową aplikację, którą instalujesz na starej, a dane zostają.
 
 ## 0.4.0 — 2026-11-02
 

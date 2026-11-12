@@ -75,6 +75,8 @@ class Screen:
     updates: int = 0
     copied: list[str] = field(default_factory=list)
     shared: list[str] = field(default_factory=list)
+    # Addresses handed to the phone to open (UrlLauncher.launch_url)
+    opened: list[str] = field(default_factory=list)
     views: list[ft.View] = field(default_factory=lambda: [ft.View()])
     # The top view's texts as last sent to the screen: a control changed after the latest update never shows
     shown: list[str] = field(default_factory=list)
@@ -94,6 +96,9 @@ class Screen:
 
     def share(self, text: str) -> None:
         self.shared.append(text)
+
+    def open_url(self, url: str) -> None:
+        self.opened.append(url)
 
     def update(self, *_: Any) -> None:
         self.updates += 1

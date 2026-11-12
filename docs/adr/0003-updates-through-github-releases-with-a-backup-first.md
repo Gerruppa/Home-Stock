@@ -1,5 +1,7 @@
 # Updates through GitHub Releases, with a Backup before migrations
 
+Amended by ADR-0005 for the Android app, which offers the same Release's APK.
+
 Home Stock ships as a Windows installer attached to a GitHub Release (`scripts/release.py publish`), and the installed app offers each new one: a few seconds after start it asks the GitHub API for the latest Release and, when it is newer, shows "Dostępna wersja X" beside the version; one click downloads the installer, starts it silently and quits, and the installer upgrades in place and starts the new version. GitHub Releases cost nothing, already hold the code, and need no server of our own; a manual "download from the page" alone would leave most installs on old versions. Because an update can run migrations on the user's only copy of their stock, every start takes a Backup of the database before migrations touch it, so a bad migration can be undone by hand.
 
 ## Consequences

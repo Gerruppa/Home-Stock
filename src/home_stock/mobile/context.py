@@ -26,6 +26,8 @@ class Context:
     copy: Callable[[str], None]
     # Hands text to Android's share sheet
     share: Callable[[str], None]
+    # Hands an address to the phone to open, outside the app (a download goes to the browser)
+    open_url: Callable[[str], None]
     # Shows a form, the phone's dialog, as a view over the tabs until close_full_screen() or Android's Back
     show_full_screen: Callable[[ft.Control], None]
     close_full_screen: Callable[[], None]

@@ -1,12 +1,13 @@
-"""The app's own update check: the latest GitHub Release read into its version and the installer to download (from
-KAPITA's).
+"""The app's own update check: the latest GitHub Release read into its version and the file to download, the Windows
+installer or the Android APK (from KAPITA's).
 
-The Release is ``v<version>`` with an asset ``Home-Stock-<version>-setup.exe`` (scripts/release.py publishes it); only
-a download address on this project's own Releases is accepted.
+The Release is ``v<version>`` with the assets ``Home-Stock-<version>-setup.exe`` and ``Home-Stock-<version>.apk``
+(scripts/release.py publishes both); only a download address on this project's own Releases is accepted.
 """
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from home_stock.domain.changelog import is_newer
@@ -24,7 +25,8 @@ class UpdateError(ValueError):
 @dataclass(frozen=True)
 class LatestRelease:
     version: str
-    installer_url: str
+    # Where the asset downloads from, the installer or the APK
+    url: str
     size: int
 
 
@@ -33,8 +35,22 @@ def installer_name(version: str) -> str:
     return f"Home-Stock-{version}-setup.exe"
 
 
-def parse_latest_release(text: str) -> LatestRelease:
-    """The version and installer of the GitHub API's ``releases/latest`` answer."""
+def apk_name(version: str) -> str:
+    """The Android app's file name, as every Release carries it."""
+    return f"Home-Stock-{version}.apk"
+
+
+def android_build_number(version: str) -> int:
+    """The APK's build number (Android's versionCode) for ``version``: Android installs an APK over the app only when
+    this is higher, so X.Y.Z gives X·10000 + Y·100 + Z, which keeps the order while Y and Z stay under 100."""
+    major, minor, patch = (int(part) for part in version.split("."))
+    if minor > 99 or patch > 99:
+        raise ValueError(f"{version}: the minor and patch parts must stay at 99 or under for the APK's build number")
+    return major * 10000 + minor * 100 + patch
+
+
+def parse_latest_release(text: str, asset_name: Callable[[str], str] = installer_name) -> LatestRelease:
+    """The version and the file named ``asset_name(version)`` of the GitHub API's ``releases/latest`` answer."""
     try:
         data = json.loads(text)
         tag = _TAG.match(str(data["tag_name"]))
@@ -46,13 +62,13 @@ def parse_latest_release(text: str) -> LatestRelease:
     if tag is None:
         raise UpdateError("Najnowsze wydanie nie ma numeru wersji.")
     version = tag["version"]
-    name = installer_name(version)
+    name = asset_name(version)
     for asset in assets:
         if isinstance(asset, dict) and asset.get("name") == name:
             url, size = asset.get("browser_download_url"), asset.get("size")
             if isinstance(url, str) and url.startswith(DOWNLOAD_PREFIX) and isinstance(size, int):
                 return LatestRelease(version, url, size)
-    raise UpdateError(f"Wydanie {version} nie ma instalatora {name}.")
+    raise UpdateError(f"Wydanie {version} nie ma pliku {name}.")
 
 
 def newer_release(release: LatestRelease, current: str) -> LatestRelease | None:

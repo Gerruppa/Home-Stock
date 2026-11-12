@@ -48,7 +48,16 @@ def screen() -> Screen:
 @pytest.fixture
 def shell(engine: Engine, screen: Screen, mleko: int) -> Shell:
     """Produkty, shown once Mleko exists."""
-    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: TODAY)
+    shell = Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: TODAY,
+    )
     select(shell.navigation_bar, PRODUCTS_TAB)
     return shell
 
@@ -307,7 +316,16 @@ def test_a_batch_changed_meanwhile_shows_why_under_its_row(
 
 
 def _card_on_its_own(engine: Engine, screen: Screen, product_id: int, today: date = TODAY) -> Shell:
-    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: today)
+    shell = Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: today,
+    )
     open_product_card(shell.ctx, product_id)
     return shell
 
@@ -398,7 +416,16 @@ def test_the_purchase_dialog_on_its_own_suggests_the_amount_and_closes_back_to_t
     engine: Engine, screen: Screen
 ) -> None:
     kawa = add_product(engine, ProductDraft("Kawa", SPOZYWCZE, OPAKOWANIE, minimum_stock=4), BatchDraft(1))
-    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: TODAY)
+    shell = Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: TODAY,
+    )
     # As Zakupy will open it
     open_purchase_dialog(shell.ctx, get_product(engine, kawa))
 

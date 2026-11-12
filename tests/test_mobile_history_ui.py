@@ -28,7 +28,16 @@ def screen() -> Screen:
 
 
 def _shell(engine: Engine, screen: Screen, today: date = TUESDAY) -> Shell:
-    return Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: today)
+    return Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: today,
+    )
 
 
 def _open(engine: Engine, screen: Screen, today: date = TUESDAY) -> ft.Control:

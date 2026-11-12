@@ -19,6 +19,7 @@ from home_stock.mobile.settings import SettingsTab
 from home_stock.mobile.shopping import ShoppingTab
 from home_stock.mobile.start import StartTab
 from home_stock.persistence.catalog import StockError
+from home_stock.sources.app_update import UpdateSource
 
 APP_TITLE = "Home Stock"
 # How long the undo snackbar offers Cofnij
@@ -83,7 +84,8 @@ class Shell:
     """The five tabs on ``engine``, Start first. ``present`` shows a snackbar (Page.show_dialog), ``update`` sends
     changed controls to the screen (Page.update), ``views`` is the page's stack of views (Page.views), whose first
     the shell fills with the tabs and the navigation bar, and ``copy`` and ``share`` hand text to the clipboard and
-    the share sheet (Clipboard.set, Share.share_text). The first start of a new ``version`` opens "Co nowego"."""
+    the share sheet (Clipboard.set, Share.share_text), and ``open_url`` hands an address to the phone
+    (UrlLauncher.launch_url). The first start of a new ``version`` opens "Co nowego"."""
 
     def __init__(
         self,
@@ -93,10 +95,12 @@ class Shell:
         views: list[ft.View],
         copy: Callable[[str], None],
         share: Callable[[str], None],
+        open_url: Callable[[str], None],
         today: Callable[[], date] = date.today,
         version: str = __version__,
     ) -> None:
         self.update = update
+        self.version = version
         self.views = views
         self.undo_bar = UndoBar(self.changed, present, update)
         self.ctx = Context(
@@ -108,15 +112,17 @@ class Shell:
             say=self.undo_bar.say,
             copy=copy,
             share=share,
+            open_url=open_url,
             show_full_screen=self.show_full_screen,
             close_full_screen=self.close_full_screen,
         )
+        self.settings = SettingsTab(self.ctx, version)
         self.tabs: list[tuple[ft.IconData, str, Tab]] = [
             (ft.Icons.HOME_OUTLINED, "Start", StartTab(self.ctx)),
             (ft.Icons.INVENTORY_2_OUTLINED, "Produkty", ProductsTab(self.ctx)),
             (ft.Icons.CHECKLIST, "Zakupy", ShoppingTab(self.ctx)),
             (ft.Icons.HISTORY, "Historia", HistoryTab(self.ctx)),
-            (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", SettingsTab(self.ctx, version)),
+            (ft.Icons.SETTINGS_OUTLINED, "Ustawienia", self.settings),
         ]
         self.navigation_bar = ft.NavigationBar(
             destinations=[
@@ -132,6 +138,11 @@ class Shell:
         tabs_view.navigation_bar = self.navigation_bar
         tabs_view.padding = 0
         announce_new_version(self.ctx, engine, version)
+
+    def check_for_update(self, updates: UpdateSource) -> None:
+        """Show "Dostępna wersja X" beside the version when GitHub has a newer Release with the APK; it blocks on the
+        network, so the app calls it on a thread of its own."""
+        self.settings.update_notice.check(updates, self.version)
 
     def changed(self) -> None:
         self.undo_bar.hide()

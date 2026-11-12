@@ -32,6 +32,24 @@ def test_it_asks_github_for_the_latest_release() -> None:
     assert asked == ["https://api.github.com/repos/Gerruppa/Home-Stock/releases/latest"]
 
 
+def test_the_android_source_offers_the_apk() -> None:
+    apk = "https://github.com/Gerruppa/Home-Stock/releases/download/v0.2.0/Home-Stock-0.2.0.apk"
+    answer = (
+        '{"tag_name": "v0.2.0", "assets": [{"name": "Home-Stock-0.2.0-setup.exe", "size": 5, '
+        f'"browser_download_url": "{URL}"}}, {{"name": "Home-Stock-0.2.0.apk", "size": 7, '
+        f'"browser_download_url": "{apk}"}}]}}'
+    )
+
+    latest = UpdateSource.android(fetch=lambda url: answer.encode()).latest()
+
+    assert (latest.version, latest.url, latest.size) == ("0.2.0", apk, 7)
+
+
+def test_the_android_source_refuses_a_release_without_the_apk() -> None:
+    with pytest.raises(UpdateError, match="nie ma pliku Home-Stock-0.2.0.apk"):
+        UpdateSource.android(fetch=lambda url: LATEST.encode()).latest()
+
+
 def test_a_network_failure_is_an_update_error() -> None:
     def fetch(url: str) -> bytes:
         raise OSError("offline")

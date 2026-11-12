@@ -36,7 +36,7 @@ def screen() -> Screen:
 
 @pytest.fixture
 def shell(engine: Engine, screen: Screen) -> Shell:
-    return Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share)
+    return Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, screen.open_url)
 
 
 def test_five_tabs_open_on_start(shell: Shell) -> None:
