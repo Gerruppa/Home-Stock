@@ -34,6 +34,7 @@ In the Android app only (the Windows app goes with #113). A **Custom List** ("Li
 - A Custom List opens with its name and date ("Kolacja · 15.11.2026") and a menu: "Edytuj listę" (the same form, filled in) and "Usuń listę", which removes it with every line and shows Brakuje; "Cofnij" brings it back as it was, shown again.
 - Ticking a line ("Kupione") marks it bought: a free-text line at once, a Product line through the Purchase dialog with the line's Quantity filled in, recording the Purchase and the tick in one transaction (cancelling leaves the line to buy). One "Cofnij" takes back both.
 - Bought lines go under "Kupione", crossed out, in the order added, without a tick; when no line is left to buy, the list reads "Wszystko kupione." A line's menu offers "Zmień ilość" (a Product line) or "Zmień tekst" (a free-text line), and "Usuń"; a bought line has "Usuń" only. Each has "Cofnij".
+- "Rozpakuj zakupy" on a Custom List opens Unpacking with a row per Product line to buy of an active Product, by Category, each with the line's Quantity (a Product on two lines, as after a deleted line came back, gets one row with both Quantities, both lines bought with it) and an Expiry Date from the Usual Shelf Life; free-text lines and Archived Products' lines are left out, and "Dodaj produkt spoza listy" works as on Brakuje. "Zapisz" records the Purchases and marks the ticked rows' lines bought in one transaction, nothing when a line was deleted or bought meanwhile; one "Cofnij" removes the Batches and unmarks the lines, all or none.
 
 ## Stock History
 

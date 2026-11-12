@@ -1,6 +1,6 @@
 """Zakupy: a chip per list, "Brakuje" first. Brakuje is the Shopping List, every Product Running Low or Running Out
 under its Category, with why it is there, each bought through the Purchase dialog, the list copied or shared as text.
-A Custom List shows its List Lines, with "Dopisz" to write another."""
+A Custom List shows its List Lines, with "Dopisz" to write another and "Rozpakuj zakupy" to unpack them."""
 
 import flet as ft
 
@@ -115,14 +115,7 @@ class ShoppingTab:
         engine = self.ctx.engine
         entries = list_shopping_list(engine, self.ctx.today())
         # Rozpakuj zakupy even with nothing to buy: it also takes Products from outside the list
-        buttons: list[ft.Control] = [
-            ft.OutlinedButton(
-                "Rozpakuj zakupy",
-                icon=ft.Icons.INVENTORY_2_OUTLINED,
-                on_click=lambda _: open_unpacking_dialog(self.ctx),
-                key="unpack",
-            )
-        ]
+        buttons: list[ft.Control] = [self._unpack_button(None)]
         if entries:
             buttons += [
                 ft.OutlinedButton(
@@ -188,6 +181,15 @@ class ShoppingTab:
                 )
         return rows
 
+    def _unpack_button(self, custom_list_id: int | None) -> ft.Control:
+        """Rozpakuj zakupy, of Brakuje or of the Custom List ``custom_list_id``."""
+        return ft.OutlinedButton(
+            "Rozpakuj zakupy",
+            icon=ft.Icons.INVENTORY_2_OUTLINED,
+            on_click=lambda _: open_unpacking_dialog(self.ctx, custom_list_id),
+            key="unpack",
+        )
+
     def _custom_list(self, custom_list: CustomList) -> list[ft.Control]:
         engine = self.ctx.engine
         active = list_products(engine)
@@ -195,7 +197,11 @@ class ShoppingTab:
         # An Archived Product's line stays on the list
         products = {product.id: product for product in active + list_products(engine, archived=True)}
         units = {unit.id: unit for unit in list_units(engine)}
-        rows: list[ft.Control] = [self._title(custom_list), self.line_form.control]
+        rows: list[ft.Control] = [
+            self._title(custom_list),
+            self.line_form.control,
+            ft.Container(ft.Row([self._unpack_button(custom_list.id)]), padding=ft.Padding.symmetric(horizontal=12)),
+        ]
         lines = list_lines(engine, custom_list.id)
         to_buy = [line for line in lines if not line.bought]
         bought = [line for line in lines if line.bought]

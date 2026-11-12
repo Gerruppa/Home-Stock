@@ -57,7 +57,7 @@ Adding a new Batch to a Product, typically from the Shopping List.
 _Avoid_: Restock, buy, add stock
 
 **Unpacking** ("Rozpakowanie zakupów"):
-Recording the whole Shopping List as Purchases in one go, after a shop: one dialog with a row per Product, of which the ticked ones become Batches.
+Recording the whole Shopping List, or a Custom List's Product lines to buy, as Purchases in one go, after a shop: one dialog with a row per Product, of which the ticked ones become Batches (and their List Lines bought).
 _Avoid_: Bulk purchase, check-in
 
 **Stock Event** ("Zdarzenie"):
