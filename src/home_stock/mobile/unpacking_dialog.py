@@ -1,4 +1,5 @@
-"""Unpacking: the whole Shopping List recorded as Purchases in one full-screen form."""
+"""Unpacking: the whole Shopping List, or a Custom List's Product lines to buy, recorded as Purchases in one
+full-screen form."""
 
 from dataclasses import dataclass
 
@@ -9,7 +10,8 @@ from home_stock.domain.stock import BatchDraft, Product, default_expiry
 from home_stock.mobile.context import Context
 from home_stock.mobile.fields import date_field, text_field
 from home_stock.mobile.purchase_dialog import parse_batch_draft
-from home_stock.persistence.catalog import list_categories
+from home_stock.persistence.catalog import StockError, list_categories
+from home_stock.persistence.custom_lists import LinesToUnpack, lines_to_unpack, undo_buy_lines, unpack_list
 from home_stock.persistence.products import (
     list_products,
     list_shopping_list,
@@ -22,6 +24,8 @@ from home_stock.persistence.products import (
 @dataclass
 class _Row:
     product: Product
+    # The Custom List's lines of the Product, marked bought with the Purchase; none off the list and on Brakuje
+    line_ids: tuple[int, ...]
     tick: ft.Checkbox
     quantity: ft.TextField
     expiry: ft.TextField
@@ -38,11 +42,19 @@ class _Row:
         return draft
 
 
-def open_unpacking_dialog(ctx: Context) -> None:
-    products = [entry.product for entry in list_shopping_list(ctx.engine, ctx.today())]
-    # Impulse buys: any active Product, picked by name, gets a row like the Shopping List's below the list
+def open_unpacking_dialog(ctx: Context, custom_list_id: int | None = None) -> None:
+    """Unpack the Shopping List, or the Custom List ``custom_list_id``: its Product lines to buy of active Products,
+    each with the line's Quantity."""
+    # Impulse buys: any active Product, picked by name, gets a row like the listed ones' below the list
     active = {product.id: product for product in list_products(ctx.engine)}
     amounts = suggested_purchases(ctx.engine, list(active.values()), ctx.today())
+    to_unpack: dict[int, LinesToUnpack] = {}
+    if custom_list_id is None:
+        products = [entry.product for entry in list_shopping_list(ctx.engine, ctx.today())]
+    else:
+        to_unpack = lines_to_unpack(ctx.engine, custom_list_id)
+        products = [active[product_id] for product_id in to_unpack]
+        amounts.update({product_id: lines.quantity for product_id, lines in to_unpack.items()})
     rows: list[_Row] = []
     listed: list[ft.Control] = []
     for category in list_categories(ctx.engine):
@@ -50,7 +62,8 @@ def open_unpacking_dialog(ctx: Context) -> None:
         if shown:
             listed.append(_heading(category.name))
         for product in shown:
-            rows.append(_new_row(ctx, product, amounts[product.id]))
+            line_ids = to_unpack[product.id].line_ids if product.id in to_unpack else ()
+            rows.append(_new_row(ctx, product, amounts[product.id], line_ids))
             listed.append(rows[-1].control)
     nothing = ft.Text("Nie ma nic do rozpakowania.", visible=not products)
     # Under its own heading, not the last Category's
@@ -83,18 +96,35 @@ def open_unpacking_dialog(ctx: Context) -> None:
         # Every ticked row is read, so each shows its own problems; nothing is saved while one has one
         ticked = [row for row in rows if row.tick.value]
         drafts = [row.read() for row in ticked]
-        purchases = [(row.product.id, draft) for row, draft in zip(ticked, drafts, strict=True) if draft is not None]
-        if len(purchases) < len(ticked):
+        filled = [(row, draft) for row, draft in zip(ticked, drafts, strict=True) if draft is not None]
+        if len(filled) < len(ticked):
             ctx.update()
             return
         ctx.close_full_screen()
-        if not purchases:
+        if not filled:
             return
         engine = ctx.engine
-        unpacked = purchase_many(engine, purchases, ctx.today())
+        if custom_list_id is None:
+            unpacked = purchase_many(engine, [(row.product.id, draft) for row, draft in filled], ctx.today())
+            ctx.changed()
+            # All or nothing: MissingBatchError leaves every Batch in place when one is already gone
+            ctx.undo(f"Rozpakowano zakupy: {len(unpacked.batches)}", lambda: undo_purchase(engine, unpacked))
+            return
+        try:
+            bought = unpack_list(
+                engine,
+                [(row.line_ids, draft) for row, draft in filled if row.line_ids],
+                [(row.product.id, draft) for row, draft in filled if not row.line_ids],
+                ctx.today(),
+            )
+        except StockError as problem:
+            # A line deleted or bought meanwhile: nothing recorded
+            ctx.changed()
+            ctx.say(str(problem))
+            return
         ctx.changed()
-        # All or nothing: MissingBatchError leaves every Batch in place when one is already gone
-        ctx.undo(f"Rozpakowano zakupy: {len(unpacked.batches)}", lambda: undo_purchase(engine, unpacked))
+        # Batches and lines together, all or nothing
+        ctx.undo(f"Rozpakowano zakupy: {len(bought.purchased.batches)}", lambda: undo_buy_lines(engine, bought))
 
     save_button = ft.FilledButton("Zapisz", on_click=save, visible=bool(products), key="unpack-save")
     ctx.show_full_screen(
@@ -136,7 +166,7 @@ def _heading(text: str) -> ft.Control:
     )
 
 
-def _new_row(ctx: Context, product: Product, suggested: int) -> _Row:
+def _new_row(ctx: Context, product: Product, suggested: int, line_ids: tuple[int, ...] = ()) -> _Row:
     """Two lines, to fit a phone: the tick with the name, then the Quantity beside the whole Expiry Date."""
     default = default_expiry(product.usual_shelf_life_days, ctx.today())
     tick = ft.Checkbox(label=product.name, value=True, key=f"unpack-tick-{product.id}")
@@ -151,4 +181,4 @@ def _new_row(ctx: Context, product: Product, suggested: int) -> _Row:
         padding=ft.Padding.only(bottom=8),
         key=f"unpack-row-{product.id}",
     )
-    return _Row(product, tick, quantity, expiry, error, control)
+    return _Row(product, line_ids, tick, quantity, expiry, error, control)

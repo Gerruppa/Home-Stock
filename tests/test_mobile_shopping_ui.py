@@ -275,7 +275,7 @@ def test_nowa_lista_makes_a_list_and_selects_it(engine: Engine, screen: Screen) 
     assert chip.selected
     assert texts(chip) == ["Kolacja · 15.11"]
     assert "Lista jest pusta." in texts(body)
-    assert absent(body, "unpack")
+    assert absent(body, "copy-list")
     assert texts(screen.presented[-1]) == ["Utworzono listę: Kolacja"]
 
 

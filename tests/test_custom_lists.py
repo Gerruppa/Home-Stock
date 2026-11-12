@@ -9,6 +9,7 @@ from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.persistence.custom_lists import (
     CustomListInUseError,
     LineBoughtError,
+    LinesToUnpack,
     MissingCustomListError,
     MissingListLineError,
     add_line,
@@ -18,6 +19,7 @@ from home_stock.persistence.custom_lists import (
     delete_line,
     edit_custom_list,
     get_line,
+    lines_to_unpack,
     list_custom_lists,
     list_lines,
     make_custom_list,
@@ -27,6 +29,7 @@ from home_stock.persistence.custom_lists import (
     undo_add_line,
     undo_buy_lines,
     undo_make_custom_list,
+    unpack_list,
 )
 from home_stock.persistence.db import init_db
 from home_stock.persistence.history import list_product_events
@@ -36,6 +39,7 @@ from home_stock.persistence.products import (
     ProductsInUseError,
     add_product,
     add_products,
+    archive_product,
     get_product,
     remove_new_products,
     undo_add_product,
@@ -217,6 +221,75 @@ def test_undoing_a_purchase_whose_batch_is_gone_changes_nothing(engine: Engine) 
     with pytest.raises(MissingBatchError):
         undo_buy_lines(engine, bought)
     assert get_line(engine, product_line).bought
+
+
+def test_unpacking_a_list_records_the_purchases_and_marks_the_lines_in_one_go(engine: Engine) -> None:
+    smietana, product_line, note_line = _dinner(engine)
+    kolacja = get_line(engine, product_line).list_id
+    wino = add_product(engine, ProductDraft("Wino", SPOZYWCZE, SZTUKA))
+    wino_line = add_line(engine, kolacja, ListLineDraft.product(wino, 1)).line_id
+    chleb = add_product(engine, ProductDraft("Chleb", SPOZYWCZE, SZTUKA))
+
+    unpacked = unpack_list(
+        engine, [((product_line,), BatchDraft(2)), ((wino_line,), BatchDraft(1))], [(chleb, BatchDraft(1))], TODAY
+    )
+
+    assert [line.bought for line in list_lines(engine, kolacja)] == [True, False, True]
+    assert [get_product(engine, p).quantity for p in (smietana, wino, chleb)] == [2, 1, 1]
+    undo_buy_lines(engine, unpacked)
+    assert [line.bought for line in list_lines(engine, kolacja)] == [False, False, False]
+    assert [get_product(engine, p).quantity for p in (smietana, wino, chleb)] == [0, 0, 0]
+    assert list_product_events(engine, chleb) == []
+
+
+def test_one_purchase_marks_every_line_of_its_product(engine: Engine) -> None:
+    """Two lines of one Product to buy, as after a deleted line came back: one row, one Purchase, both bought."""
+    smietana, product_line, _ = _dinner(engine)
+    deleted = delete_line(engine, product_line)
+    other_line = add_line(engine, deleted.list_id, ListLineDraft.product(smietana, 1)).line_id
+    restore_lines(engine, [deleted])
+
+    unpack_list(engine, [((product_line, other_line), BatchDraft(3))], [], TODAY)
+
+    assert get_line(engine, product_line).bought and get_line(engine, other_line).bought
+    assert [event.change for event in list_product_events(engine, smietana)] == [3]
+
+
+def test_the_lines_to_unpack_are_the_product_lines_to_buy_of_active_products(engine: Engine) -> None:
+    smietana, product_line, _ = _dinner(engine)
+    kolacja = get_line(engine, product_line).list_id
+    wino = add_product(engine, ProductDraft("Wino", SPOZYWCZE, SZTUKA))
+    buy_lines(engine, [(add_line(engine, kolacja, ListLineDraft.product(wino, 1)).line_id, BatchDraft(1))], TODAY)
+    chleb = add_product(engine, ProductDraft("Chleb", SPOZYWCZE, SZTUKA))
+    add_line(engine, kolacja, ListLineDraft.product(chleb, 1))
+    archive_product(engine, chleb)
+    deleted = delete_line(engine, product_line)
+    other_line = add_line(engine, kolacja, ListLineDraft.product(smietana, 1)).line_id
+    restore_lines(engine, [deleted])
+
+    assert lines_to_unpack(engine, kolacja) == {smietana: LinesToUnpack((product_line, other_line), 3)}
+
+
+def test_unpacking_a_list_with_a_line_gone_meanwhile_records_nothing(engine: Engine) -> None:
+    smietana, product_line, _ = _dinner(engine)
+    chleb = add_product(engine, ProductDraft("Chleb", SPOZYWCZE, SZTUKA))
+    delete_line(engine, product_line)
+
+    with pytest.raises(MissingListLineError):
+        unpack_list(engine, [((product_line,), BatchDraft(2))], [(chleb, BatchDraft(1))], TODAY)
+    assert get_product(engine, chleb).quantity == 0
+
+
+def test_undoing_an_unpacking_whose_batch_is_gone_changes_nothing(engine: Engine) -> None:
+    smietana, product_line, _ = _dinner(engine)
+    chleb = add_product(engine, ProductDraft("Chleb", SPOZYWCZE, SZTUKA))
+    unpacked = unpack_list(engine, [((product_line,), BatchDraft(2))], [(chleb, BatchDraft(1))], TODAY)
+    use_units(engine, chleb, 1, TODAY)
+
+    with pytest.raises(MissingBatchError):
+        undo_buy_lines(engine, unpacked)
+    assert get_line(engine, product_line).bought
+    assert get_product(engine, smietana).quantity == 2
 
 
 def test_a_line_s_quantity_or_text_changes_and_changes_back(engine: Engine) -> None:

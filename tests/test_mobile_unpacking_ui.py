@@ -5,8 +5,10 @@ import flet as ft
 import pytest
 from sqlalchemy import Engine
 
+from home_stock.domain.custom_lists import CustomListDraft, ListLineDraft
 from home_stock.domain.stock import BatchDraft, ProductDraft
 from home_stock.mobile.shell import Shell
+from home_stock.persistence.custom_lists import add_line, buy_lines, get_line, make_custom_list, tick_line
 from home_stock.persistence.db import init_db
 from home_stock.persistence.products import add_product, archive_product, get_product
 from mobile_ui import Screen, absent, find, select, tap, texts, walk
@@ -27,8 +29,8 @@ def screen() -> Screen:
     return Screen()
 
 
-def _open(engine: Engine, screen: Screen) -> ft.Control:
-    """Rozpakuj zakupy tapped in Zakupy: the form over the whole screen."""
+def _open(engine: Engine, screen: Screen, custom_list: int | None = None) -> ft.Control:
+    """Rozpakuj zakupy tapped in Zakupy, on Brakuje or on the Custom List given: the form over the whole screen."""
     shell = Shell(
         engine,
         screen.present,
@@ -40,6 +42,8 @@ def _open(engine: Engine, screen: Screen) -> ft.Control:
         today=lambda: TODAY,
     )
     select(shell.navigation_bar, SHOPPING_TAB)
+    if custom_list is not None:
+        tap(find(shell.body, f"list-chip-{custom_list}"), "on_select")
     tap(find(shell.body, "unpack"))
     return find(screen.top, "unpacking-dialog")
 
@@ -326,3 +330,103 @@ def test_rozpakuj_zakupy_is_offered_on_an_empty_list_too(engine: Engine, screen:
 
     assert find(shell.body, "unpack")
     assert "Nic nie trzeba kupować." in texts(shell.body)
+
+
+def _party(engine: Engine) -> tuple[int, int, int, int, int]:
+    """Urodziny with Papier × 4 and Cukier × 3, neither Running Low; returns the list, the two Products and their
+    lines."""
+    papier = add_product(engine, ProductDraft("Papier toaletowy", HIGIENA, ROLKA), BatchDraft(5))
+    cukier = _stocked(engine, "Cukier", shelf_life=10)
+    urodziny = make_custom_list(engine, CustomListDraft("Urodziny"))
+    papier_line = add_line(engine, urodziny, ListLineDraft.product(papier, 4)).line_id
+    cukier_line = add_line(engine, urodziny, ListLineDraft.product(cukier, 3)).line_id
+    return urodziny, papier, cukier, papier_line, cukier_line
+
+
+def test_a_custom_list_s_rows_are_its_lines_by_category_with_their_quantities(engine: Engine, screen: Screen) -> None:
+    urodziny, papier, cukier, _, _ = _party(engine)
+    _low(engine, "Mąka")
+
+    form = _open(engine, screen, urodziny)
+
+    assert sorted(str(tick.label) for tick in walk(form) if isinstance(tick, ft.Checkbox)) == [
+        "Cukier",
+        "Papier toaletowy",
+    ]
+    assert (_field(form, f"unpack-quantity-{cukier}").value, _field(form, f"unpack-expiry-{cukier}").value) == (
+        "3",
+        "11.11.2026",
+    )
+    assert _field(form, f"unpack-quantity-{papier}").value == "4"
+    keys = [control.key for control in find(form, "unpack-rows").controls]  # type: ignore[attr-defined]
+    rows = [f"unpack-row-{product}" for product in (cukier, papier)]
+    assert sorted(rows, key=keys.index) == rows
+
+
+def test_free_text_bought_and_archived_lines_are_left_out(engine: Engine, screen: Screen) -> None:
+    urodziny, _, cukier, papier_line, _ = _party(engine)
+    tick_line(engine, add_line(engine, urodziny, ListLineDraft.note("balony")).line_id)
+    add_line(engine, urodziny, ListLineDraft.note("świeczki"))
+    buy_lines(engine, [(papier_line, BatchDraft(4))], TODAY)
+    archive_product(engine, cukier)
+    sol = _stocked(engine, "Sól")
+    add_line(engine, urodziny, ListLineDraft.product(sol, 2))
+
+    form = _open(engine, screen, urodziny)
+
+    assert [str(tick.label) for tick in walk(form) if isinstance(tick, ft.Checkbox)] == ["Sól"]
+    assert _field(form, f"unpack-quantity-{sol}").value == "2"
+
+
+def test_a_custom_list_with_nothing_to_unpack_says_so(engine: Engine, screen: Screen) -> None:
+    urodziny = make_custom_list(engine, CustomListDraft("Urodziny"))
+    add_line(engine, urodziny, ListLineDraft.note("świeczki"))
+
+    form = _open(engine, screen, urodziny)
+
+    assert "Nie ma nic do rozpakowania." in texts(form)
+    assert not find(form, "unpack-save").visible
+
+
+def test_zapisz_on_a_custom_list_buys_the_ticked_lines_and_one_cofnij_takes_all_back(
+    engine: Engine, screen: Screen
+) -> None:
+    urodziny, papier, cukier, papier_line, cukier_line = _party(engine)
+    sol = _stocked(engine, "Sól")
+    form = _open(engine, screen, urodziny)
+
+    _untick(form, papier)
+    _add_by_name(form, sol)
+    _save(screen)
+
+    snackbar = _snackbar(screen)
+    assert texts(snackbar) == ["Rozpakowano zakupy: 2"]
+    assert (get_line(engine, cukier_line).bought, get_line(engine, papier_line).bought) == (True, False)
+    assert [get_product(engine, p).quantity for p in (cukier, papier, sol)] == [8, 5, 6]
+
+    tap(snackbar, "on_action")
+
+    assert not get_line(engine, cukier_line).bought
+    assert [get_product(engine, p).quantity for p in (cukier, papier, sol)] == [5, 5, 5]
+
+
+def test_a_line_bought_meanwhile_saves_nothing_and_says_so(engine: Engine, screen: Screen) -> None:
+    urodziny, _, cukier, _, cukier_line = _party(engine)
+    _open(engine, screen, urodziny)
+
+    buy_lines(engine, [(cukier_line, BatchDraft(1))], TODAY)
+    _save(screen)
+
+    assert texts(_snackbar(screen)) == ["Ta pozycja jest już kupiona."]
+    assert screen.top is screen.views[0]
+    assert get_product(engine, cukier).quantity == 6
+
+
+def test_brakuje_s_unpacking_ignores_the_custom_lists(engine: Engine, screen: Screen) -> None:
+    _party(engine)
+    maka = _low(engine, "Mąka")
+
+    form = _open(engine, screen)
+
+    assert [str(tick.label) for tick in walk(form) if isinstance(tick, ft.Checkbox)] == ["Mąka"]
+    assert _field(form, f"unpack-quantity-{maka}").value == "2"

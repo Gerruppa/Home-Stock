@@ -10,7 +10,7 @@ from sqlalchemy import Connection, Engine, Row, delete, insert, select, update
 from home_stock.domain.custom_lists import CustomList, CustomListDraft, ListLine, ListLineDraft, custom_list_order
 from home_stock.domain.stock import BatchDraft
 from home_stock.persistence.catalog import StockError
-from home_stock.persistence.models import CustomListRow, ListLineRow
+from home_stock.persistence.models import CustomListRow, ListLineRow, ProductRow
 from home_stock.persistence.products import Purchased, record_purchases, remove_purchases
 
 
@@ -135,7 +135,8 @@ class LineBoughtError(StockError):
 
 @dataclass(frozen=True)
 class BoughtLines:
-    """What buy_lines or tick_line did, for undo_buy_lines: the lines ticked and the Purchases recorded with them."""
+    """What tick_line, buy_lines or unpack_list did, for undo_buy_lines: the lines ticked and the Purchases
+    recorded with them."""
 
     line_ids: tuple[int, ...]
     purchased: Purchased
@@ -153,22 +154,60 @@ def tick_line(engine: Engine, line_id: int) -> BoughtLines:
 def buy_lines(engine: Engine, purchases: Sequence[tuple[int, BatchDraft]], on: date) -> BoughtLines:
     """Record a Purchase of each (Product line id, draft), dated ``on``, and mark those lines bought, in one
     transaction; MissingListLineError when a line is gone, LineBoughtError when one is ticked already."""
-    line_ids = [line_id for line_id, _ in purchases]
+    return unpack_list(engine, [((line_id,), draft) for line_id, draft in purchases], [], on)
+
+
+@dataclass(frozen=True)
+class LinesToUnpack:
+    """A Product's lines to buy on a Custom List, Unpacked as one row: their ids and Quantities added up."""
+
+    line_ids: tuple[int, ...]
+    quantity: int
+
+
+def lines_to_unpack(engine: Engine, list_id: int) -> dict[int, LinesToUnpack]:
+    """What Unpacking a Custom List offers, by Product id in the order added: its Product lines to buy of active
+    Products; a Product on two lines, as after a deleted line came back, has both."""
+    with engine.connect() as connection:
+        rows = connection.execute(
+            select(ListLineRow.id, ListLineRow.product_id, ListLineRow.quantity)
+            .join(ProductRow, ProductRow.id == ListLineRow.product_id)
+            .where(ListLineRow.list_id == list_id, ListLineRow.bought.is_(False), ProductRow.archived.is_(False))
+            .order_by(ListLineRow.id)
+        ).all()
+    found: dict[int, LinesToUnpack] = {}
+    for row in rows:
+        before = found.get(row.product_id, LinesToUnpack((), 0))
+        found[row.product_id] = LinesToUnpack((*before.line_ids, row.id), before.quantity + row.quantity)
+    return found
+
+
+def unpack_list(
+    engine: Engine,
+    lines: Sequence[tuple[Sequence[int], BatchDraft]],
+    off_list: Sequence[tuple[int, BatchDraft]],
+    on: date,
+) -> BoughtLines:
+    """Unpacking a Custom List, in one transaction: a Purchase dated ``on`` of each (Product lines, draft), the lines
+    all of one Product and all marked bought, and of each (Product id, draft) bought off the list.
+    MissingListLineError when a line is gone, LineBoughtError when one is ticked already."""
+    line_ids = [line_id for ids, _ in lines for line_id in ids]
     with engine.begin() as connection:
         products = _refuse_unbought_missing(connection, line_ids)
-        product_purchases = []
-        for line_id, draft in purchases:
-            product_id = products[line_id]
+        purchases = []
+        for ids, draft in lines:
+            product_id = products[ids[0]]
             assert product_id is not None, "a free-text line is ticked, not bought"
-            product_purchases.append((product_id, draft))
-        purchased = record_purchases(connection, product_purchases, on)
+            assert all(products[line_id] == product_id for line_id in ids), "one Purchase is of one Product"
+            purchases.append((product_id, draft))
+        purchased = record_purchases(connection, [*purchases, *off_list], on)
         _set_bought(connection, line_ids, True)
     return BoughtLines(tuple(line_ids), purchased)
 
 
 def undo_buy_lines(engine: Engine, bought: BoughtLines) -> None:
-    """Take back tick_line or buy_lines, all or none: the lines unticked, the Batches and their Stock Events removed;
-    MissingBatchError or MissingListLineError, with nothing changed, when one is gone."""
+    """Take back tick_line, buy_lines or unpack_list, all or none: the lines unticked, the Batches and their Stock
+    Events removed; MissingBatchError or MissingListLineError, with nothing changed, when one is gone."""
     with engine.begin() as connection:
         found = connection.execute(select(ListLineRow.id).where(ListLineRow.id.in_(bought.line_ids))).scalars().all()
         if len(found) < len(bought.line_ids):
