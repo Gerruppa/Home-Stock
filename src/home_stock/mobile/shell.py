@@ -95,9 +95,9 @@ class Shell:
         views: list[ft.View],
         copy: Callable[[str], None],
         share: Callable[[str], None],
+        open_url: Callable[[str], None],
         today: Callable[[], date] = date.today,
         version: str = __version__,
-        open_url: Callable[[str], None] = lambda url: None,
     ) -> None:
         self.update = update
         self.version = version

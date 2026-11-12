@@ -62,7 +62,7 @@ def main(page: ft.Page, demo: bool = False) -> None:
 
     try:
         engine = start_demo_database() if demo else start_database()
-        shell = Shell(engine, page.show_dialog, page.update, page.views, copy, share, open_url=open_url)
+        shell = Shell(engine, page.show_dialog, page.update, page.views, copy, share, open_url)
     except Exception:
         # No console on a phone: the traceback on screen is the only way to see what broke
         page.add(

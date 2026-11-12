@@ -85,7 +85,7 @@ def test_the_android_app_reads_the_apk_of_the_same_release() -> None:
     apk = {"name": "Home-Stock-0.2.0.apk", "browser_download_url": BASE + "Home-Stock-0.2.0.apk", "size": 9876}
     installer = {"name": "Home-Stock-0.2.0-setup.exe", "browser_download_url": BASE + "x.exe", "size": 1}
 
-    release = parse_latest_release(_release(assets=[installer, apk]), asset=apk_name)
+    release = parse_latest_release(_release(assets=[installer, apk]), asset_name=apk_name)
 
     assert (release.version, release.size) == ("0.2.0", 9876)
     assert release.url == "https://github.com/Gerruppa/Home-Stock/releases/download/v0.2.0/Home-Stock-0.2.0.apk"
@@ -93,7 +93,7 @@ def test_the_android_app_reads_the_apk_of_the_same_release() -> None:
 
 def test_a_release_without_the_apk_is_refused() -> None:
     with pytest.raises(UpdateError, match="nie ma pliku Home-Stock-0.2.0.apk"):
-        parse_latest_release(_release(), asset=apk_name)
+        parse_latest_release(_release(), asset_name=apk_name)
 
 
 @pytest.mark.parametrize(

@@ -124,6 +124,22 @@ def apk_build_env(environ: dict[str, str], keystore: Path) -> dict[str, str]:
     }
 
 
+def developer_mode_on() -> bool:
+    """Whether Windows Developer Mode is on, without which flet build apk cannot link its files."""
+    if sys.platform != "win32":
+        return True
+    import winreg
+
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
+        ) as key:
+            value, _ = winreg.QueryValueEx(key, "AllowDevelopmentWithoutDevLicense")
+    except OSError:
+        return False
+    return bool(value == 1)
+
+
 def build_apk(version: str, env: dict[str, str]) -> Path:
     """The signed APK of ``version``, copied into dist/ under its Release name."""
     shutil.rmtree(APK_OUTPUT, ignore_errors=True)
@@ -160,11 +176,15 @@ def publish() -> None:
         sys.exit("Publish from main, after the release PR is merged.")
     if _run("git", "status", "--porcelain", "--untracked-files=no"):
         sys.exit("The working tree has uncommitted changes.")
+    version = current_version(VERSION_FILE.read_text(encoding="utf-8"))
+    # Everything the APK needs, checked before the installer's minutes of building
     try:
         apk_env = apk_build_env(dict(os.environ), KEYSTORE)
+        android_build_number(version)
     except ValueError as error:
         sys.exit(str(error))
-    version = current_version(VERSION_FILE.read_text(encoding="utf-8"))
+    if not developer_mode_on():
+        sys.exit("Turn on Windows Developer Mode: flet build apk needs it (Settings > System > For developers).")
     tag = f"v{version}"
     _run("git", "fetch", "origin", "main", "--tags")
     if _run("git", "rev-parse", "HEAD") != _run("git", "rev-parse", "origin/main"):

@@ -251,3 +251,34 @@ def test_publish_without_the_signing_key_stops_before_touching_anything(
 
     with pytest.raises(SystemExit, match="HOME_STOCK_KEYSTORE_PASSWORD|home-stock-upload.jks"):
         release.main(["publish"])
+
+
+@pytest.mark.parametrize(
+    ("developer_mode", "version", "refusal"),
+    [(False, "0.5.0", "Developer Mode"), (True, "0.100.0", "99")],
+    ids=["developer mode off", "no build number"],
+)
+def test_publish_stops_before_building_when_the_apk_cannot_be_built(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, developer_mode: bool, version: str, refusal: str
+) -> None:
+    keystore = tmp_path / "home-stock-upload.jks"
+    keystore.write_bytes(b"key")
+    version_file = tmp_path / "__init__.py"
+    version_file.write_text(f'__version__ = "{version}"\n', encoding="utf-8")
+    answers = {
+        ("git", "branch", "--show-current"): "main",
+        ("git", "status", "--porcelain", "--untracked-files=no"): "",
+    }
+
+    def run(*command: str) -> str:
+        assert command in answers, f"publish ran {command} after it should have stopped"
+        return answers[command]
+
+    monkeypatch.setattr(release, "_run", run)
+    monkeypatch.setattr(release, "KEYSTORE", keystore)
+    monkeypatch.setattr(release, "VERSION_FILE", version_file)
+    monkeypatch.setattr(release, "developer_mode_on", lambda: developer_mode)
+    monkeypatch.setenv("HOME_STOCK_KEYSTORE_PASSWORD", "secret")
+
+    with pytest.raises(SystemExit, match=refusal):
+        release.main(["publish"])

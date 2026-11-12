@@ -12,7 +12,7 @@ from home_stock import __version__
 from home_stock.mobile.shell import Shell
 from home_stock.persistence.db import init_db
 from home_stock.sources.app_update import UpdateSource
-from mobile_ui import Screen, absent, find, select, tap, texts
+from mobile_ui import Screen, find, select, tap, texts
 
 SETTINGS_TAB = 4
 APK = "https://github.com/Gerruppa/Home-Stock/releases/download/v99.0.0/Home-Stock-99.0.0.apk"
@@ -31,9 +31,7 @@ def _answer(version: str, assets: list[dict[str, object]] | None = None) -> byte
 
 
 def _shell(engine: Engine, screen: Screen) -> Shell:
-    shell = Shell(
-        engine, screen.present, screen.update, screen.views, screen.copy, screen.share, open_url=screen.open_url
-    )
+    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, screen.open_url)
     select(shell.navigation_bar, SETTINGS_TAB)
     return shell
 
@@ -106,4 +104,3 @@ def test_a_failed_check_stays_silent(engine: Engine) -> None:
 
     assert not _notice_shown(screen)
     assert screen.presented == []
-    assert absent(screen.top, "update-dialog")

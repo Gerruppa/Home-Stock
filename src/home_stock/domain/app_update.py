@@ -49,8 +49,8 @@ def android_build_number(version: str) -> int:
     return major * 10000 + minor * 100 + patch
 
 
-def parse_latest_release(text: str, asset: Callable[[str], str] = installer_name) -> LatestRelease:
-    """The version and the file named ``asset(version)`` of the GitHub API's ``releases/latest`` answer."""
+def parse_latest_release(text: str, asset_name: Callable[[str], str] = installer_name) -> LatestRelease:
+    """The version and the file named ``asset_name(version)`` of the GitHub API's ``releases/latest`` answer."""
     try:
         data = json.loads(text)
         tag = _TAG.match(str(data["tag_name"]))
@@ -62,7 +62,7 @@ def parse_latest_release(text: str, asset: Callable[[str], str] = installer_name
     if tag is None:
         raise UpdateError("Najnowsze wydanie nie ma numeru wersji.")
     version = tag["version"]
-    name = asset(version)
+    name = asset_name(version)
     for asset in assets:
         if isinstance(asset, dict) and asset.get("name") == name:
             url, size = asset.get("browser_download_url"), asset.get("size")

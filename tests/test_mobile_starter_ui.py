@@ -29,7 +29,16 @@ def screen() -> Screen:
 
 
 def _shell(engine: Engine, screen: Screen) -> Shell:
-    return Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: TODAY)
+    return Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: TODAY,
+    )
 
 
 def _open_from_settings(engine: Engine, screen: Screen) -> ft.Control:

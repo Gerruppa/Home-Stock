@@ -38,11 +38,11 @@ class UpdateSource:
         fetch: Callable[[str], bytes] = fetch,
         launch: Callable[[list[str]], None] = launch,
         can_install: bool = False,
-        asset: Callable[[str], str] = installer_name,
+        asset_name: Callable[[str], str] = installer_name,
     ) -> None:
         self.fetch = fetch
         # The file the Release must carry for this app: the Windows installer or the APK
-        self.asset = asset
+        self.asset_name = asset_name
         self.launch = launch
         # Only the installed (frozen) app can be replaced by the installer; a source checkout just points to the page
         self.can_install = can_install
@@ -54,14 +54,14 @@ class UpdateSource:
     @classmethod
     def android(cls, fetch: Callable[[str], bytes] = fetch) -> UpdateSource:
         """The Android app's source: it offers the APK, which the phone downloads and installs itself."""
-        return cls(fetch=fetch, asset=apk_name)
+        return cls(fetch=fetch, asset_name=apk_name)
 
     def latest(self) -> LatestRelease:
         try:
             body = self.fetch(LATEST_URL)
         except _NETWORK_ERRORS:
             raise UpdateError("Brak połączenia z GitHubem; nie sprawdzono, czy jest nowa wersja.") from None
-        return parse_latest_release(body.decode("utf-8", errors="replace"), self.asset)
+        return parse_latest_release(body.decode("utf-8", errors="replace"), self.asset_name)
 
     def download(self, release: LatestRelease, folder: Path) -> Path:
         """The installer of ``release`` saved in ``folder``; a file of the wrong size is never written."""

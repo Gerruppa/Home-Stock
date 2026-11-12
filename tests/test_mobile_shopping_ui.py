@@ -37,7 +37,16 @@ def screen() -> Screen:
 
 def _open(engine: Engine, screen: Screen) -> ft.Control:
     """The Zakupy tab of a fresh shell, as the user sees it after tapping its destination."""
-    shell = Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, today=lambda: TODAY)
+    shell = Shell(
+        engine,
+        screen.present,
+        screen.update,
+        screen.views,
+        screen.copy,
+        screen.share,
+        screen.open_url,
+        today=lambda: TODAY,
+    )
     select(shell.navigation_bar, SHOPPING_TAB)
     return shell.body
 

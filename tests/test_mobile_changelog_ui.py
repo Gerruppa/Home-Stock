@@ -24,7 +24,9 @@ def engine(tmp_path: Path) -> Engine:
 
 
 def _start(engine: Engine, screen: Screen, version: str = __version__) -> Shell:
-    return Shell(engine, screen.present, screen.update, screen.views, screen.copy, screen.share, version=version)
+    return Shell(
+        engine, screen.present, screen.update, screen.views, screen.copy, screen.share, screen.open_url, version=version
+    )
 
 
 def test_ustawienia_shows_the_running_version(engine: Engine) -> None:
