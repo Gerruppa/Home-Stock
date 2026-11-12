@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from home_stock.domain.custom_lists import CustomList
+from home_stock.domain.custom_lists import CustomList, ListLine
 from home_stock.domain.history import StockEvent, StockEventKind, WasteLine
 from home_stock.domain.stock import (
     BUFFER_ERROR,
@@ -176,9 +176,36 @@ def format_shopping_list(
 
 def format_custom_list_label(custom_list: CustomList) -> str:
     """ "Kolacja · 15.11", or the name alone without a date: a Custom List's chip on Zakupy."""
+    return _named_with_occasion(custom_list, "%d.%m")
+
+
+def format_custom_list_title(custom_list: CustomList) -> str:
+    """ "Kolacja · 15.11.2026", or the name alone without a date: a Custom List's title and its text's first line."""
+    return _named_with_occasion(custom_list, "%d.%m.%Y")
+
+
+def _named_with_occasion(custom_list: CustomList, date_format: str) -> str:
     if custom_list.occasion is None:
         return custom_list.name
-    return f"{custom_list.name} · {custom_list.occasion:%d.%m}"
+    return f"{custom_list.name} · {custom_list.occasion.strftime(date_format)}"
+
+
+def format_custom_list(
+    custom_list: CustomList, lines: Sequence[ListLine], products: Mapping[int, Product], units: Mapping[int, Unit]
+) -> str:
+    """A Custom List as plain text, what its "Kopiuj listę" copies and "Udostępnij" shares: the title, then each line
+    to buy in the order given, a Product line as "Śmietana 30% — 2 szt.", a free-text line as written."""
+    rows = [format_custom_list_title(custom_list)]
+    for line in lines:
+        if line.bought:
+            continue
+        if line.product_id is None:
+            rows.append(line.text or "")
+        else:
+            product = products[line.product_id]
+            assert line.quantity is not None, "a Product line has a Quantity"
+            rows.append(f"{product.name} — {format_quantity(line.quantity, units[product.unit_id], None)}")
+    return "\n".join(rows)
 
 
 def format_shopping_reason(entry: ShoppingListEntry) -> str:

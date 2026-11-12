@@ -1,13 +1,17 @@
 """Zakupy: a chip per list, "Brakuje" first. Brakuje is the Shopping List, every Product Running Low or Running Out
 under its Category, with why it is there, each bought through the Purchase dialog, the list copied or shared as text.
-A Custom List shows its List Lines, with "Dopisz" to write another and "Rozpakuj zakupy" to unpack them."""
+A Custom List shows its List Lines, with "Dopisz" to write another, "Rozpakuj zakupy" to unpack them, and the
+lines to buy copied or shared as text."""
+
+from collections.abc import Callable
 
 import flet as ft
 
 from home_stock.domain.custom_lists import NOTHING_TYPED, CustomList, ListLine, ListLineDraft
 from home_stock.domain.formatting import (
+    format_custom_list,
     format_custom_list_label,
-    format_date,
+    format_custom_list_title,
     format_purchase_amount,
     format_quantity,
     format_shopping_reason,
@@ -50,16 +54,6 @@ class ShoppingTab:
         self.content = ft.ListView(expand=True, spacing=0, padding=ft.Padding.only(bottom=16), key="shopping")
         self.control: ft.Control = self.content
         self.refresh()
-
-    def _list_text(self) -> str:
-        return shopping_list_text(self.ctx.engine, self.ctx.today())
-
-    def _copy(self) -> None:
-        self.ctx.copy(self._list_text())
-        self.ctx.say("Skopiowano listę zakupów.")
-
-    def _share(self) -> None:
-        self.ctx.share(self._list_text())
 
     def _select(self, list_id: int | None) -> None:
         self.selected = list_id
@@ -114,20 +108,8 @@ class ShoppingTab:
     def _shopping_list(self) -> list[ft.Control]:
         engine = self.ctx.engine
         entries = list_shopping_list(engine, self.ctx.today())
-        # Rozpakuj zakupy even with nothing to buy: it also takes Products from outside the list
-        buttons: list[ft.Control] = [self._unpack_button(None)]
-        if entries:
-            buttons += [
-                ft.OutlinedButton(
-                    "Kopiuj listę", icon=ft.Icons.CONTENT_COPY, on_click=lambda _: self._copy(), key="copy-list"
-                ),
-                ft.OutlinedButton(
-                    "Udostępnij", icon=ft.Icons.SHARE, on_click=lambda _: self._share(), key="share-list"
-                ),
-            ]
-        rows: list[ft.Control] = [
-            ft.Container(ft.Row(buttons, wrap=True), padding=ft.Padding.symmetric(horizontal=12, vertical=8))
-        ]
+        text = (lambda: shopping_list_text(engine, self.ctx.today())) if entries else None
+        rows: list[ft.Control] = [self._buttons(None, text, "Skopiowano listę zakupów.")]
         if not entries:
             rows.append(ft.Container(ft.Text("Nic nie trzeba kupować."), padding=16, key="nothing-to-buy"))
             return rows
@@ -181,14 +163,35 @@ class ShoppingTab:
                 )
         return rows
 
-    def _unpack_button(self, custom_list_id: int | None) -> ft.Control:
-        """Rozpakuj zakupy, of Brakuje or of the Custom List ``custom_list_id``."""
-        return ft.OutlinedButton(
-            "Rozpakuj zakupy",
-            icon=ft.Icons.INVENTORY_2_OUTLINED,
-            on_click=lambda _: open_unpacking_dialog(self.ctx, custom_list_id),
-            key="unpack",
-        )
+    def _buttons(self, custom_list_id: int | None, text: Callable[[], str] | None, copied_message: str) -> ft.Control:
+        """Rozpakuj zakupy, of Brakuje or of the Custom List ``custom_list_id``, then Kopiuj listę and Udostępnij of
+        the text ``text`` makes while there is something to buy; ``copied_message`` says the copy is made."""
+        # Rozpakuj zakupy even with nothing to buy: it also takes Products from outside the list
+        buttons: list[ft.Control] = [
+            ft.OutlinedButton(
+                "Rozpakuj zakupy",
+                icon=ft.Icons.INVENTORY_2_OUTLINED,
+                on_click=lambda _: open_unpacking_dialog(self.ctx, custom_list_id),
+                key="unpack",
+            )
+        ]
+        if text is not None:
+            buttons += [
+                ft.OutlinedButton(
+                    "Kopiuj listę",
+                    icon=ft.Icons.CONTENT_COPY,
+                    on_click=lambda _: self._copy(text(), copied_message),
+                    key="copy-list",
+                ),
+                ft.OutlinedButton(
+                    "Udostępnij", icon=ft.Icons.SHARE, on_click=lambda _: self.ctx.share(text()), key="share-list"
+                ),
+            ]
+        return ft.Container(ft.Row(buttons, wrap=True), padding=ft.Padding.symmetric(horizontal=12, vertical=8))
+
+    def _copy(self, text: str, copied_message: str) -> None:
+        self.ctx.copy(text)
+        self.ctx.say(copied_message)
 
     def _custom_list(self, custom_list: CustomList) -> list[ft.Control]:
         engine = self.ctx.engine
@@ -197,14 +200,15 @@ class ShoppingTab:
         # An Archived Product's line stays on the list
         products = {product.id: product for product in active + list_products(engine, archived=True)}
         units = {unit.id: unit for unit in list_units(engine)}
-        rows: list[ft.Control] = [
-            self._title(custom_list),
-            self.line_form.control,
-            ft.Container(ft.Row([self._unpack_button(custom_list.id)]), padding=ft.Padding.symmetric(horizontal=12)),
-        ]
         lines = list_lines(engine, custom_list.id)
         to_buy = [line for line in lines if not line.bought]
         bought = [line for line in lines if line.bought]
+        text = (lambda: format_custom_list(custom_list, lines, products, units)) if to_buy else None
+        rows: list[ft.Control] = [
+            self._title(custom_list),
+            self.line_form.control,
+            self._buttons(custom_list.id, text, f"Skopiowano listę: {custom_list.name}"),
+        ]
         if not lines:
             rows.append(ft.Container(ft.Text("Lista jest pusta."), padding=16, key="custom-list-empty"))
         elif not to_buy:
@@ -223,9 +227,6 @@ class ShoppingTab:
 
     def _title(self, custom_list: CustomList) -> ft.Control:
         """The list's name and date, with its menu: Edytuj listę, Usuń listę."""
-        title = custom_list.name
-        if custom_list.occasion is not None:
-            title += f" · {format_date(custom_list.occasion)}"
         menu = ft.PopupMenuButton(
             icon=ft.Icons.MORE_VERT,
             tooltip="Lista",
@@ -249,7 +250,7 @@ class ShoppingTab:
             ft.Row(
                 [
                     ft.Text(
-                        title,
+                        format_custom_list_title(custom_list),
                         size=18,
                         weight=ft.FontWeight.W_500,
                         expand=True,

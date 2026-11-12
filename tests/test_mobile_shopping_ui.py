@@ -506,6 +506,27 @@ def test_with_every_line_bought_the_list_says_so(engine: Engine, screen: Screen)
     # A bought line keeps only Usuń
     assert absent(body, f"change-line-{product_line}")
     assert find(body, f"delete-line-{product_line}")
+    # Nothing left to copy or share
+    assert absent(body, "copy-list")
+    assert absent(body, "share-list")
+
+
+def test_kopiuj_liste_copies_the_custom_list_s_lines_to_buy(engine: Engine, screen: Screen) -> None:
+    body, _, _, _, note_line = _dinner_on_screen(engine, screen)
+    tap(find(body, f"tick-{note_line}"))
+
+    tap(find(body, "copy-list"))
+
+    assert screen.copied == ["Kolacja · 15.11.2026\nŚmietana — 2 szt."]
+    assert texts(screen.presented[-1]) == ["Skopiowano listę: Kolacja"]
+
+
+def test_udostepnij_shares_the_custom_list(engine: Engine, screen: Screen) -> None:
+    body, *_ = _dinner_on_screen(engine, screen)
+
+    tap(find(body, "share-list"))
+
+    assert screen.shared == ["Kolacja · 15.11.2026\nŚmietana — 2 szt.\nświeczki"]
 
 
 def test_zmien_ilosc_changes_a_product_line_and_cofnij_changes_it_back(engine: Engine, screen: Screen) -> None:
