@@ -1,11 +1,17 @@
 """The full-screen dialog that records a Purchase: a new Batch with a Quantity and an optional Expiry Date."""
 
+from collections.abc import Callable
+from functools import partial
+
 import flet as ft
 
+from home_stock.domain.custom_lists import ListLine
 from home_stock.domain.formatting import format_date, parse_count, parse_date
 from home_stock.domain.stock import BatchDraft, Product, default_expiry
 from home_stock.mobile.context import Context
 from home_stock.mobile.fields import date_field, show_error, text_field
+from home_stock.persistence.catalog import StockError
+from home_stock.persistence.custom_lists import buy_lines, undo_buy_lines
 from home_stock.persistence.products import purchase, suggested_purchases, undo_purchase
 
 
@@ -38,8 +44,13 @@ def read_batch_draft(quantity: ft.TextField, expiry: ft.TextField) -> BatchDraft
     return draft
 
 
-def open_purchase_dialog(ctx: Context, product: Product) -> None:
-    suggested = suggested_purchases(ctx.engine, [product], ctx.today())[product.id]
+def open_purchase_dialog(ctx: Context, product: Product, line: ListLine | None = None) -> None:
+    """With a Custom List's ``line``, the line's Quantity is filled in and saving marks the line bought too, both
+    taken back by one Cofnij."""
+    if line is not None and line.quantity is not None:
+        suggested = line.quantity
+    else:
+        suggested = suggested_purchases(ctx.engine, [product], ctx.today())[product.id]
     quantity = text_field("Ilość", str(suggested), "purchase-quantity", number=True)
     default = default_expiry(product.usual_shelf_life_days, ctx.today())
     expiry = date_field(
@@ -52,11 +63,24 @@ def open_purchase_dialog(ctx: Context, product: Product) -> None:
             ctx.update()
             return
         engine = ctx.engine
-        purchased = purchase(engine, product.id, draft, ctx.today())
+        undo: Callable[[], None]
+        if line is None:
+            purchased = purchase(engine, product.id, draft, ctx.today())
+            undo = partial(undo_purchase, engine, purchased)
+        else:
+            try:
+                bought = buy_lines(engine, [(line.id, draft)], ctx.today())
+            except StockError as problem:
+                # The line was deleted or ticked meanwhile: nothing recorded
+                ctx.close_full_screen()
+                ctx.changed()
+                ctx.say(str(problem))
+                return
+            undo = partial(undo_buy_lines, engine, bought)
         ctx.close_full_screen()
         ctx.changed()
         # MissingBatchError, shown in the snackbar, when the Batch is already gone
-        ctx.undo(f"Zakupiono: {product.name}", lambda: undo_purchase(engine, purchased))
+        ctx.undo(f"Zakupiono: {product.name}", undo)
 
     quantity.on_submit = save
     expiry.on_submit = save

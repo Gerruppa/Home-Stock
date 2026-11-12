@@ -11,6 +11,7 @@ SRC = ROOT / "src" / "home_stock"
 EVERYDAY = {
     "amount", "build", "buy", "count", "delete", "entry", "group", "log", "measure", "order", "tag", "transaction",
     "type",
+    "item",  # Flet's PopupMenuItem, not a Product
     "weight",  # Flet's font weight, not a Product's
 }  # fmt: skip
 

@@ -7,6 +7,7 @@ import flet as ft
 from home_stock.domain.custom_lists import NOTHING_TYPED, CustomList, ListLine, ListLineDraft
 from home_stock.domain.formatting import (
     format_custom_list_label,
+    format_date,
     format_purchase_amount,
     format_quantity,
     format_shopping_reason,
@@ -16,10 +17,22 @@ from home_stock.domain.stock import Product, Unit, name_key
 from home_stock.mobile.context import Context
 from home_stock.mobile.custom_list_form import open_custom_list_form
 from home_stock.mobile.fields import show_error, text_field
+from home_stock.mobile.line_dialog import open_line_dialog
 from home_stock.mobile.purchase_dialog import open_purchase_dialog
 from home_stock.mobile.unpacking_dialog import open_unpacking_dialog
 from home_stock.persistence.catalog import StockError, list_categories, list_units
-from home_stock.persistence.custom_lists import add_line, list_custom_lists, list_lines, undo_add_line
+from home_stock.persistence.custom_lists import (
+    add_line,
+    delete_custom_list,
+    delete_line,
+    list_custom_lists,
+    list_lines,
+    restore_custom_list,
+    restore_lines,
+    tick_line,
+    undo_add_line,
+    undo_buy_lines,
+)
 from home_stock.persistence.products import (
     list_products,
     list_shopping_list,
@@ -182,12 +195,163 @@ class ShoppingTab:
         # An Archived Product's line stays on the list
         products = {product.id: product for product in active + list_products(engine, archived=True)}
         units = {unit.id: unit for unit in list_units(engine)}
-        rows: list[ft.Control] = [self.line_form.control]
+        rows: list[ft.Control] = [self._title(custom_list), self.line_form.control]
         lines = list_lines(engine, custom_list.id)
+        to_buy = [line for line in lines if not line.bought]
+        bought = [line for line in lines if line.bought]
         if not lines:
             rows.append(ft.Container(ft.Text("Lista jest pusta."), padding=16, key="custom-list-empty"))
-        rows += [_line_tile(line, products, units) for line in lines]
+        elif not to_buy:
+            rows.append(ft.Container(ft.Text("Wszystko kupione."), padding=16, key="all-bought"))
+        rows += [self._line_tile(line, products, units) for line in to_buy]
+        if bought:
+            rows.append(
+                ft.Container(
+                    ft.Text("Kupione", weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                    padding=ft.Padding.only(left=16, top=16, bottom=4),
+                    key="bought-heading",
+                )
+            )
+            rows += [self._line_tile(line, products, units) for line in bought]
         return rows
+
+    def _title(self, custom_list: CustomList) -> ft.Control:
+        """The list's name and date, with its menu: Edytuj listę, Usuń listę."""
+        title = custom_list.name
+        if custom_list.occasion is not None:
+            title += f" · {format_date(custom_list.occasion)}"
+        menu = ft.PopupMenuButton(
+            icon=ft.Icons.MORE_VERT,
+            tooltip="Lista",
+            items=[
+                ft.PopupMenuItem(
+                    content=ft.Text("Edytuj listę"),
+                    icon=ft.Icons.EDIT_OUTLINED,
+                    on_click=lambda _: open_custom_list_form(self.ctx, self._made, custom_list),
+                    key="edit-list",
+                ),
+                ft.PopupMenuItem(
+                    content=ft.Text("Usuń listę"),
+                    icon=ft.Icons.DELETE_OUTLINE,
+                    on_click=lambda _: self._delete_list(custom_list),
+                    key="delete-list",
+                ),
+            ],
+            key="list-menu",
+        )
+        return ft.Container(
+            ft.Row(
+                [
+                    ft.Text(
+                        title,
+                        size=18,
+                        weight=ft.FontWeight.W_500,
+                        expand=True,
+                        max_lines=2,
+                        overflow=ft.TextOverflow.ELLIPSIS,
+                        key="custom-list-title",
+                    ),
+                    menu,
+                ]
+            ),
+            padding=ft.Padding.only(left=16, right=4, top=8),
+        )
+
+    def _delete_list(self, custom_list: CustomList) -> None:
+        engine = self.ctx.engine
+        try:
+            deleted = delete_custom_list(engine, custom_list.id)
+        except StockError as problem:
+            self.ctx.changed()
+            self.ctx.say(str(problem))
+            return
+
+        def undo() -> None:
+            restore_custom_list(engine, deleted)
+            # Shown again, as it was before Usuń
+            self.selected = custom_list.id
+
+        self.ctx.changed()
+        self.ctx.undo(f"Usunięto listę: {custom_list.name}", undo)
+
+    def _line_tile(self, line: ListLine, products: dict[int, Product], units: dict[int, Unit]) -> ft.Control:
+        """A line to buy has a tick and a menu (Zmień ilość or Zmień tekst, Usuń); a bought one is crossed out, with
+        Usuń only."""
+        product = None if line.product_id is None else products[line.product_id]
+        name = line.text or "" if product is None else product.name
+        title = f"{name} (w archiwum)" if product is not None and product.archived else name
+        style = ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH) if line.bought else None
+        color = ft.Colors.ON_SURFACE_VARIANT if line.bought else None
+        items = [
+            ft.PopupMenuItem(
+                content=ft.Text("Usuń"),
+                icon=ft.Icons.DELETE_OUTLINE,
+                on_click=lambda _: self._delete_line(line, name),
+                key=f"delete-line-{line.id}",
+            )
+        ]
+        if not line.bought:
+            items.insert(
+                0,
+                ft.PopupMenuItem(
+                    content=ft.Text("Zmień tekst" if product is None else "Zmień ilość"),
+                    icon=ft.Icons.EDIT_OUTLINED,
+                    on_click=lambda _: open_line_dialog(self.ctx, line, name),
+                    key=f"change-line-{line.id}",
+                ),
+            )
+        trailing: list[ft.Control] = []
+        if product is not None and line.quantity is not None:
+            trailing.append(
+                ft.Text(
+                    format_purchase_amount(line.quantity, units[product.unit_id]),
+                    weight=ft.FontWeight.W_500,
+                    style=style,
+                    color=color,
+                )
+            )
+        if not line.bought:
+            trailing.append(
+                ft.IconButton(
+                    ft.Icons.CHECK_CIRCLE_OUTLINE,
+                    tooltip="Kupione",
+                    on_click=lambda _: self._tick(line, product),
+                    key=f"tick-{line.id}",
+                )
+            )
+        trailing.append(ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, tooltip="Pozycja", items=items))
+        return ft.ListTile(
+            title=ft.Text(title, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, style=style, color=color),
+            trailing=ft.Row(trailing, tight=True),
+            dense=True,
+            key=f"custom-line-{line.id}",
+        )
+
+    def _tick(self, line: ListLine, product: Product | None) -> None:
+        """A Product line is bought through the Purchase dialog; a free-text line is ticked at once."""
+        if product is not None:
+            open_purchase_dialog(self.ctx, product, line)
+            return
+        engine = self.ctx.engine
+        try:
+            bought = tick_line(engine, line.id)
+        except StockError as problem:
+            self.ctx.changed()
+            self.ctx.say(str(problem))
+            return
+        self.ctx.changed()
+        self.ctx.undo(f"Kupiono: {line.text}", lambda: undo_buy_lines(engine, bought))
+
+    def _delete_line(self, line: ListLine, name: str) -> None:
+        engine = self.ctx.engine
+        try:
+            deleted = delete_line(engine, line.id)
+        except StockError as problem:
+            self.ctx.changed()
+            self.ctx.say(str(problem))
+            return
+        self.ctx.changed()
+        self.ctx.undo(f"Usunięto: {name}", lambda: restore_lines(engine, [deleted]))
 
 
 class LineForm:
@@ -201,9 +365,11 @@ class LineForm:
         self.list_id: int | None = None
         self.by_id: dict[int, Product] = {}
         self.by_name: dict[str, Product] = {}
+        # How many name fields were made: each new one differs from the last by it (see _clear)
+        self.made = 0
         self.name = self._new_name()
-        # The name field is made anew to empty it (see _clear), so its key is on the box around it
-        self.name_box = ft.Container(self.name, expand=True, key="line-name")
+        # The name field is made anew to empty it (see _clear), so its key is on the row around it
+        self.name_box = ft.Row([self.name], expand=True, key="line-name")
         self.quantity = text_field("Ilość", "1", "line-quantity", number=True, width=80)
         self.quantity.on_submit = self._add
         self.error = ft.Text("", color=ft.Colors.ERROR, size=12, visible=False, key="line-error")
@@ -233,19 +399,25 @@ class LineForm:
         self.by_name = {name_key(product.name): product for product in active}
         self.name.options = [ft.DropdownOption(key=str(p.id), text=p.name) for p in active]
 
-    @staticmethod
-    def _new_name() -> ft.Dropdown:
-        # No key: Flet would take a new field with the old one's key for a rebuild of it, and freeze it
-        return ft.Dropdown(label="Dopisz", hint_text="produkt albo cokolwiek", editable=True, enable_filter=True)
+    def _new_name(self) -> ft.Dropdown:
+        # A key of its own: with the old one's key, or none, Flet takes the new field for the old one (and freezes
+        # it), and the phone keeps the text typed into it
+        self.made += 1
+        return ft.Dropdown(
+            label="Dopisz",
+            hint_text="produkt albo cokolwiek",
+            editable=True,
+            enable_filter=True,
+            expand=True,
+            key=f"line-name-field-{self.made}",
+        )
 
     def _clear(self) -> None:
         # A new field: the phone keeps the text typed into the old one, even after it is set to ""
         options = self.name.options
         self.name = self._new_name()
         self.name.options = options
-        # Controls compare by their fields, so the new field equals the old one and Flet would skip it: through None
-        self.name_box.content = None
-        self.name_box.content = self.name
+        self.name_box.controls = [self.name]
         self.quantity.value = "1"
         show_error(self.quantity, None)
         self.error.visible = False
@@ -289,17 +461,3 @@ class LineForm:
         self._clear()
         self.ctx.changed()
         self.ctx.undo(f"Dopisano: {label}", lambda: undo_add_line(engine, added))
-
-
-def _line_tile(line: ListLine, products: dict[int, Product], units: dict[int, Unit]) -> ft.Control:
-    if line.product_id is None:
-        return ft.ListTile(title=ft.Text(line.text or ""), dense=True, key=f"custom-line-{line.id}")
-    product = products[line.product_id]
-    assert line.quantity is not None
-    title = f"{product.name} (w archiwum)" if product.archived else product.name
-    return ft.ListTile(
-        title=ft.Text(title, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
-        trailing=ft.Text(format_purchase_amount(line.quantity, units[product.unit_id]), weight=ft.FontWeight.W_500),
-        dense=True,
-        key=f"custom-line-{line.id}",
-    )
