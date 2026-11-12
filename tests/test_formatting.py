@@ -3,7 +3,10 @@ from decimal import Decimal
 
 import pytest
 
+from home_stock.domain.custom_lists import CustomList, ListLine
 from home_stock.domain.formatting import (
+    format_custom_list,
+    format_custom_list_title,
     format_date,
     format_days,
     format_days_left,
@@ -39,6 +42,32 @@ def test_format_shopping_list() -> None:
 
     assert text == "Higiena\nPapier toaletowy — kup 5 rol.\n\nSpożywcze\nCukier — kup 4 opak.\nMleko — kup 1 opak."
     assert format_shopping_list([spozywcze], units, [], {}) == ""
+
+
+def test_format_custom_list_title_with_and_without_a_date() -> None:
+    assert format_custom_list_title(CustomList(1, "Kolacja w sobotę", date(2026, 11, 15))) == (
+        "Kolacja w sobotę · 15.11.2026"
+    )
+    assert format_custom_list_title(CustomList(1, "Grill", None)) == "Grill"
+
+
+def test_format_custom_list_gives_the_lines_to_buy_in_order_under_the_title() -> None:
+    kolacja = CustomList(1, "Kolacja w sobotę", date(2026, 11, 15))
+    szt, opak = Unit(1, "sztuka", "szt."), Unit(2, "opakowanie", "opak.")
+    smietana = Product(1, "Śmietana 30%", 1, szt.id, None, None, False, ())
+    makaron = Product(2, "Makaron", 1, opak.id, None, None, False, ())
+    lines = [
+        ListLine(1, kolacja.id, smietana.id, 2, None, False),
+        ListLine(2, kolacja.id, None, None, "świeczki", False),
+        ListLine(3, kolacja.id, None, None, "kwiaty", True),
+        ListLine(4, kolacja.id, makaron.id, 1, None, False),
+    ]
+
+    text = format_custom_list(kolacja, lines, {p.id: p for p in (smietana, makaron)}, {u.id: u for u in (szt, opak)})
+
+    assert text == "Kolacja w sobotę · 15.11.2026\nŚmietana 30% — 2 szt.\nświeczki\nMakaron — 1 opak."
+    grill = CustomList(2, "Grill", None)
+    assert format_custom_list(grill, [ListLine(5, grill.id, None, None, "węgiel", False)], {}, {}) == "Grill\nwęgiel"
 
 
 def test_dates() -> None:
